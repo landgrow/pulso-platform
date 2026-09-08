@@ -1,0 +1,52 @@
+name: pulso-platform
+version: 1.0.0
+description: Squad de construção do PULSO — ingestão multi-fonte, motor de reconciliação e backend Vercel+Supabase
+author: Land Grow
+license: UNLICENSED
+slashPrefix: pulso-platform
+
+aiox:
+  minVersion: "2.1.0"
+  type: squad
+
+components:
+  tasks:
+    - setup-supabase-schema.md
+    - scaffold-vercel-api.md
+    - build-upload-ingestion.md
+    - build-reconciliation-engine.md
+    - wire-ana-zeus-reconciliation.md
+    - build-connector-instagram.md
+    - build-connector-crm.md
+    - build-connector-financeiro.md
+    - setup-min-and-journey-schema.md
+    - run-min-fundacao.md
+    - run-min-operacao.md
+    - run-min-consolidacao.md
+    - build-qualificacao-fundo-signal.md
+    - bridge-frontend-to-backend.md
+  agents:
+    - platform-architect.md
+    - ingestion-engineer.md
+    - reconciliation-engineer.md
+    - min-facilitator.md
+  workflows:
+    - build-sequencial.yaml
+  checklists: []
+  templates: []
+  tools: []
+  scripts: []
+
+config:
+  extends: extend
+  coding-standards: config/coding-standards.md
+  tech-stack: config/tech-stack.md
+  source-tree: config/source-tree.md
+
+dependencies:
+  node: []
+  python: []
+  squads: []
+
+tags:
+  - custom

@@ -1,0 +1,93 @@
+-- =============================================================================
+-- Seed — Dados de exemplo para desenvolvimento
+-- =============================================================================
+-- USE APENAS EM DEV/LOCAL. NÃO RODE EM PRODUÇÃO.
+-- Para resetar: DELETE CASCADE nas tabelas collections na ordem certa.
+-- =============================================================================
+--
+-- Para criar um usuário de teste:
+-- 1. Cadastre-se em http://localhost:3000/register
+-- 2. Copie o user_id de auth.users
+-- 3. Atualize as queries abaixo com o user_id
+--
+-- Alternativa: Supabase Dashboard > Authentication > Users
+-- =============================================================================
+
+-- ─── 1. Papéis de plataforma (Land Grow) ───────────────────────────────────
+-- INSERT INTO public.platform_roles (user_id, role)
+-- VALUES ('ADMIN_UUID', 'platform_admin');
+
+-- ─── 2. Org Land Grow (staff interno) ─────────────────────────────────────
+-- INSERT INTO public.organizations (id, slug, name, plan)
+-- VALUES (
+--   '00000000-0000-0000-0000-000000000001',
+--   'landgrow',
+--   'Land Grow Aceleração de Negócios',
+--   'enterprise'
+-- );
+
+-- ─── 3. Org de exemplo: JS Construtora ─────────────────────────────────────
+-- INSERT INTO public.organizations (id, slug, name, plan)
+-- VALUES (
+--   '00000000-0000-0000-0000-000000000002',
+--   'js-constructora',
+--   'JS Construtora',
+--   'pro'
+-- );
+
+-- ─── 4. Cliente JS Construtora ─────────────────────────────────────────────
+-- INSERT INTO public.clientes (org_id, cnpj, setor, porte, faturamento_faixa)
+-- VALUES (
+--   '00000000-0000-0000-0000-000000000002',
+--   '12.345.678/0001-90',
+--   'Construção civil',
+--   'media',
+--   '500k-1m'
+-- );
+
+-- ─── 5. Período de exemplo: mês atual ─────────────────────────────────────
+-- WITH cliente AS (
+--   SELECT id FROM public.clientes WHERE org_id = '00000000-0000-0000-0000-000000000002'
+-- )
+-- INSERT INTO public.periodos_dados (cliente_id, mes, ano, status)
+-- SELECT id, 9, 2026, 'em_coleta' FROM cliente;
+
+-- ─── 6. Coleção de exemplo (formulário vazio) ──────────────────────────────
+-- WITH periodo AS (
+--   SELECT id FROM public.periodos_dados
+--   WHERE cliente_id = (SELECT id FROM public.clientes WHERE org_id = '00000000-0000-0000-0000-000000000002')
+--   LIMIT 1
+-- )
+-- INSERT INTO public.colecoes (periodo_id, tipo, status, payload)
+-- SELECT id, 'formulario', 'rascunho', '{}'::jsonb FROM periodo;
+
+-- =============================================================================
+-- GUIDES DE USO:
+--
+-- Para adicionar um admin de plataforma:
+--   INSERT INTO public.platform_roles (user_id, role)
+--   VALUES ('SEU_UUID', 'platform_admin');
+--
+-- Para adicionar um cliente:
+--   1. INSERT INTO public.organizations (slug, name, plan)
+--        VALUES ('nome-empresa', 'Nome da Empresa', 'starter');
+--   2. INSERT INTO public.clientes (org_id, setor, porte)
+--        VALUES (ORG_UUID, 'Setor', 'pequena');
+--   3. INSERT INTO public.memberships (user_id, org_id, role)
+--        VALUES (USER_UUID, ORG_UUID, 'client_owner');
+--
+-- Para criar período do mês atual:
+--   WITH cli AS (
+--     SELECT id FROM public.clientes WHERE org_id = 'ORG_UUID'
+--   )
+--   INSERT INTO public.periodos_dados (cliente_id, mes, ano, status)
+--   SELECT id, 9, 2026, 'em_coleta' FROM cli;
+--
+-- Para resetar seed (dev):
+--   DELETE FROM public.colecoes;
+--   DELETE FROM public.evidencias;
+--   DELETE FROM public.periodos_dados;
+--   DELETE FROM public.clientes;
+--   DELETE FROM public.memberships WHERE org_id != 'LANDGROW_ORG_UUID';
+--   DELETE FROM public.organizations WHERE id != 'LANDGROW_ORG_UUID';
+-- =============================================================================

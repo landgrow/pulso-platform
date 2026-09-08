@@ -1,0 +1,57 @@
+# Kong API Gateway — configuração para Supabase local
+# Roteia: /rest → PostgREST, /auth → GoTrue, /storage → Storage API
+
+_format_version: "3.0"
+
+services:
+  # PostgREST — API REST sobre Postgres
+  - name: postgrest
+    url: http://postgrest:3001/
+    routes:
+      - name: postgrest-route
+        paths:
+          - /rest
+        strip_path: true
+
+  # GoTrue — Autenticação
+  - name: gotrue
+    url: http://gotrue:9999/
+    routes:
+      - name: gotrue-route
+        paths:
+          - /auth
+        strip_path: true
+
+  # Storage API
+  - name: storage
+    url: http://storage:5000/
+    routes:
+      - name: storage-route
+        paths:
+          - /storage
+        strip_path: true
+
+# Plugins globais
+plugins:
+  - name: cors
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Authorization
+        - Content-Type
+        - X-Client-Info
+        - X-Requested-With
+        - apikey
+      exposed_headers:
+        - X-Total-Count
+      credentials: true
+      max_age: 3600

@@ -1,0 +1,29 @@
+# Dependências e frameworks externos
+node_modules
+.aiox-core
+aiox-core
+
+# Build e gen
+.next
+out
+build
+dist
+
+# Código vanilla JS legado (em migração)
+views
+store.js
+charts.js
+app.js
+auth.js
+lib
+api
+data
+supabase
+db
+index.html
+styles.css
+fluent forms
+docs-archive
+
+# Scripts auxiliares
+scripts

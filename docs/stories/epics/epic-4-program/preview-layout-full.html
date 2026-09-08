@@ -1,0 +1,2462 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plano de Ação — PULSO (Completo)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #F7F6F3;
+      --surface: #FFFFFF;
+      --surface-hover: #F5F4F1;
+      --primary: #1B4332;
+      --primary-light: #2D6A4F;
+      --accent: #74C69D;
+      --accent-dim: #D8F3DC;
+      --text: #1C1917;
+      --text-muted: #78716C;
+      --text-faint: #A8A29E;
+      --border: #E7E5E4;
+      --border-strong: #D6D3D1;
+      --danger: #DC2626;
+      --warning: #D97706;
+      --success: #16A34A;
+      --chart-1: #74C69D;
+      --chart-2: #3B82F6;
+      --chart-3: #F472B6;
+      --chart-4: #FB923C;
+      --chart-5: #A78BFA;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-lg: 0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
+      --radius: 8px;
+      --radius-sm: 5px;
+      --sidebar-w: 260px;
+      --header-h: 52px;
+      --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+      --font-heading: 'DM Sans', system-ui, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #111110;
+        --surface: #1C1C1A;
+        --surface-hover: #242422;
+        --text: #F5F5F4;
+        --text-muted: #A8A29E;
+        --text-faint: #78716C;
+        --border: #2E2E2C;
+        --border-strong: #3D3D3B;
+        --accent-dim: #1B4332;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+        --shadow: 0 1px 3px rgba(0,0,0,0.4);
+        --shadow-lg: 0 4px 12px rgba(0,0,0,0.5);
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #111110;
+      --surface: #1C1C1A;
+      --surface-hover: #242422;
+      --text: #F5F5F4;
+      --text-muted: #A8A29E;
+      --text-faint: #78716C;
+      --border: #2E2E2C;
+      --border-strong: #3D3D3B;
+      --accent-dim: #1B4332;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      font-size: 14px;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .workspace-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 600;
+      width: 100%;
+      transition: background 0.15s;
+    }
+
+    .workspace-btn:hover { background: var(--surface-hover); }
+
+    .workspace-avatar {
+      width: 28px;
+      height: 28px;
+      background: var(--primary);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .workspace-name {
+      flex: 1;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .workspace-chevron {
+      color: var(--text-faint);
+      font-size: 16px;
+      transition: transform 0.2s;
+    }
+
+    .workspace-btn.open .workspace-chevron { transform: rotate(180deg); }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .sidebar-section-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 12px 8px 4px;
+    }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 14px;
+      transition: all 0.12s;
+      user-select: none;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: var(--font-body);
+    }
+
+    .sidebar-item:hover { background: var(--surface-hover); color: var(--text); }
+    .sidebar-item.active { background: var(--accent-dim); color: var(--primary); font-weight: 500; }
+
+    .sidebar-item .icon { font-size: 16px; flex-shrink: 0; width: 20px; text-align: center; }
+    .sidebar-item .label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar-item .count { font-size: 12px; color: var(--text-faint); background: var(--surface-hover); padding: 1px 6px; border-radius: 10px; }
+    .sidebar-item .badge { font-size: 10px; background: var(--accent); color: white; padding: 1px 5px; border-radius: 8px; font-weight: 600; }
+
+    .base-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .sidebar-sub-items { padding-left: 28px; }
+    .sidebar-divider { height: 1px; background: var(--border); margin: 8px 16px; }
+
+    .new-base-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 14px;
+      transition: all 0.12s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: var(--font-body);
+    }
+
+    .new-base-btn:hover { background: var(--surface-hover); color: var(--text); }
+
+    /* ===== MAIN ===== */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .header {
+      height: var(--header-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .base-title {
+      font-family: var(--font-heading);
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .base-title-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+    }
+
+    .header-spacer { flex: 1; }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 5px 10px;
+      font-size: 13px;
+      color: var(--text-faint);
+      width: 200px;
+      cursor: text;
+      transition: border-color 0.15s, width 0.2s;
+    }
+
+    .search-box:focus-within { border-color: var(--accent); width: 260px; }
+    .search-box input { background: none; border: none; outline: none; font-family: var(--font-body); font-size: 13px; color: var(--text); width: 100%; }
+    .search-box input::placeholder { color: var(--text-faint); }
+
+    .header-actions { display: flex; align-items: center; gap: 4px; }
+
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 16px;
+      transition: all 0.12s;
+    }
+
+    .icon-btn:hover { background: var(--surface-hover); color: var(--text); }
+    .icon-btn.primary { background: var(--primary); color: white; }
+    .icon-btn.primary:hover { background: var(--primary-light); }
+
+    /* ===== VIEW TABS ===== */
+    .view-tabs {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 0 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .view-tab {
+      padding: 8px 14px;
+      font-size: 13px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.12s;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      font-family: var(--font-body);
+    }
+
+    .view-tab:hover { color: var(--text); }
+    .view-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+    .view-tab .emoji { font-size: 14px; }
+
+    /* ===== TOOLBAR ===== */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-label { font-size: 12px; color: var(--text-faint); }
+
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      background: var(--surface-hover);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.12s;
+      white-space: nowrap;
+    }
+
+    .chip:hover { border-color: var(--border-strong); }
+    .chip.active { background: var(--accent-dim); border-color: var(--accent); color: var(--primary); }
+    .chip.danger { border-color: #FCA5A5; color: var(--danger); }
+    .chip svg { width: 12px; height: 12px; }
+
+    .filter-bar { display: flex; align-items: center; gap: 6px; flex: 1; overflow-x: auto; flex-wrap: wrap; }
+    .filter-bar::-webkit-scrollbar { height: 0; }
+
+    .divider-v { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+
+    /* ===== CONTENT ===== */
+    .content { flex: 1; overflow-y: auto; padding: 16px; }
+
+    /* ===== KANBAN ===== */
+    .kanban { display: flex; gap: 12px; align-items: flex-start; min-height: calc(100vh - 200px); }
+    .kanban.active { display: flex; }
+    .kanban.hidden { display: none; }
+
+    .kanban-col { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+
+    .kanban-col-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .kanban-col-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .kanban-col-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+    .kanban-col-count { font-size: 12px; color: var(--text-faint); background: var(--bg); padding: 1px 7px; border-radius: 10px; }
+
+    .kanban-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: box-shadow 0.15s, transform 0.1s;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .kanban-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+    .kanban-card-title { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.4; }
+    .kanban-card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+
+    .badge-high { background: #FEE2E2; color: #991B1B; }
+    .badge-medium { background: #FEF3C7; color: #92400E; }
+    .badge-low { background: #DCFCE7; color: #166534; }
+    .badge-tag { background: var(--surface-hover); color: var(--text-muted); border: 1px solid var(--border); }
+    .badge-person { background: var(--accent-dim); color: var(--primary); }
+    .badge-status { background: var(--surface-hover); color: var(--text-muted); }
+
+    .kanban-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+
+    .kanban-date { font-size: 11px; color: var(--text-faint); }
+    .kanban-date.overdue { color: var(--danger); font-weight: 600; }
+
+    .kanban-person {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .kanban-subtasks {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-faint);
+    }
+
+    .kanban-dependency {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      color: var(--warning);
+      background: #FEF3C7;
+      padding: 1px 5px;
+      border-radius: 6px;
+    }
+
+    .kanban-add-card {
+      width: 100%;
+      padding: 8px;
+      background: none;
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius);
+      color: var(--text-faint);
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      font-family: var(--font-body);
+      transition: all 0.12s;
+    }
+
+    .kanban-add-card:hover { border-color: var(--accent); color: var(--primary); background: var(--accent-dim); }
+
+    /* Sub-grouping */
+    .kanban-subgroup { margin-top: 4px; padding-left: 8px; border-left: 2px solid var(--border); }
+    .kanban-subgroup-label { font-size: 11px; color: var(--text-faint); padding: 4px 0 4px 8px; font-weight: 500; }
+
+    /* ===== CALENDAR ===== */
+    .calendar { display: none; flex-direction: column; gap: 16px; }
+    .calendar.active { display: flex; }
+
+    .calendar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .calendar-nav { display: flex; align-items: center; gap: 8px; }
+    .calendar-nav-btn { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 6px; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--text-muted); transition: all 0.12s; }
+    .calendar-nav-btn:hover { background: var(--surface-hover); }
+
+    .calendar-month { font-family: var(--font-heading); font-size: 16px; font-weight: 700; }
+
+    .calendar-zoom { display: flex; gap: 4px; }
+    .calendar-zoom-btn { padding: 3px 10px; border: 1px solid var(--border); border-radius: 6px; background: none; cursor: pointer; font-size: 12px; color: var(--text-muted); font-family: var(--font-body); transition: all 0.12s; }
+    .calendar-zoom-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--primary); font-weight: 600; }
+    .calendar-zoom-btn:hover { background: var(--surface-hover); }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat 7, 1fr;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .calendar-day-header { padding: 8px; text-align: center; font-size: 11px; font-weight: 600; color: var(--text-faint); background: var(--surface-hover); border-bottom: 1px solid var(--border); }
+
+    .calendar-day {
+      min-height: 100px;
+      padding: 6px;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .calendar-day:nth-child(7n) { border-right: none; }
+
+    .calendar-day.other-month { background: var(--surface-hover); }
+    .calendar-day.today .day-number { background: var(--primary); color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+
+    .day-number { font-size: 13px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px; }
+
+    .day-event {
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-bottom: 2px;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .day-event.high { background: #FEE2E2; color: #991B1B; border-left: 3px solid #DC2626; }
+    .day-event.medium { background: #FEF3C7; color: #92400E; border-left: 3px solid #D97706; }
+    .day-event.low { background: #DCFCE7; color: #166534; border-left: 3px solid #16A34A; }
+    .day-event.done { background: #F1F5F9; color: #475569; border-left: 3px solid #94A3B8; text-decoration: line-through; }
+
+    /* ===== TIMELINE ===== */
+    .timeline { display: none; flex-direction: column; gap: 12px; }
+    .timeline.active { display: flex; }
+
+    .timeline-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+    }
+
+    .timeline-scale { display: flex; gap: 4px; }
+
+    .timeline-row {
+      display: flex;
+      align-items: stretch;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      height: 44px;
+    }
+
+    .timeline-task-label {
+      width: 220px;
+      flex-shrink: 0;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      border-right: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow: hidden;
+    }
+
+    .timeline-bar-container {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      overflow-x: auto;
+    }
+
+    .timeline-bar {
+      position: absolute;
+      height: 28px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      font-size: 11px;
+      font-weight: 500;
+      color: white;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .timeline-bar.high { background: #DC2626; }
+    .timeline-bar.medium { background: #D97706; }
+    .timeline-bar.low { background: #16A34A; }
+    .timeline-bar.done { background: #64748B; }
+
+    .timeline-dep-line {
+      position: absolute;
+      height: 2px;
+      background: var(--warning);
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .timeline-grid-lines {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      pointer-events: none;
+    }
+
+    .timeline-grid-line { flex: 1; border-right: 1px solid var(--border); }
+
+    /* ===== CHART ===== */
+    .chart { display: none; flex-direction: column; gap: 16px; }
+    .chart.active { display: flex; }
+
+    .chart-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .chart-title { font-family: var(--font-heading); font-size: 14px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+
+    .chart-area {
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      height: 200px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+
+    .chart-bar-group { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+    .chart-bar-wrapper { height: 100%; display: flex; align-items: flex-end; gap: 3px; }
+    .chart-bar { width: 20px; border-radius: 3px 3px 0 0; cursor: pointer; transition: opacity 0.15s; }
+    .chart-bar:hover { opacity: 0.8; }
+    .chart-label { font-size: 11px; color: var(--text-faint); text-align: center; }
+    .chart-bar-value { font-size: 10px; color: var(--text-muted); font-weight: 600; position: absolute; transform: translateY(-18px); }
+
+    .chart-grid { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
+    .chart-grid-line { border-top: 1px dashed var(--border); width: 100%; }
+
+    .chart-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; }
+    .chart-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+    .chart-legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+    .chart-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+    /* ===== LIST ===== */
+    .list-view { display: none; }
+    .list-view.active { display: block; }
+
+    .list-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .list-table th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-hover);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+
+    .list-table th:hover { color: var(--text); }
+    .list-table th .col-resize { position: absolute; right: 0; top: 0; bottom: 0; width: 4px; cursor: col-resize; }
+    .list-table th .col-resize:hover { background: var(--accent); }
+
+    .list-table td {
+      padding: 10px 12px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .list-table tr:last-child td { border-bottom: none; }
+    .list-table tr:hover td { background: var(--surface-hover); }
+
+    .list-title-cell { display: flex; align-items: center; gap: 8px; }
+    .list-checkbox { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border-strong); cursor: pointer; flex-shrink: 0; }
+    .list-title-text { font-weight: 500; color: var(--text); }
+
+    .list-sub-items {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-faint);
+      margin-left: 24px;
+      padding: 2px 0;
+    }
+
+    .list-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+      margin-right: 4px;
+    }
+
+    .add-item-row td { padding: 6px 12px; }
+    .add-item-input { width: 100%; background: none; border: none; outline: none; font-family: var(--font-body); font-size: 13px; color: var(--text); padding: 4px 0; }
+    .add-item-input::placeholder { color: var(--text-faint); }
+
+    /* ===== GALLERY ===== */
+    .gallery { display: none; flex-wrap: wrap; gap: 12px; }
+    .gallery.active { display: flex; }
+
+    .gallery-card {
+      width: 200px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: pointer;
+      transition: box-shadow 0.15s, transform 0.1s;
+    }
+
+    .gallery-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+
+    .gallery-cover {
+      height: 120px;
+      background: linear-gradient(135deg, var(--chart-1), var(--chart-2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+    }
+
+    .gallery-body { padding: 12px; }
+    .gallery-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .gallery-meta { display: flex; gap: 4px; flex-wrap: wrap; }
+
+    /* ===== MODALS ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      max-height: 80vh;
+      overflow-y: auto;
+      transform: scale(0.96);
+      transition: transform 0.2s;
+      width: 600px;
+    }
+
+    .modal-overlay.open .modal { transform: scale(1); }
+    .modal.wide { width: 720px; }
+    .modal.narrow { width: 420px; }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      z-index: 1;
+    }
+
+    .modal-title { font-family: var(--font-heading); font-size: 16px; font-weight: 700; flex: 1; }
+    .modal-close { width: 28px; height: 28px; border-radius: 6px; border: none; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 18px; }
+    .modal-close:hover { background: var(--surface-hover); }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .form-input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-body); font-size: 14px; color: var(--text); background: var(--surface); outline: none; transition: border-color 0.15s; }
+    .form-input:focus { border-color: var(--accent); }
+    .form-textarea { resize: vertical; min-height: 80px; }
+    .form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23A8A29E' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 32px; }
+
+    .property-row { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: var(--radius-sm); transition: background 0.12s; }
+    .property-row:hover { background: var(--surface-hover); }
+    .property-drag { color: var(--text-faint); cursor: grab; font-size: 14px; }
+    .property-type-icon { font-size: 14px; color: var(--text-muted); width: 20px; text-align: center; }
+    .property-name { flex: 1; font-size: 13px; color: var(--text); }
+    .property-required { font-size: 11px; color: var(--danger); }
+
+    .add-property-btn {
+      width: 100%;
+      padding: 8px;
+      background: none;
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius-sm);
+      color: var(--text-faint);
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-family: var(--font-body);
+      transition: all 0.12s;
+      margin-top: 8px;
+    }
+
+    .add-property-btn:hover { border-color: var(--accent); color: var(--primary); background: var(--accent-dim); }
+
+    .btn { padding: 8px 16px; border-radius: var(--radius-sm); font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.12s; border: none; }
+    .btn-ghost { background: none; color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--surface-hover); }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-light); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: #B91C1C; }
+
+    /* Filter builder */
+    .filter-builder { display: flex; flex-direction: column; gap: 8px; }
+    .filter-group { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
+    .filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .filter-logic { font-size: 11px; font-weight: 700; color: var(--primary); padding: 2px 8px; background: var(--accent-dim); border-radius: 4px; }
+
+    .filter-select { padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: var(--surface); color: var(--text); appearance: none; }
+    .filter-input { padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: var(--surface); color: var(--text); outline: none; min-width: 140px; }
+    .filter-input:focus { border-color: var(--accent); }
+    .filter-remove { color: var(--danger); cursor: pointer; font-size: 16px; padding: 2px; }
+    .filter-remove:hover { background: #FEE2E2; border-radius: 4px; }
+
+    .filter-add-btn { display: flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); background: none; cursor: pointer; font-size: 12px; color: var(--text-muted); font-family: var(--font-body); transition: all 0.12s; }
+    .filter-add-btn:hover { border-color: var(--accent); color: var(--primary); background: var(--accent-dim); }
+
+    /* Automation panel */
+    .automation-list { display: flex; flex-direction: column; gap: 8px; }
+    .automation-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s; }
+    .automation-item:hover { border-color: var(--accent); background: var(--accent-dim); }
+    .automation-icon { width: 32px; height: 32px; border-radius: 8px; background: var(--accent-dim); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--primary); flex-shrink: 0; }
+    .automation-info { flex: 1; min-width: 0; }
+    .automation-name { font-size: 13px; font-weight: 600; color: var(--text); }
+    .automation-trigger { font-size: 11px; color: var(--text-faint); }
+    .automation-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+    .automation-status.active { background: #DCFCE7; color: #166534; }
+    .automation-status.paused { background: #FEF3C7; color: #92400E; }
+
+    /* Property types grid */
+    .property-types-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .property-type-btn { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: none; cursor: pointer; font-size: 12px; color: var(--text-muted); font-family: var(--font-body); transition: all 0.12s; text-align: left; }
+    .property-type-btn:hover { background: var(--surface-hover); border-color: var(--border-strong); color: var(--text); }
+    .property-type-btn .pt-icon { font-size: 16px; flex-shrink: 0; }
+    .property-type-btn .pt-name { flex: 1; }
+
+    /* ===== ICON + COLOR PICKER ===== */
+    .icon-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-top: 8px; }
+    .icon-option { width: 36px; height: 36px; border-radius: 6px; border: 1px solid var(--border); background: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.12s; }
+    .icon-option:hover { background: var(--surface-hover); border-color: var(--border-strong); }
+    .icon-option.selected { background: var(--accent-dim); border-color: var(--accent); }
+    .color-picker { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .color-option { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.12s; }
+    .color-option:hover { transform: scale(1.15); }
+    .color-option.selected { border-color: var(--text); }
+
+    /* ===== TABS INSIDE MODAL ===== */
+    .modal-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .modal-tab { padding: 8px 16px; font-size: 13px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.12s; background: none; border-top: none; border-left: none; border-right: none; font-family: var(--font-body); }
+    .modal-tab:hover { color: var(--text); }
+    .modal-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+    /* Template section */
+    .template-section { margin-top: 16px; padding: 12px; background: var(--bg); border-radius: var(--radius); }
+    .template-label { font-size: 11px; font-weight: 600; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .template-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+    .template-card { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 12px; color: var(--text-muted); transition: all 0.12s; }
+    .template-card:hover { border-color: var(--accent); color: var(--primary); background: var(--accent-dim); }
+
+    /* ===== STATUS BADGE ===== */
+    .status-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 3px 9px; border-radius: 20px; font-weight: 500; }
+
+    /* ===== THEME TOGGLE ===== */
+    .theme-toggle { position: fixed; bottom: 16px; right: 16px; z-index: 200; display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px 6px 10px; box-shadow: var(--shadow); font-size: 12px; color: var(--text-muted); cursor: pointer; font-family: var(--font-body); }
+    .theme-toggle:hover { box-shadow: var(--shadow-lg); }
+    .theme-icon { font-size: 14px; }
+
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+    /* ===== GALLERY + TABLE VIEWS ===== */
+    .table-view { display: none; }
+    .table-view.active { display: block; }
+
+    .table-full {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .table-full th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-hover);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .table-full td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .table-full tr:last-child td { border-bottom: none; }
+    .table-full tr:hover td { background: var(--surface-hover); }
+
+    .freeze-col { position: sticky; left: 0; z-index: 1; background: inherit; }
+
+    /* ===== PERMISSIONS PANEL ===== */
+    .permissions-list { display: flex; flex-direction: column; gap: 6px; }
+    .permission-row { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: var(--radius-sm); background: var(--surface-hover); }
+    .permission-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--primary); color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+    .permission-name { flex: 1; font-size: 13px; font-weight: 500; }
+    .permission-level { font-size: 12px; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); padding: 2px 8px; border-radius: 10px; }
+
+    .share-link { display: flex; align-items: center; gap: 8px; padding: 10px; background: var(--bg); border-radius: var(--radius-sm); margin-top: 8px; }
+    .share-link-url { flex: 1; font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .share-link-copy { padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: none; cursor: pointer; font-size: 12px; color: var(--text-muted); font-family: var(--font-body); }
+    .share-link-copy:hover { background: var(--surface-hover); }
+  </style>
+</head>
+<body>
+
+<!-- ===== SIDEBAR ===== -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <button class="workspace-btn" onclick="toggleWorkspace(this)">
+      <div class="workspace-avatar">LG</div>
+      <span class="workspace-name">Land Grow</span>
+      <span class="workspace-chevron">▾</span>
+    </button>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">Espaço de trabalho</div>
+
+    <button class="sidebar-item" onclick="setActive(this)">
+      <span class="icon">🏠</span>
+      <span class="label">Painel</span>
+    </button>
+
+    <button class="sidebar-item" onclick="setActive(this)">
+      <span class="icon">🔍</span>
+      <span class="label">Busca global</span>
+      <span class="count">⌘K</span>
+    </button>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section-label">Bases</div>
+
+    <button class="sidebar-item active" onclick="setActive(this); showView('kanban')">
+      <span class="base-dot" style="background:#74C69D"></span>
+      <span class="label">Plano de Ação</span>
+      <span class="count">8</span>
+    </button>
+
+    <button class="sidebar-item" onclick="setActive(this); showView('calendar')">
+      <span class="base-dot" style="background:#60A5FA"></span>
+      <span class="label">Reuniões</span>
+      <span class="count">3</span>
+    </button>
+
+    <button class="sidebar-item" onclick="setActive(this); showView('gallery')">
+      <span class="base-dot" style="background:#F472B6"></span>
+      <span class="label">Clientes</span>
+      <span class="count">5</span>
+    </button>
+
+    <button class="sidebar-item" onclick="setActive(this); showView('chart')">
+      <span class="base-dot" style="background:#FB923C"></span>
+      <span class="label">Dashboard</span>
+      <span class="badge">NEW</span>
+    </button>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section-label">Rituais</div>
+
+    <div class="sidebar-sub-items">
+      <button class="sidebar-item" onclick="setActive(this)">
+        <span class="icon">📅</span>
+        <span class="label">Daily Standup</span>
+      </button>
+      <button class="sidebar-item" onclick="setActive(this)">
+        <span class="icon">📊</span>
+        <span class="label">Weekly Review</span>
+      </button>
+      <button class="sidebar-item" onclick="setActive(this)">
+        <span class="icon">🎯</span>
+        <span class="label">Sessão de Resultado</span>
+      </button>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <button class="sidebar-item" onclick="openModal('automationModal')">
+      <span class="icon">⚡</span>
+      <span class="label">Automações</span>
+    </button>
+
+    <button class="sidebar-item" onclick="openModal('permissionModal')">
+      <span class="icon">🔒</span>
+      <span class="label">Permissões</span>
+    </button>
+
+    <div class="sidebar-divider"></div>
+
+    <button class="new-base-btn" onclick="openModal('newBaseModal')">
+      <span class="icon">+</span>
+      <span class="label">Nova base</span>
+    </button>
+  </nav>
+</aside>
+
+<!-- ===== MAIN ===== -->
+<main class="main">
+  <!-- Header -->
+  <header class="header">
+    <div class="base-title">
+      <div class="base-title-icon" style="background:#74C69D">📋</div>
+      <span>Plano de Ação</span>
+    </div>
+
+    <div class="header-spacer"></div>
+
+    <div class="search-box">
+      <span>🔍</span>
+      <input type="text" placeholder="Buscar nesta base...">
+      <span style="font-size:11px;color:var(--text-faint)">⌘K</span>
+    </div>
+
+    <div class="header-actions">
+      <button class="icon-btn" title="Automações" onclick="openModal('automationModal')">
+        <span>⚡</span>
+      </button>
+      <button class="icon-btn" title="Filtros" onclick="openModal('filterModal')">
+        <span>⚙</span>
+      </button>
+      <button class="icon-btn" title="Compartilhar" onclick="openModal('permissionModal')">
+        <span>🔗</span>
+      </button>
+      <button class="icon-btn primary" onclick="openModal('newItemModal')">
+        <span>+</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- View tabs -->
+  <div class="view-tabs">
+    <button class="view-tab active" onclick="switchView(this, 'kanban')">
+      <span class="emoji">📊</span> Kanban
+    </button>
+    <button class="view-tab" onclick="switchView(this, 'table')">
+      <span class="emoji">▦</span> Tabela
+    </button>
+    <button class="view-tab" onclick="switchView(this, 'list')">
+      <span class="emoji">≡</span> Lista
+    </button>
+    <button class="view-tab" onclick="switchView(this, 'calendar')">
+      <span class="emoji">📅</span> Calendário
+    </button>
+    <button class="view-tab" onclick="switchView(this, 'timeline')">
+      <span class="emoji">📐</span> Timeline
+    </button>
+    <button class="view-tab" onclick="switchView(this, 'gallery')">
+      <span class="emoji">🖼</span> Galeria
+    </button>
+    <button class="view-tab" onclick="switchView(this, 'chart')">
+      <span class="emoji">📈</span> Gráfico
+    </button>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <span class="toolbar-label">Agrupar:</span>
+    <button class="chip active" onclick="setChip(this)">Status</button>
+    <button class="chip" onclick="setChip(this)">Prioridade</button>
+    <button class="chip" onclick="setChip(this)">Responsável</button>
+    <button class="chip" onclick="setChip(this)">Setor</button>
+
+    <div class="divider-v"></div>
+
+    <span class="toolbar-label">Ordenar:</span>
+    <button class="chip" onclick="setChip(this)">Prazo ↑</button>
+    <button class="chip" onclick="setChip(this)">Prioridade</button>
+    <button class="chip" onclick="setChip(this)">Nome A→Z</button>
+
+    <div class="divider-v"></div>
+
+    <div class="filter-bar">
+      <button class="chip" onclick="toggleFilter(this)">🔴 Alta</button>
+      <button class="chip" onclick="toggleFilter(this)">🟡 Média</button>
+      <button class="chip" onclick="toggleFilter(this)">🟢 Baixa</button>
+      <button class="chip" onclick="toggleFilter(this)">👤 NAYARA</button>
+      <button class="chip" onclick="toggleFilter(this)">🏢 CLIENTE</button>
+      <button class="chip" onclick="toggleFilter(this)">📅 Esta semana</button>
+    </div>
+
+    <button class="chip" onclick="openModal('columnModal')" style="border-style:dashed;">
+      + Editar colunas
+    </button>
+  </div>
+
+  <!-- Content Area -->
+  <div class="content">
+
+    <!-- ===== KANBAN ===== -->
+    <div class="kanban active" id="kanbanView">
+      <!-- A FAZER -->
+      <div class="kanban-col">
+        <div class="kanban-col-header">
+          <div class="kanban-col-dot" style="background:#94A3B8"></div>
+          <span class="kanban-col-name">A Fazer</span>
+          <span class="kanban-col-count">3</span>
+        </div>
+
+        <div class="kanban-card" onclick="openModal('newItemModal')">
+          <div class="kanban-card-title">Criar apresentação RADAR pro Jefferson</div>
+          <div class="kanban-card-meta">
+            <span class="badge badge-high">🔴 Alta</span>
+            <span class="badge badge-tag">Estratégico</span>
+          </div>
+          <div class="kanban-card-meta">
+            <span class="kanban-subtasks">☑ 2/5 sub-tarefas</span>
+          </div>
+          <div class="kanban-card-footer">
+            <span class="kanban-date">15/09</span>
+            <div class="kanban-person">NC</div>
+          </div>
+        </div>
+
+        <div class="kanban-card" onclick="openModal('newItemModal')">
+          <div class="kanban-card-title">Exportar dados RS Company pro Drive</div>
+          <div class="kanban-card-meta">
+            <span class="badge badge-medium">🟡 Média</span>
+            <span class="badge badge-person">🏢 CLIENTE</span>
+          </div>
+          <div class="kanban-card-footer">
+            <span class="kanban-date">18/09</span>
+            <div class="kanban-person">NC</div>
+          </div>
+        </div>
+
+        <div class="kanban-card" onclick="openModal('newItemModal')">
+          <div class="kanban-card-title">Revisar contrato Ontech TI</div>
+          <div class="kanban-card-meta">
+            <span class="badge badge-medium">🟡 Média</span>
+          </div>
+          <div class="kanban-card-footer">
+            <span class="kanban-date">20/09</span>
+            <div class="kanban-person">NC</div>
+          </div>
+        </div>
+
+        <button class="kanban-add-card" onclick="openModal('newItemModal')">+ Adicionar tarefa</button>
+      </div>
+
+      <!-- EM ANDAMENTO -->
+      <div class="kanban-col">
+        <div class="kanban-col-header">
+          <div class="kanban-col-dot" style="background:#3B82F6"></div>
+          <span class="kanban-col-name">🔵 Em Andamento</span>
+          <span class="kanban-col-count">2</span>
+        </div>
+
+        <div class="kanban-card" onclick="openModal('newItemModal')">
+          <div class="kanban-card-title">Validar BIN RADAR — JS Construtora</div>
+          <div class="kanban-card-meta">
+            <span class="badge badge-high">🔴 Alta</span>
+            <span class="badge badge-person">🏢 CLIENTE</span>
+          </div>
+          <div class="kanban-card-meta">
+            <span class="kanban-dependency">🔗 Bloqueada por: Proposta RS Company</span>
+          </div>
+          <div class="kanban-card-footer">
+            <span class="kanban-date overdue">12/09 ⚠️</span>
+            <div class="kanban-person">NC</div>
+          </div>
+        </div>
+
+        <div class="kanban-card" onclick="openModal('newItemModal')">
+          <div class="kanban-card-title">Implementar motor de coleções</div>
+          <div class="kanban-card-meta">
+            <span class="badge badge-high">🔴 Alta</span>
+            <span class="badge badge-tag">Operacional</span>
+          </div>
+          <div class="kanban-card-meta">
+            <span class="kanban-subtasks">☑ 3/8 sub-tarefas</span>
+          </div>
+          <div class="kanban-card-footer">
+            <span class="kanban-date">10/09</span>
+            <div class="kanban-person">NC</div>
+          </div>
+        </div>
+
+        <button class="kanban-add-card" onclick="openModal('newItemModal')">+ Adicionar tarefa</button>
+      </div>
+
+      <!-- REVISÃO -->
+      <div class="kanban-col">
+        <div class="kanban-col-header">
+          <div class="kanban-col-dot" style="background:#EAB308"></div>
+          <span class="kanban-col-name">🟡 Revisão</span>
+          <span class="kanban-col-count">2</span>
+        </div>
+
+        <div class="kanban-card" onclick="openModal('newItemModal')">
+          <div class="kanban-card-title">Proposta Land Grow Scale — RS Company</div>
+          <div class="kanban-card-meta">
+            <span class="badge badge-high">🔴 Alta</span>
+            <span class="badge badge-person">🏢 CLIENTE</span>
+          </div>
+          <div class="kanban-card-footer">
+            <span class="kanban-date">08/09</span>
+            <div class="kanban-person">NC</div>
+          </div>
+        </div>
+
+        <div class="kanban-card" onclick="openModal('newItemModal')">
+          <div class="kanban-card-title">Dashboard COMPASS — JS Construtora</div>
+          <div class="kanban-card-meta">
+            <span class="badge badge-medium">🟡 Média</span>
+          </div>
+          <div class="kanban-card-footer">
+            <span class="kanban-date">09/09</span>
+            <div class="kanban-person">NC</div>
+          </div>
+        </div>
+
+        <button class="kanban-add-card" onclick="openModal('newItemModal')">+ Adicionar tarefa</button>
+      </div>
+
+      <!-- CONCLUÍDO -->
+      <div class="kanban-col">
+        <div class="kanban-col-header">
+          <div class="kanban-col-dot" style="background:#22C55E"></div>
+          <span class="kanban-col-name">✅ Concluído</span>
+          <span class="kanban-col-count">1</span>
+        </div>
+
+        <div class="kanban-card" onclick="openModal('newItemModal')">
+          <div class="kanban-card-title">Kick-off Ontech TI</div>
+          <div class="kanban-card-meta">
+            <span class="badge badge-low">🟢 Baixa</span>
+          </div>
+          <div class="kanban-card-footer">
+            <span class="kanban-date" style="color:var(--success)">05/09 ✓</span>
+            <div class="kanban-person">NC</div>
+          </div>
+        </div>
+
+        <button class="kanban-add-card" onclick="openModal('newItemModal')">+ Adicionar tarefa</button>
+      </div>
+    </div>
+
+    <!-- ===== CALENDAR ===== -->
+    <div class="calendar" id="calendarView">
+      <div class="calendar-header">
+        <div class="calendar-nav">
+          <button class="calendar-nav-btn">←</button>
+          <button class="calendar-nav-btn">→</button>
+          <span class="calendar-month">Setembro 2026</span>
+        </div>
+        <div class="calendar-zoom">
+          <button class="calendar-zoom-btn">Dia</button>
+          <button class="calendar-zoom-btn">Semana</button>
+          <button class="calendar-zoom-btn active">Mês</button>
+          <button class="calendar-zoom-btn">Trimestre</button>
+        </div>
+      </div>
+      <div class="calendar-grid">
+        <div class="calendar-day-header">Dom</div>
+        <div class="calendar-day-header">Seg</div>
+        <div class="calendar-day-header">Ter</div>
+        <div class="calendar-day-header">Qua</div>
+        <div class="calendar-day-header">Qui</div>
+        <div class="calendar-day-header">Sex</div>
+        <div class="calendar-day-header">Sáb</div>
+
+        <div class="calendar-day other-month"><div class="day-number">31</div></div>
+        <div class="calendar-day"><div class="day-number">1</div></div>
+        <div class="calendar-day"><div class="day-number">2</div></div>
+        <div class="calendar-day"><div class="day-number">3</div><div class="day-event high">Validar BIN RADAR</div></div>
+        <div class="calendar-day"><div class="day-number">4</div></div>
+        <div class="calendar-day"><div class="day-number">5</div><div class="day-event low">Kick-off Ontech</div></div>
+        <div class="calendar-day"><div class="day-number">6</div></div>
+
+        <div class="calendar-day"><div class="day-number">7</div></div>
+        <div class="calendar-day"><div class="day-number">8</div><div class="day-event medium">Proposta RS Company</div></div>
+        <div class="calendar-day"><div class="day-number">9</div><div class="day-event medium">Dashboard COMPASS</div></div>
+        <div class="calendar-day"><div class="day-number">10</div><div class="day-event high">Motor coleções</div></div>
+        <div class="calendar-day"><div class="day-number">11</div></div>
+        <div class="calendar-day"><div class="day-number">12</div></div>
+        <div class="calendar-day"><div class="day-number">13</div></div>
+
+        <div class="calendar-day"><div class="day-number">14</div></div>
+        <div class="calendar-day"><div class="day-number">15</div><div class="day-event high">Apresentação RADAR</div></div>
+        <div class="calendar-day"><div class="day-number">16</div></div>
+        <div class="calendar-day"><div class="day-number">17</div></div>
+        <div class="calendar-day"><div class="day-number">18</div><div class="day-event medium">Exportar RS Company</div></div>
+        <div class="calendar-day"><div class="day-number">19</div></div>
+        <div class="calendar-day"><div class="day-number">20</div><div class="day-event medium">Revisar contrato</div></div>
+
+        <div class="calendar-day other-month"><div class="day-number">21</div></div>
+        <div class="calendar-day other-month"><div class="day-number">22</div></div>
+        <div class="calendar-day other-month"><div class="day-number">23</div></div>
+        <div class="calendar-day other-month"><div class="day-number">24</div></div>
+        <div class="calendar-day other-month"><div class="day-number">25</div></div>
+        <div class="calendar-day other-month"><div class="day-number">26</div></div>
+        <div class="calendar-day other-month"><div class="day-number">27</div></div>
+
+        <div class="calendar-day other-month"><div class="day-number">28</div></div>
+        <div class="calendar-day other-month"><div class="day-number">29</div></div>
+        <div class="calendar-day other-month"><div class="day-number">30</div></div>
+      </div>
+    </div>
+
+    <!-- ===== TIMELINE ===== -->
+    <div class="timeline" id="timelineView">
+      <div class="timeline-header">
+        <div class="calendar-nav">
+          <button class="calendar-nav-btn">←</button>
+          <button class="calendar-nav-btn">→</button>
+          <span class="calendar-month">Setembro 2026</span>
+        </div>
+        <div class="calendar-zoom">
+          <button class="calendar-zoom-btn">Dia</button>
+          <button class="calendar-zoom-btn active">Semana</button>
+          <button class="calendar-zoom-btn">Mês</button>
+        </div>
+      </div>
+
+      <div class="timeline-row">
+        <div class="timeline-task-label">
+          <span class="badge badge-high" style="font-size:10px">🔴</span>
+          Validar BIN RADAR
+        </div>
+        <div class="timeline-bar-container">
+          <div class="timeline-grid-lines">
+            <div class="timeline-grid-line"></div><div class="timeline-grid-line"></div><div class="timeline-grid-line"></div>
+            <div class="timeline-grid-line"></div><div class="timeline-grid-line"></div><div class="timeline-grid-line"></div>
+            <div class="timeline-grid-line"></div>
+          </div>
+          <div class="timeline-bar high" style="left:10%;width:25%">Validar BIN RADAR</div>
+        </div>
+      </div>
+
+      <div class="timeline-row">
+        <div class="timeline-task-label">
+          <span class="badge badge-high" style="font-size:10px">🔴</span>
+          Motor de Coleções
+        </div>
+        <div class="timeline-bar-container">
+          <div class="timeline-grid-lines">
+            <div class="timeline-grid-line"></div><div class="timeline-grid-line"></div><div class="timeline-grid-line"></div>
+            <div class="timeline-grid-line"></div><div class="timeline-grid-line"></div><div class="timeline-grid-line"></div>
+            <div class="timeline-grid-line"></div>
+          </div>
+          <div class="timeline-bar high" style="left:5%;width:40%">Motor de Coleções</div>
+          <!-- Dependency line -->
+          <div class="timeline-dep-line" style="left:35%;width:8%;top:50%"></div>
+          <div class="timeline-bar medium" style="left:43%;width:20%;background:#9333EA">Dashboard COMPASS</div>
+        </div>
+      </div>
+
+      <div class="timeline-row">
+        <div class="timeline-task-label">
+          <span class="badge badge-medium" style="font-size:10px">🟡</span>
+          Proposta RS Company
+        </div>
+        <div class="timeline-bar-container">
+          <div class="timeline-grid-lines">
+            <div class="timeline-grid-line"></div><div class="timeline-grid-line"></div><div class="timeline-grid-line"></div>
+            <div class="timeline-grid-line"></div><div class="timeline-grid-line"></div><div class="timeline-grid-line"></div>
+            <div class="timeline-grid-line"></div>
+          </div>
+          <div class="timeline-bar medium" style="left:0%;width:30%">Proposta RS Company</div>
+        </div>
+      </div>
+
+      <div class="timeline-row">
+        <div class="timeline-task-label">
+          <span class="badge badge-high" style="font-size:10px">🔴</span>
+          Apresentação RADAR
+        </div>
+        <div class="timeline-bar-container">
+          <div class="timeline-grid-lines">
+            <div class="timeline-grid-line"></div><div class="timeline-grid-line"></div><div class="timeline-grid-line"></div>
+            <div class="timeline-grid-line"></div><div class="timeline-grid-line"></div><div class="timeline-grid-line"></div>
+            <div class="timeline-grid-line"></div>
+          </div>
+          <div class="timeline-bar high" style="left:65%;width:18%">Apresentação RADAR</div>
+        </div>
+      </div>
+
+      <div class="timeline-row">
+        <div class="timeline-task-label">
+          <span class="badge badge-low" style="font-size:10px">🟢</span>
+          Kick-off Ontech TI
+        </div>
+        <div class="timeline-bar-container">
+          <div class="timeline-grid-lines">
+            <div class="timeline-grid-line"></div><div class="timeline-grid-line"></div><div class="timeline-grid-line"></div>
+            <div class="timeline-grid-line"></div><div class="timeline-grid-line"></div><div class="timeline-grid-line"></div>
+            <div class="timeline-grid-line"></div>
+          </div>
+          <div class="timeline-bar done" style="left:0%;width:8%">Kick-off Ontech</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CHART ===== -->
+    <div class="chart" id="chartView">
+      <div class="chart-controls" style="padding:8px 0">
+        <span class="toolbar-label">Agrupar por:</span>
+        <button class="chip active" onclick="setChip(this)">Setor</button>
+        <button class="chip" onclick="setChip(this)">Responsável</button>
+        <button class="chip" onclick="setChip(this)">Status</button>
+        <div class="divider-v"></div>
+        <span class="toolbar-label">Visualização:</span>
+        <button class="chip active" onclick="setChip(this)">Barras</button>
+        <button class="chip" onclick="setChip(this)">Linha</button>
+        <button class="chip" onclick="setChip(this)">Rosca</button>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">Quantidade de tarefas por setor</div>
+        <div class="chart-area">
+          <div class="chart-grid">
+            <div class="chart-grid-line"></div>
+            <div class="chart-grid-line"></div>
+            <div class="chart-grid-line"></div>
+            <div class="chart-grid-line"></div>
+            <div class="chart-grid-line"></div>
+          </div>
+          <div class="chart-bar-group">
+            <div class="chart-bar-wrapper" style="align-items: flex-end;">
+              <div class="chart-bar" style="height:140px;background:var(--chart-1)" title="5 tarefas"></div>
+            </div>
+            <div class="chart-label">Estratégico</div>
+          </div>
+          <div class="chart-bar-group">
+            <div class="chart-bar-wrapper">
+              <div class="chart-bar" style="height:84px;background:var(--chart-2)" title="3 tarefas"></div>
+            </div>
+            <div class="chart-label">Operacional</div>
+          </div>
+          <div class="chart-bar-group">
+            <div class="chart-bar-wrapper">
+              <div class="chart-bar" style="height:56px;background:var(--chart-3)" title="2 tarefas"></div>
+            </div>
+            <div class="chart-label">Financeiro</div>
+          </div>
+          <div class="chart-bar-group">
+            <div class="chart-bar-wrapper">
+              <div class="chart-bar" style="height:56px;background:var(--chart-4)" title="2 tarefas"></div>
+            </div>
+            <div class="chart-label">Jurídico</div>
+          </div>
+          <div class="chart-bar-group">
+            <div class="chart-bar-wrapper">
+              <div class="chart-bar" style="height:28px;background:var(--chart-5)" title="1 tarefa"></div>
+            </div>
+            <div class="chart-label">RH</div>
+          </div>
+          <div class="chart-bar-group">
+            <div class="chart-bar-wrapper">
+              <div class="chart-bar" style="height:28px;background:#94A3B8" title="1 tarefa"></div>
+            </div>
+            <div class="chart-label">Liderança</div>
+          </div>
+        </div>
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <div class="chart-legend-dot" style="background:var(--chart-1)"></div>
+            Estratégico (5)
+          </div>
+          <div class="chart-legend-item">
+            <div class="chart-legend-dot" style="background:var(--chart-2)"></div>
+            Operacional (3)
+          </div>
+          <div class="chart-legend-item">
+            <div class="chart-legend-dot" style="background:var(--chart-3)"></div>
+            Financeiro (2)
+          </div>
+          <div class="chart-legend-item">
+            <div class="chart-legend-dot" style="background:var(--chart-4)"></div>
+            Jurídico (2)
+          </div>
+          <div class="chart-legend-item">
+            <div class="chart-legend-dot" style="background:var(--chart-5)"></div>
+            RH (1)
+          </div>
+          <div class="chart-legend-item">
+            <div class="chart-legend-dot" style="background:#94A3B8"></div>
+            Liderança (1)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== LIST ===== -->
+    <div class="list-view" id="listView">
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th style="width:32px"></th>
+            <th style="width:32px">🔒</th>
+            <th>Atividade</th>
+            <th>Status</th>
+            <th>Prioridade</th>
+            <th>Responsável</th>
+            <th>Setor</th>
+            <th>Prazo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="list-checkbox"></div></td>
+            <td><span style="font-size:12px">🔗</span></td>
+            <td>
+              <div class="list-title-cell">
+                <span class="list-title-text">Validar BIN RADAR — JS Construtora</span>
+                <span class="list-tag" style="background:#FEE2E2;color:#991B1B">🔴 Alta</span>
+              </div>
+              <div class="list-sub-items">☑ 3/5 sub-tarefas · 🔗 Bloqueada por: Proposta RS Company</div>
+            </td>
+            <td><span class="status-badge" style="background:#DBEAFE;color:#1E40AF">🔵 Em Andamento</span></td>
+            <td><span style="color:#DC2626">🔴 Alta</span></td>
+            <td><span class="status-badge" style="background:#D8F3DC;color:#1B4332">🏢 CLIENTE</span></td>
+            <td>Estratégico</td>
+            <td style="color:#DC2626;font-weight:600">12/09 ⚠️</td>
+          </tr>
+          <tr>
+            <td><div class="list-checkbox"></div></td>
+            <td></td>
+            <td>
+              <div class="list-title-cell">
+                <span class="list-title-text">Proposta Land Grow Scale — RS Company</span>
+                <span class="list-tag" style="background:#FEE2E2;color:#991B1B">🔴 Alta</span>
+              </div>
+            </td>
+            <td><span class="status-badge" style="background:#FEF9C3;color:#854D0E">🟡 Revisão</span></td>
+            <td><span style="color:#DC2626">🔴 Alta</span></td>
+            <td><span class="status-badge" style="background:#D8F3DC;color:#1B4332">🏢 CLIENTE</span></td>
+            <td>Vendas</td>
+            <td style="color:var(--text-muted)">08/09</td>
+          </tr>
+          <tr>
+            <td><div class="list-checkbox"></div></td>
+            <td></td>
+            <td>
+              <div class="list-title-cell">
+                <span class="list-title-text">Dashboard COMPASS — JS Construtora</span>
+              </div>
+            </td>
+            <td><span class="status-badge" style="background:#FEF9C3;color:#854D0E">🟡 Revisão</span></td>
+            <td><span style="color:#D97706">🟡 Média</span></td>
+            <td>—</td>
+            <td>Financeiro</td>
+            <td style="color:var(--text-muted)">09/09</td>
+          </tr>
+          <tr>
+            <td><div class="list-checkbox"></div></td>
+            <td></td>
+            <td>
+              <div class="list-title-cell">
+                <span class="list-title-text">Implementar motor de coleções — Story 1.6</span>
+                <span class="list-tag" style="background:#FEF3C7;color:#92400E">🟡 Média</span>
+              </div>
+              <div class="list-sub-items">☑ 3/8 sub-tarefas</div>
+            </td>
+            <td><span class="status-badge" style="background:#DBEAFE;color:#1E40AF">🔵 Em Andamento</span></td>
+            <td><span style="color:#D97706">🟡 Média</span></td>
+            <td>—</td>
+            <td>Operacional</td>
+            <td style="color:var(--text-muted)">10/09</td>
+          </tr>
+          <tr>
+            <td><div class="list-checkbox"></div></td>
+            <td></td>
+            <td>
+              <div class="list-title-cell">
+                <span class="list-title-text">Criar apresentação RADAR pro Jefferson</span>
+                <span class="list-tag" style="background:#FEE2E2;color:#991B1B">🔴 Alta</span>
+              </div>
+              <div class="list-sub-items">☑ 2/5 sub-tarefas</div>
+            </td>
+            <td><span class="status-badge" style="background:#F1F5F9;color:#64748B">A Fazer</span></td>
+            <td><span style="color:#DC2626">🔴 Alta</span></td>
+            <td>—</td>
+            <td>Estratégico</td>
+            <td style="color:var(--text-muted)">15/09</td>
+          </tr>
+          <tr>
+            <td><div class="list-checkbox"></div></td>
+            <td></td>
+            <td><span class="list-title-text">Exportar dados do RS Company pro Drive</span></td>
+            <td><span class="status-badge" style="background:#F1F5F9;color:#64748B">A Fazer</span></td>
+            <td><span style="color:#D97706">🟡 Média</span></td>
+            <td>—</td>
+            <td>Administrativo</td>
+            <td style="color:var(--text-muted)">18/09</td>
+          </tr>
+          <tr>
+            <td><div class="list-checkbox"></div></td>
+            <td></td>
+            <td><span class="list-title-text">Revisar contrato Ontech TI</span></td>
+            <td><span class="status-badge" style="background:#F1F5F9;color:#64748B">A Fazer</span></td>
+            <td><span style="color:#D97706">🟡 Média</span></td>
+            <td>—</td>
+            <td>Jurídico</td>
+            <td style="color:var(--text-muted)">20/09</td>
+          </tr>
+          <tr>
+            <td><div class="list-checkbox"></div></td>
+            <td></td>
+            <td>
+              <div class="list-title-cell">
+                <span class="list-title-text" style="text-decoration:line-through;color:var(--text-faint)">Kick-off Ontech TI — reunião inicial</span>
+                <span class="list-tag" style="background:#DCFCE7;color:#166534">✅ Feito</span>
+              </div>
+            </td>
+            <td><span class="status-badge" style="background:#DCFCE7;color:#166534">✅ Concluído</span></td>
+            <td><span style="color:#16A34A">🟢 Baixa</span></td>
+            <td>—</td>
+            <td>Liderança</td>
+            <td style="color:var(--success)">05/09 ✓</td>
+          </tr>
+          <tr class="add-item-row">
+            <td></td>
+            <td></td>
+            <td colspan="6">
+              <input class="add-item-input" placeholder="Digite o título da tarefa e pressione Enter..." onkeydown="if(event.key==='Enter')this.value=''">
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ===== TABLE ===== -->
+    <div class="table-view" id="tableView">
+      <table class="table-full">
+        <thead>
+          <tr>
+            <th class="freeze-col">☑</th>
+            <th>Atividade <div class="col-resize"></div></th>
+            <th>Status <div class="col-resize"></div></th>
+            <th>Prioridade <div class="col-resize"></div></th>
+            <th>Responsável <div class="col-resize"></div></th>
+            <th>Setor <div class="col-resize"></div></th>
+            <th>Prazo <div class="col-resize"></div></th>
+            <th>Criado em <div class="col-resize"></div></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="freeze-col"><input type="checkbox" style="width:16px;height:16px"></td>
+            <td>Validar BIN RADAR — JS Construtora</td>
+            <td><span class="status-badge" style="background:#DBEAFE;color:#1E40AF">🔵 Em Andamento</span></td>
+            <td><span class="badge badge-high">🔴 Alta</span></td>
+            <td><span class="status-badge" style="background:#D8F3DC;color:#1B4332">🏢 CLIENTE</span></td>
+            <td>Estratégico</td>
+            <td style="color:#DC2626">12/09</td>
+            <td>01/09/2026</td>
+          </tr>
+          <tr>
+            <td class="freeze-col"><input type="checkbox" style="width:16px;height:16px"></td>
+            <td>Proposta Land Grow Scale — RS Company</td>
+            <td><span class="status-badge" style="background:#FEF9C3;color:#854D0E">🟡 Revisão</span></td>
+            <td><span class="badge badge-high">🔴 Alta</span></td>
+            <td><span class="status-badge" style="background:#D8F3DC;color:#1B4332">🏢 CLIENTE</span></td>
+            <td>Vendas</td>
+            <td>08/09</td>
+            <td>28/08/2026</td>
+          </tr>
+          <tr>
+            <td class="freeze-col"><input type="checkbox" style="width:16px;height:16px"></td>
+            <td>Dashboard COMPASS — JS Construtora</td>
+            <td><span class="status-badge" style="background:#FEF9C3;color:#854D0E">🟡 Revisão</span></td>
+            <td><span class="badge badge-medium">🟡 Média</span></td>
+            <td>—</td>
+            <td>Financeiro</td>
+            <td>09/09</td>
+            <td>02/09/2026</td>
+          </tr>
+          <tr>
+            <td class="freeze-col"><input type="checkbox" style="width:16px;height:16px"></td>
+            <td>Implementar motor de coleções — Story 1.6</td>
+            <td><span class="status-badge" style="background:#DBEAFE;color:#1E40AF">🔵 Em Andamento</span></td>
+            <td><span class="badge badge-high">🔴 Alta</span></td>
+            <td>—</td>
+            <td>Operacional</td>
+            <td>10/09</td>
+            <td>25/08/2026</td>
+          </tr>
+          <tr>
+            <td class="freeze-col"><input type="checkbox" style="width:16px;height:16px"></td>
+            <td>Criar apresentação RADAR pro Jefferson</td>
+            <td><span class="status-badge" style="background:#F1F5F9;color:#64748B">A Fazer</span></td>
+            <td><span class="badge badge-high">🔴 Alta</span></td>
+            <td>—</td>
+            <td>Estratégico</td>
+            <td>15/09</td>
+            <td>03/09/2026</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ===== GALLERY ===== -->
+    <div class="gallery" id="galleryView">
+      <div class="gallery-card" onclick="openModal('newItemModal')">
+        <div class="gallery-cover">🧭</div>
+        <div class="gallery-body">
+          <div class="gallery-title">BIN RADAR — JS Construtora</div>
+          <div class="gallery-meta">
+            <span class="badge badge-high">🔴 Alta</span>
+            <span class="status-badge" style="background:#DBEAFE;color:#1E40AF;font-size:10px">🔵 Em Andamento</span>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-card" onclick="openModal('newItemModal')">
+        <div class="gallery-cover" style="background:linear-gradient(135deg,#60A5FA,#3B82F6)">📊</div>
+        <div class="gallery-body">
+          <div class="gallery-title">Land Grow Scale — RS Company</div>
+          <div class="gallery-meta">
+            <span class="badge badge-high">🔴 Alta</span>
+            <span class="status-badge" style="background:#FEF9C3;color:#854D0E;font-size:10px">🟡 Revisão</span>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-card" onclick="openModal('newItemModal')">
+        <div class="gallery-cover" style="background:linear-gradient(135deg,#FB923C,#F97316)">🎯</div>
+        <div class="gallery-body">
+          <div class="gallery-title">Ontech TI — Intervenção Focada</div>
+          <div class="gallery-meta">
+            <span class="badge badge-medium">🟡 Média</span>
+            <span class="status-badge" style="background:#F1F5F9;color:#64748B;font-size:10px">A Fazer</span>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-card" onclick="openModal('newItemModal')">
+        <div class="gallery-cover" style="background:linear-gradient(135deg,#A78BFA,#7C3AED)">💡</div>
+        <div class="gallery-body">
+          <div class="gallery-title">Programa ELEVE — Candidatura</div>
+          <div class="gallery-meta">
+            <span class="badge badge-low">🟢 Baixa</span>
+            <span class="status-badge" style="background:#DCFCE7;color:#166534;font-size:10px">✅ Concluído</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ===== MODAL: Nova Tarefa ===== -->
+<div class="modal-overlay" id="newItemModal" onclick="closeModalOnOverlay(event, 'newItemModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Nova tarefa</span>
+      <button class="modal-close" onclick="closeModal('newItemModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-tabs">
+        <button class="modal-tab active">Propriedades</button>
+        <button class="modal-tab" onclick="alert('Templates em construção')">Templates</button>
+        <button class="modal-tab" onclick="alert('Dependências em construção')">Dependências</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Título *</label>
+        <input class="form-input" placeholder="Nome da tarefa..." autofocus>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-input form-select">
+            <option>A Fazer</option>
+            <option>🔵 Em Andamento</option>
+            <option>🟡 Revisão</option>
+            <option>✅ Concluído</option>
+            <option>❌ Cancelado</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prioridade</label>
+          <select class="form-input form-select">
+            <option>🔴 Alta</option>
+            <option>🟡 Média</option>
+            <option>🟢 Baixa</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Responsável</label>
+          <select class="form-input form-select">
+            <option>—</option>
+            <option>NAYARA</option>
+            <option>CLIENTE</option>
+            <option>CANDIDO</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Setor</label>
+          <select class="form-input form-select">
+            <option>—</option>
+            <option>Operacional</option>
+            <option>RH</option>
+            <option>Financeiro</option>
+            <option>Marketing</option>
+            <option>Administrativo</option>
+            <option>Estratégico</option>
+            <option>Vendas</option>
+            <option>Inovação</option>
+            <option>Jurídico</option>
+            <option>Liderança</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Prazo</label>
+          <input type="date" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estimativa (horas)</label>
+          <input type="number" class="form-input" placeholder="0">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Observações</label>
+        <textarea class="form-input form-textarea" placeholder="Detalhes, contexto, links..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Cliente (Relation)</label>
+        <select class="form-input form-select">
+          <option>— Nenhum —</option>
+          <option>JS Construtora (Jefferson)</option>
+          <option>RS Company (Lavínia + Ederson)</option>
+          <option>Ontech TI (Renato)</option>
+        </select>
+      </div>
+
+      <div class="template-section">
+        <div class="template-label">Usar template</div>
+        <div class="template-grid">
+          <button class="template-card">📋 Tarefa simples</button>
+          <button class="template-card">🎯 Reunião com cliente</button>
+          <button class="template-card">📅 Daily Standup</button>
+          <button class="template-card">📝 Entrega BIN</button>
+          <button class="template-card">🔄 Revisão semanal</button>
+          <button class="template-card">📄 Documento</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('newItemModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="closeModal('newItemModal')">Criar tarefa</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Filtros ===== -->
+<div class="modal-overlay" id="filterModal" onclick="closeModalOnOverlay(event, 'filterModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Filtros</span>
+      <button class="modal-close" onclick="closeModal('filterModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <span style="font-size:13px;color:var(--text-muted)">Salvar filtro para</span>
+        <button class="chip active">Todos</button>
+        <button class="chip" onclick="setChip(this)">Só pra mim</button>
+      </div>
+
+      <div class="filter-builder">
+        <div class="filter-group">
+          <div class="filter-row">
+            <span class="filter-logic">ONDE</span>
+            <select class="filter-select">
+              <option>Status</option>
+              <option>Prioridade</option>
+              <option>Responsável</option>
+              <option>Setor</option>
+              <option>Prazo</option>
+              <option>Criado por</option>
+            </select>
+            <select class="filter-select">
+              <option>é igual a</option>
+              <option>não é igual a</option>
+              <option>contém</option>
+              <option>não contém</option>
+              <option>está vazio</option>
+              <option>não está vazio</option>
+            </select>
+            <select class="filter-select">
+              <option>🔵 Em Andamento</option>
+              <option>A Fazer</option>
+              <option>🟡 Revisão</option>
+              <option>✅ Concluído</option>
+            </select>
+            <span class="filter-remove" onclick="this.parentElement.remove()">✕</span>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-row">
+            <span class="filter-logic">E</span>
+            <select class="filter-select">
+              <option>Prioridade</option>
+              <option>Status</option>
+              <option>Responsável</option>
+              <option>Setor</option>
+            </select>
+            <select class="filter-select">
+              <option>é igual a</option>
+              <option>não é igual a</option>
+              <option>contém</option>
+              <option>está vazio</option>
+            </select>
+            <select class="filter-select">
+              <option>🔴 Alta</option>
+              <option>🟡 Média</option>
+              <option>🟢 Baixa</option>
+            </select>
+            <span class="filter-remove" onclick="this.parentElement.parentElement.remove()">✕</span>
+          </div>
+
+          <div class="filter-row" style="margin-top:8px;padding-left:16px">
+            <span class="filter-logic">OU</span>
+            <select class="filter-select">
+              <option>Prioridade</option>
+            </select>
+            <select class="filter-select">
+              <option>é igual a</option>
+            </select>
+            <select class="filter-select">
+              <option>🟡 Média</option>
+            </select>
+            <span class="filter-remove">✕</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="filter-add-btn" onclick="addFilter()" style="margin-top:8px">
+        + Adicionar condição
+      </button>
+
+      <div style="display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <button class="filter-add-btn" style="flex:1;justify-content:center">+ Adicionar grupo (E)</button>
+        <button class="filter-add-btn" style="flex:1;justify-content:center">+ Adicionar grupo (OU)</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('filterModal')">Limpar filtros</button>
+      <button class="btn btn-primary" onclick="closeModal('filterModal')">Aplicar filtros</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Editar Colunas ===== -->
+<div class="modal-overlay" id="columnModal" onclick="closeModalOnOverlay(event, 'columnModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Editar propriedades</span>
+      <button class="modal-close" onclick="closeModal('columnModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Propriedades da base</label>
+
+        <div class="property-row">
+          <span class="property-drag">☰</span>
+          <span class="property-type-icon">T</span>
+          <span class="property-name">Título</span>
+          <span class="property-required">*</span>
+        </div>
+
+        <div class="property-row">
+          <span class="property-drag">☰</span>
+          <span class="property-type-icon">◉</span>
+          <span class="property-name">Status</span>
+        </div>
+
+        <div class="property-row">
+          <span class="property-drag">☰</span>
+          <span class="property-type-icon">▼</span>
+          <span class="property-name">Prioridade</span>
+        </div>
+
+        <div class="property-row">
+          <span class="property-drag">☰</span>
+          <span class="property-type-icon">👤</span>
+          <span class="property-name">Responsável</span>
+        </div>
+
+        <div class="property-row">
+          <span class="property-drag">☰</span>
+          <span class="property-type-icon">🏷</span>
+          <span class="property-name">Setor</span>
+        </div>
+
+        <div class="property-row">
+          <span class="property-drag">☰</span>
+          <span class="property-type-icon">📅</span>
+          <span class="property-name">Prazo</span>
+        </div>
+
+        <div class="property-row">
+          <span class="property-drag">☰</span>
+          <span class="property-type-icon">⏱</span>
+          <span class="property-name">Estimativa (horas)</span>
+        </div>
+
+        <div class="property-row">
+          <span class="property-drag">☰</span>
+          <span class="property-type-icon">≡</span>
+          <span class="property-name">Observações</span>
+        </div>
+
+        <div class="property-row">
+          <span class="property-drag">☰</span>
+          <span class="property-type-icon">🔗</span>
+          <span class="property-name">Cliente (Relation)</span>
+        </div>
+
+        <div class="property-row">
+          <span class="property-drag">☰</span>
+          <span class="property-type-icon">📊</span>
+          <span class="property-name">% Concluído (Formula)</span>
+        </div>
+
+        <button class="add-property-btn" onclick="openModal('propertyTypeModal')">
+          + Adicionar propriedade
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('columnModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="closeModal('columnModal')">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Automações ===== -->
+<div class="modal-overlay" id="automationModal" onclick="closeModalOnOverlay(event, 'automationModal')">
+  <div class="modal wide">
+    <div class="modal-header">
+      <span class="modal-title">⚡ Automações</span>
+      <button class="modal-close" onclick="closeModal('automationModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span style="font-size:13px;color:var(--text-muted)">3 automações ativas</span>
+        <button class="btn btn-primary" style="margin-left:auto;padding:6px 14px" onclick="alert('Editor de automação em construção')">+ Nova automação</button>
+      </div>
+
+      <div class="automation-list">
+        <div class="automation-item">
+          <div class="automation-icon">⚡</div>
+          <div class="automation-info">
+            <div class="automation-name">Notificar quando tarefa vira Alta</div>
+            <div class="automation-trigger">Quando: Prioridade → é igual a Alta → Executar: Notificar NAYARA</div>
+          </div>
+          <span class="automation-status active">Ativa</span>
+        </div>
+
+        <div class="automation-item">
+          <div class="automation-icon">📋</div>
+          <div class="automation-info">
+            <div class="automation-name">Mover para Revisão quando checklist completo</div>
+            <div class="automation-trigger">Quando: sub-tarefas = 100% → Executar: Alterar Status → Revisão</div>
+          </div>
+          <span class="automation-status active">Ativa</span>
+        </div>
+
+        <div class="automation-item">
+          <div class="automation-icon">🗓</div>
+          <div class="automation-info">
+            <div class="automation-name">Criar Daily Land Grow todo dia útil 09:00</div>
+            <div class="automation-trigger">A cada: Segunda a Sexta às 09:00 → Executar: Criar página em "Rituais/Daily"</div>
+          </div>
+          <span class="automation-status active">Ativa</span>
+        </div>
+
+        <div class="automation-item">
+          <div class="automation-icon">🔗</div>
+          <div class="automation-info">
+            <div class="automation-name">Sincronizar com webhook externo</div>
+            <div class="automation-trigger">Quando: qualquer edição → Executar: POST https://api.example.com/task</div>
+          </div>
+          <span class="automation-status paused">Pausada</span>
+        </div>
+      </div>
+
+      <div class="template-section">
+        <div class="template-label">Gatilhos disponíveis</div>
+        <div class="template-grid">
+          <button class="template-card">📄 Página criada</button>
+          <button class="template-card">✏️ Propriedade editada</button>
+          <button class="template-card">🔄 A cada período</button>
+          <button class="template-card">📅 Data alcançada</button>
+        </div>
+      </div>
+
+      <div class="template-section">
+        <div class="template-label">Ações disponíveis</div>
+        <div class="template-grid">
+          <button class="template-card">✏️ Editar propriedade</button>
+          <button class="template-card">📄 Criar página em...</button>
+          <button class="template-card">🔗 Editar páginas em...</button>
+          <button class="template-card">🔔 Notificar</button>
+          <button class="template-card">📧 Enviar e-mail</button>
+          <button class="template-card">🌐 Enviar webhook</button>
+          <button class="template-card">💬 Enviar Slack</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('automationModal')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Permissões ===== -->
+<div class="modal-overlay" id="permissionModal" onclick="closeModalOnOverlay(event, 'permissionModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">🔒 Compartilhar "Plano de Ação"</span>
+      <button class="modal-close" onclick="closeModal('permissionModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Convidar pessoas</label>
+        <input class="form-input" placeholder="Buscar membros do workspace...">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Pessoas com acesso</label>
+        <div class="permissions-list">
+          <div class="permission-row">
+            <div class="permission-avatar">NC</div>
+            <div class="permission-name">Nayara Cordeiro</div>
+            <select class="form-input form-select" style="width:auto;font-size:12px">
+              <option>Full access</option>
+              <option>Can edit</option>
+              <option>Can edit content</option>
+              <option>Can view</option>
+            </select>
+          </div>
+          <div class="permission-row">
+            <div class="permission-avatar" style="background:#3B82F6">CL</div>
+            <div class="permission-name">Cliente Land Grow</div>
+            <select class="form-input form-select" style="width:auto;font-size:12px">
+              <option>Can edit content</option>
+              <option>Full access</option>
+              <option>Can edit</option>
+              <option>Can view</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Acesso via link</label>
+        <div class="share-link">
+          <span class="share-link-url">https://pulso.landgrow.com.br/shared/abc123</span>
+          <button class="share-link-copy" onclick="this.textContent='Copiado!'">Copiar</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <select class="form-input form-select" style="font-size:12px">
+            <option>Qualquer pessoa com o link pode visualizar</option>
+            <option>Qualquer pessoa com o link pode editar</option>
+            <option>Desativar link</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="template-section">
+        <div class="template-label">Níveis de acesso</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.8">
+          <div><strong>Full access</strong> — edita tudo e pode compartilhar</div>
+          <div><strong>Can edit</strong> — edita conteúdo, não compartilha</div>
+          <div><strong>Can edit content</strong> — edita valores, não altera o schema</div>
+          <div><strong>Can view</strong> — só leitura</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('permissionModal')">Fechar</button>
+      <button class="btn btn-primary" onclick="closeModal('permissionModal')">Salvar permissões</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Nova Base ===== -->
+<div class="modal-overlay" id="newBaseModal" onclick="closeModalOnOverlay(event, 'newBaseModal')">
+  <div class="modal narrow">
+    <div class="modal-header">
+      <span class="modal-title">Nova base</span>
+      <button class="modal-close" onclick="closeModal('newBaseModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nome da base</label>
+        <input class="form-input" placeholder="Ex: Pipeline de Vendas">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Ícone</label>
+        <div class="icon-picker">
+          <button class="icon-option selected">📋</button>
+          <button class="icon-option">📊</button>
+          <button class="icon-option">🎯</button>
+          <button class="icon-option">💼</button>
+          <button class="icon-option">📅</button>
+          <button class="icon-option">📁</button>
+          <button class="icon-option">🗂️</button>
+          <button class="icon-option">📈</button>
+          <button class="icon-option">⚙️</button>
+          <button class="icon-option">🔗</button>
+          <button class="icon-option">💡</button>
+          <button class="icon-option">🔥</button>
+          <button class="icon-option">⭐</button>
+          <button class="icon-option">📌</button>
+          <button class="icon-option">✅</button>
+          <button class="icon-option">🔍</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Cor</label>
+        <div class="color-picker">
+          <div class="color-option selected" style="background:#74C69D"></div>
+          <div class="color-option" style="background:#3B82F6"></div>
+          <div class="color-option" style="background:#F472B6"></div>
+          <div class="color-option" style="background:#FB923C"></div>
+          <div class="color-option" style="background:#A78BFA"></div>
+          <div class="color-option" style="background:#FBBF24"></div>
+          <div class="color-option" style="background:#EF4444"></div>
+          <div class="color-option" style="background:#1B4332"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Descrição <span style="font-weight:400;text-transform:none">(opcional)</span></label>
+        <textarea class="form-input form-textarea" placeholder="O que é essa base?"></textarea>
+      </div>
+
+      <div class="template-section">
+        <div class="template-label">Começar com template</div>
+        <div class="template-grid">
+          <button class="template-card">📋 Tarefas em branco</button>
+          <button class="template-card">🎯 Projeto</button>
+          <button class="template-card">📊 CRM / Pipeline</button>
+          <button class="template-card">📅 Calendário de 内容</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('newBaseModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="closeModal('newBaseModal')">Criar base</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Tipos de Propriedade ===== -->
+<div class="modal-overlay" id="propertyTypeModal" onclick="closeModalOnOverlay(event, 'propertyTypeModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Adicionar propriedade</span>
+      <button class="modal-close" onclick="closeModal('propertyTypeModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nome da propriedade</label>
+        <input class="form-input" placeholder="Ex: Número do Contrato">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tipo de propriedade</label>
+        <div class="property-types-grid">
+          <button class="property-type-btn"><span class="pt-icon">T</span><span class="pt-name">Texto</span></button>
+          <button class="property-type-btn"><span class="pt-icon">#</span><span class="pt-name">Número</span></button>
+          <button class="property-type-btn"><span class="pt-icon">◉</span><span class="pt-name">Select</span></button>
+          <button class="property-type-btn"><span class="pt-icon">☐</span><span class="pt-name">Multi-select</span></button>
+          <button class="property-type-btn"><span class="pt-icon">◧</span><span class="pt-name">Status</span></button>
+          <button class="property-type-btn"><span class="pt-icon">📅</span><span class="pt-name">Data</span></button>
+          <button class="property-type-btn"><span class="pt-icon">👤</span><span class="pt-name">Pessoa</span></button>
+          <button class="property-type-btn"><span class="pt-icon">☑</span><span class="pt-name">Checkbox</span></button>
+          <button class="property-type-btn"><span class="pt-icon">🔗</span><span class="pt-name">Relation</span></button>
+          <button class="property-type-btn"><span class="pt-icon">📊</span><span class="pt-name">Rollup</span></button>
+          <button class="property-type-btn"><span class="pt-icon">fx</span><span class="pt-name">Formula</span></button>
+          <button class="property-type-btn"><span class="pt-icon">📎</span><span class="pt-name">Files</span></button>
+          <button class="property-type-btn"><span class="pt-icon">🌐</span><span class="pt-name">URL</span></button>
+          <button class="property-type-btn"><span class="pt-icon">✉</span><span class="pt-name">Email</span></button>
+          <button class="property-type-btn"><span class="pt-icon">📞</span><span class="pt-name">Telefone</span></button>
+          <button class="property-type-btn"><span class="pt-icon">⭐</span><span class="pt-name">Rating</span></button>
+          <button class="property-type-btn"><span class="pt-icon">🕐</span><span class="pt-name">Created time</span></button>
+          <button class="property-type-btn"><span class="pt-icon">🕐</span><span class="pt-name">Last edited</span></button>
+          <button class="property-type-btn"><span class="pt-icon">👤</span><span class="pt-name">Created by</span></button>
+          <button class="property-type-btn"><span class="pt-icon">🗺️</span><span class="pt-name">Place</span></button>
+          <button class="property-type-btn"><span class="pt-icon">🔢</span><span class="pt-name">ID</span></button>
+          <button class="property-type-btn"><span class="pt-icon">▶</span><span class="pt-name">Button</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('propertyTypeModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="closeModal('propertyTypeModal')">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== THEME TOGGLE ===== -->
+<button class="theme-toggle" onclick="toggleTheme()">
+  <span class="theme-icon" id="themeIcon">🌙</span>
+  <span id="themeLabel">Escuro</span>
+</button>
+
+<script>
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  function closeModalOnOverlay(e, id) { if (e.target.classList.contains('modal-overlay')) closeModal(id); }
+
+  function setActive(el) {
+    document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  function toggleWorkspace(btn) { btn.classList.toggle('open'); }
+
+  function showView(view) {
+    const views = ['kanban', 'calendar', 'timeline', 'chart', 'list', 'table', 'gallery'];
+    views.forEach(v => {
+      const el = document.getElementById(v + 'View');
+      if (el) {
+        el.classList.remove('active', 'hidden');
+        if (v !== view) el.classList.add('hidden');
+        if (v === view) el.classList.add('active');
+      }
+    });
+  }
+
+  function switchView(tab, view) {
+    document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    showView(view);
+  }
+
+  function setChip(chip) { chip.classList.toggle('active'); }
+
+  function toggleFilter(chip) { chip.classList.toggle('active'); }
+
+  function toggleTheme() {
+    const root = document.documentElement;
+    const current = root.getAttribute('data-theme');
+    const icon = document.getElementById('themeIcon');
+    const label = document.getElementById('themeLabel');
+    if (current === 'dark') {
+      root.setAttribute('data-theme', 'light');
+      icon.textContent = '☀️'; label.textContent = 'Claro';
+    } else {
+      root.removeAttribute('data-theme');
+      icon.textContent = '🌙'; label.textContent = 'Escuro';
+    }
+  }
+
+  function addFilter() {
+    alert('Adicionar grupo de filtro (AND/OR) — implementação completa em Story 4.8');
+  }
+
+  document.querySelectorAll('.icon-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.icon-option').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+    });
+  });
+
+  document.querySelectorAll('.color-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+    });
+  });
+</script>
+
+</body>
+</html>

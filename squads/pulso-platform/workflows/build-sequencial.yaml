@@ -1,0 +1,161 @@
+workflow:
+  id: build-sequencial
+  name: build-sequencial
+  type: sequential
+  description: >
+    Ordem de construção do PULSO revisado (Vercel + Supabase, ingestão multi-fonte,
+    motor de reconciliação). Prioriza provar o loop central do produto (upload + BIN +
+    reconciliação + ANA/ZEUS) antes de investir nos 3 conectores de API externos.
+
+  sequence:
+    - id: 1
+      task: setup-supabase-schema.md
+      agent: platform-architect
+      action: "Cria as tabelas clientes/periodos_dados/conexoes/evidencias no Supabase"
+      creates: ["migração SQL do schema"]
+      rationale: "Nada mais tem onde escrever sem a persistência primeiro"
+
+    - id: 2
+      task: scaffold-vercel-api.md
+      agent: platform-architect
+      action: "Gera os 4 endpoints serverless (oauth callback, ingest sync, reconcile, upload)"
+      creates:
+        [
+          "/api/oauth/[provider]/callback",
+          "/api/ingest/[provider]/sync",
+          "/api/reconcile",
+          "/api/upload",
+        ]
+      depends_on: [1]
+
+    - id: 3
+      task: build-upload-ingestion.md
+      agent: ingestion-engineer
+      action: "Implementa parsers de PDF/Excel/CSV/áudio e liga ao /api/upload"
+      updates: ["/api/upload"]
+      depends_on: [2]
+      rationale: "Fonte mais rápida de colocar no ar — sem OAuth, sem App Review, com dado real de cliente piloto já disponível"
+
+    - id: 4
+      task: build-reconciliation-engine.md
+      agent: reconciliation-engineer
+      action: "Implementa o mapa de correspondência, regras de match e severidade no /api/reconcile"
+      updates: ["/api/reconcile", "periodos_dados.data.inconsistencias"]
+      depends_on: [3]
+      rationale: "O núcleo diferencial do produto — provar com upload antes de generalizar pra fontes conectadas"
+
+    - id: 5
+      task: wire-ana-zeus-reconciliation.md
+      agent: reconciliation-engineer
+      action: "Conecta a saída do motor aos agentes ANA (RADAR) e ZEUS (COMPASS/HORIZON)"
+      updates: ["pipeline ANA", "pipeline ZEUS"]
+      depends_on: [4]
+      rationale: "Fecha o loop central do produto — daqui em diante o conceito está validável com cliente piloto"
+
+    - id: 6
+      task: build-connector-instagram.md
+      agent: ingestion-engineer
+      action: "Implementa OAuth + sync do Instagram/Meta Graph API"
+      updates: ["/api/oauth/instagram/callback", "/api/ingest/instagram/sync"]
+      depends_on: [2]
+      rationale: "Menor fricção regulatória dos 3 conectores externos — pode rodar em paralelo aos passos 3-5"
+
+    - id: 7
+      task: build-connector-crm.md
+      agent: ingestion-engineer
+      action: "Implementa 2 integrações nativas de CRM + fallback CSV"
+      updates: ["/api/ingest/crm/sync"]
+      depends_on: [2]
+      blocked_by_decision: "Confirmar com Nayara quais 2 CRMs priorizar (PRD seção 14, decisão pendente #5)"
+
+    - id: 8
+      task: build-connector-financeiro.md
+      agent: ingestion-engineer
+      action: "Implementa consentimento + sync via Pluggy/Belvo (Open Finance)"
+      updates: ["/api/ingest/financeiro/sync"]
+      depends_on: [2]
+      blocked_by_decision: "Orçar custo por CPF/CNPJ com Pluggy/Belvo e refletir na precificação (PRD seção 14, decisão pendente #6)"
+      rationale: "Maior superfície de risco regulatório (LGPD, dado bancário) — construído por último dos 3 conectores"
+
+    - id: 14
+      task: bridge-frontend-to-backend.md
+      agent: platform-architect
+      action: "Troca store.js de leitura de data/*.json estático para fetch em /api/client-data (Vercel Function que lê o Supabase com service role)"
+      creates: ["/api/client-data"]
+      updates: ["store.js"]
+      depends_on: [2]
+      rationale: "Gap encontrado em revisão de arquitetura (11/07/2026) — sem isso, o shell SPA nunca mostra dado real, só estático. Faz parte de provar a Fase A de verdade."
+
+    # ---- Fase B — MIN (estende o mesmo squad, não cria produto separado) ----
+    - id: 9
+      task: setup-min-and-journey-schema.md
+      agent: platform-architect
+      action: "Aplica migrations/0002_min_and_journey.sql — tabelas min_blocos, contratos, view sinal_qualificacao_fundo"
+      creates: ["min_blocos", "contratos", "sinal_qualificacao_fundo (view)"]
+      depends_on: [1]
+      rationale: "Fase B começa aqui — schema do MIN e da jornada de contrato juntos, porque os dois se referenciam (governança do MIN alimenta o sinal de qualificação da jornada)"
+
+    - id: 10
+      task: run-min-fundacao.md
+      agent: min-facilitator
+      action: "Conduz a Fase 1 do MIN (6 blocos) — exige BIN concluído do cliente"
+      updates: ["min_blocos (fase=fundacao)"]
+      depends_on: [9]
+
+    - id: 11
+      task: run-min-operacao.md
+      agent: min-facilitator
+      action: "Conduz a Fase 2 do MIN (3 blocos)"
+      updates: ["min_blocos (fase=operacao)"]
+      depends_on: [10]
+
+    - id: 12
+      task: run-min-consolidacao.md
+      agent: min-facilitator
+      action: "Conduz a Fase 3 do MIN (4 blocos, inclui cultura_e_valores e gestao_de_riscos)"
+      updates: ["min_blocos (fase=consolidacao)"]
+      depends_on: [11]
+      rationale: "Esta fase é o mesmo conteúdo da Fase 2 do contrato de Aceleração (meses 7-12, governança) — não é trabalho duplicado, é o mesmo produto"
+
+    # ---- Fase C — jornada de contrato + sinal de qualificação pro Fundo ----
+    - id: 13
+      task: build-qualificacao-fundo-signal.md
+      agent: reconciliation-engineer
+      action: "Expõe o sinal de qualificação pro Fundo (contrato + governança MIN + reconciliação) — não decide, só informa"
+      updates: ["superfície interna de sinal por cliente"]
+      depends_on: [4, 12]
+      rationale: "Fecha a Fase C — o motor de reconciliação (Fase A) ganha um segundo uso: due diligence contínua antes de uma proposta de equity, não só diagnóstico do cliente"
+
+  handoff_prompts:
+    platform-architect_to_ingestion-engineer: >
+      Schema e endpoints scaffolded. /api/upload está pronto pra receber arquivo e salvar no Storage —
+      falta a extração de dado estruturado (parsers). Comece por build-upload-ingestion.md.
+    ingestion-engineer_to_reconciliation-engineer: >
+      Upload já extrai kpis reais de PDF/Excel/áudio pro periodos_dados.data. Use isso como evidência
+      pra construir o motor de reconciliação contra as respostas do formulário BIN.
+    reconciliation-engineer_to_ingestion-engineer: >
+      Motor de reconciliação funcional e ligado ao ANA/ZEUS — o loop central do produto está provado.
+      Agora amplia a fonte de evidência: Instagram primeiro (menor fricção), depois CRM e Financeiro
+      (ambos com decisão de Nayara pendente antes de começar).
+    platform-architect_to_min-facilitator: >
+      Schema do MIN e da jornada aplicado. min_blocos está pronto pra receber os 13 blocos —
+      comece pela Fundação (exige BIN concluído do cliente).
+    min-facilitator_to_reconciliation-engineer: >
+      MIN Consolidação registrada, com os blocos de governança (cultura_e_valores, gestao_de_riscos)
+      preenchidos. Use isso junto com o motor de reconciliação pra montar o sinal de qualificação pro Fundo.
+
+  milestone_mvp_provado:
+    steps: [1, 2, 3, 4, 5, 14]
+    descricao: >
+      Com esses 6 passos concluídos, o diferencial central do PULSO (reconciliação
+      declarado x real) está funcional, testável com um cliente piloto, e VISÍVEL
+      pra ele no painel (não só rodando no banco) — mesmo sem nenhum conector de
+      API externo no ar ainda.
+
+  milestone_jornada_completa:
+    steps: [9, 10, 11, 12, 13]
+    descricao: >
+      Com esses 5 passos concluídos (Fase B + Fase C), o PULSO deixa de ser só o
+      motor de diagnóstico do BIN e passa a acompanhar a jornada completa do
+      cliente Land Grow — BIN, MIN, as 2 fases de contrato da Aceleração, e o
+      sinal que embasa a decisão pontual de propor fee reduzido + equity pro Fundo.
