@@ -2,7 +2,12 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
-  const res = NextResponse.next({ request });
+  // `res` precisa ser reatribuível (let, não const) — o setAll abaixo troca a
+  // resposta inteira por uma nova toda vez que o Supabase escreve cookies de
+  // sessão (login, refresh de token). Um Object.assign(res.cookies, ...) em
+  // cima de uma resposta fixa parece funcionar mas nunca propaga o
+  // Set-Cookie de verdade pro navegador — a sessão nunca gruda.
+  let res = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,13 +21,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
-          // Construímos um novo response para setar os cookies.
-          const newRes = NextResponse.next({ request });
+          res = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            newRes.cookies.set(name, value, options),
+            res.cookies.set(name, value, options),
           );
-          // Atualiza a referência para que o return use os cookies corretos.
-          Object.assign(res.cookies, newRes.cookies);
         },
       },
     },

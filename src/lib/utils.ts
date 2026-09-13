@@ -88,6 +88,37 @@ export function debounce<T extends (...args: Parameters<T>) => ReturnType<T>>(
 }
 
 /**
+ * Converte uma cor hex (#RRGGBB) pra rgba() com a opacidade dada — usado pra
+ * tingir fundo de card na cor de um item (setor, nó de mapa mental, etc.)
+ * sem precisar de uma paleta de "cor + versão clara" pra cada cor.
+ */
+export function chartHexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace("#", "");
+  const full =
+    clean.length === 3
+      ? clean
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : clean;
+  const num = parseInt(full, 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
+ * Verifica se uma data (string YYYY-MM-DD ou Date) já passou — usado pra
+ * destacar prazos atrasados em tabelas/cards de tarefas.
+ */
+export function isOverdue(date: string | Date | null | undefined): boolean {
+  if (!date) return false;
+  const d = typeof date === "string" ? new Date(`${date}T23:59:59`) : date;
+  return d.getTime() < Date.now();
+}
+
+/**
  * verifica se estamos no browser
  */
 export const isBrowser = typeof window !== "undefined";

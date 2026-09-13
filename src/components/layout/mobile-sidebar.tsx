@@ -13,7 +13,7 @@ export function MobileSidebar(): JSX.Element {
       onOpenChange={(open) => !open && onMobileClose()}
     >
       <SheetContent side="left" className="w-64 p-0 lg:hidden">
-        <Sidebar />
+        <Sidebar variant="full" />
       </SheetContent>
     </Sheet>
   );

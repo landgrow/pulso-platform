@@ -42,3 +42,20 @@ export const FOOTER_NAV = [
     icon: "settings",
   },
 ] as const;
+
+/**
+ * Cor por setor do BIN — mesma paleta do protótipo (kanban.html,
+ * SETOR_DOT_COLORS) usada no badge de setor dos cards de Atividades.
+ */
+export const SETOR_COLORS: Record<string, string> = {
+  Operacional: "#60A5FA",
+  RH: "#A78BFA",
+  Financeiro: "#34D399",
+  Marketing: "#F472B6",
+  Administrativo: "#FBBF24",
+  Estratégico: "#22D3EE",
+  Vendas: "#FB923C",
+  Inovação: "#38BDF8",
+  Jurídico: "#F87171",
+  Liderança: "#C084FC",
+};

@@ -13,8 +13,11 @@ import {
   Activity,
   UserPlus,
   Users,
-  ChevronLeft,
-  ChevronRight,
+  ClipboardList,
+  Share2,
+  Contact,
+  Home,
+  BarChart3,
 } from "lucide-react";
 import { useSidebar } from "@/components/layout/sidebar-context";
 import { cn } from "@/lib/utils";
@@ -31,34 +34,74 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   activity: Activity,
   "user-plus": UserPlus,
   users: Users,
+  "clipboard-list": ClipboardList,
+  "share-2": Share2,
+  contact: Contact,
+  home: Home,
+  "bar-chart-3": BarChart3,
 };
 
 interface NavItem {
   href: string;
   label: string;
   icon: string;
-  /** "all" = qualquer usuário logado; "admin" = só platform_admin; "admin_or_consultant" = os dois. */
-  visibility?: "all" | "admin" | "admin_or_consultant";
+  /**
+   * "all" = qualquer usuário logado; "admin" = só platform_admin;
+   * "admin_or_consultant" = os dois; "client" = só quem NÃO é platform_admin
+   * nem consultant (organizações-cliente de verdade — Coleções/Programa/Meus
+   * dados são ferramentas do cliente, não fazem sentido no menu do admin).
+   */
+  visibility?: "all" | "admin" | "admin_or_consultant" | "client";
 }
 
+// Um menu só, sem divisão visual — filtrado por platformRole (ver
+// `visibility` de cada item). BIN e MIN não entram aqui — acessados por outro
+// caminho (ver Painel). Central IA saiu do menu (ainda é só placeholder).
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "layout-dashboard" },
-  { href: "/colecoes", label: "Coleções", icon: "layers" },
-  { href: "/programa", label: "Programa", icon: "target" },
-];
-
-const footerItems: NavItem[] = [
   {
-    href: "/admin/acessos",
-    label: "Acessos",
-    icon: "user-plus",
+    href: "/colecoes",
+    label: "Coleções",
+    icon: "layers",
+    visibility: "client",
+  },
+  {
+    href: "/programa",
+    label: "Programa",
+    icon: "target",
+    visibility: "client",
+  },
+  { href: "/admin/painel", label: "Painel", icon: "home", visibility: "admin" },
+  {
+    href: "/admin/atividades",
+    label: "Atividades",
+    icon: "clipboard-list",
     visibility: "admin",
   },
+  {
+    href: "/admin/mapa-mental",
+    label: "Mapa Mental",
+    icon: "share-2",
+    visibility: "admin",
+  },
+  {
+    href: "/admin/metricas",
+    label: "Métricas",
+    icon: "bar-chart-3",
+    visibility: "admin",
+  },
+  { href: "/admin/crm", label: "CRM", icon: "contact", visibility: "admin" },
   {
     href: "/admin/clientes",
     label: "Organizações",
     icon: "building-2",
     visibility: "admin_or_consultant",
+  },
+  {
+    href: "/admin/acessos",
+    label: "Acessos",
+    icon: "user-plus",
+    visibility: "admin",
   },
   {
     href: "/admin/equipe",
@@ -69,8 +112,9 @@ const footerItems: NavItem[] = [
   { href: "/configuracoes", label: "Configurações", icon: "settings" },
   {
     href: "/configuracoes/dados",
-    label: "Meus dados (LGPD)",
+    label: "Meus dados",
     icon: "file-json",
+    visibility: "client",
   },
   {
     href: "/configuracoes/audit-log",
@@ -80,9 +124,13 @@ const footerItems: NavItem[] = [
   },
 ];
 
-export function Sidebar(): JSX.Element {
+export function Sidebar({
+  variant = "rail",
+}: {
+  variant?: "rail" | "full";
+}): JSX.Element {
   const pathname = usePathname();
-  const { isCollapsed, toggle, isMobileOpen, onMobileClose } = useSidebar();
+  const { isMobileOpen, onMobileClose } = useSidebar();
   const [platformRole, setPlatformRole] = useState<
     "platform_admin" | "consultant" | null
   >(null);
@@ -98,16 +146,18 @@ export function Sidebar(): JSX.Element {
     };
   }, []);
 
-  const visibleFooterItems = footerItems.filter((item) => {
+  const visibleItems = navItems.filter((item) => {
     if (!item.visibility || item.visibility === "all") return true;
     if (item.visibility === "admin") return platformRole === "platform_admin";
+    if (item.visibility === "client") return platformRole === null;
     return platformRole === "platform_admin" || platformRole === "consultant";
   });
 
+  const isFull = variant === "full";
+
   const className = cn(
     "flex flex-col h-full bg-surface-1 border-r border-border",
-    "transition-all duration-300 ease-in-out",
-    isCollapsed ? "w-16" : "w-64",
+    isFull ? "w-full" : "w-20",
     isMobileOpen ? "block" : "hidden lg:flex",
   );
 
@@ -126,8 +176,8 @@ export function Sidebar(): JSX.Element {
         {/* Logo */}
         <div
           className={cn(
-            "flex items-center h-16 px-4 border-b border-border shrink-0",
-            isCollapsed ? "justify-center" : "gap-2",
+            "flex items-center h-16 border-b border-border shrink-0",
+            isFull ? "gap-2 px-4" : "justify-center",
           )}
         >
           <div className="h-8 w-8 rounded-lg bg-brand-lime flex items-center justify-center shrink-0">
@@ -135,88 +185,59 @@ export function Sidebar(): JSX.Element {
               LG
             </span>
           </div>
-          {!isCollapsed && (
+          {isFull && (
             <span className="text-lg font-semibold text-text-1 tracking-tight">
               {APP_NAME}
             </span>
           )}
         </div>
 
-        {/* Nav principal */}
-        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
+        {/* Rail compacto (ícone + rótulo pequeno embaixo) no desktop — lista cheia no drawer mobile */}
+        <nav
+          className={cn(
+            "flex-1 overflow-y-auto space-y-1",
+            isFull ? "py-4 px-2" : "py-3 px-1.5",
+          )}
+          aria-label={APP_NAME}
+        >
+          {visibleItems.map((item) => {
             const Icon = iconMap[item.icon] ?? LayoutDashboard;
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
 
             return (
-              <Link key={item.href} href={item.href} onClick={onMobileClose}>
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onMobileClose}
+                title={isFull ? undefined : item.label}
+              >
                 <span
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
-                    "transition-colors duration-150",
+                    "transition-colors duration-150 rounded-lg",
                     isActive
                       ? "bg-primary/10 text-primary"
                       : "text-text-2 hover:bg-surface-2 hover:text-text-1",
-                    isCollapsed && "justify-center px-0",
+                    isFull
+                      ? "flex items-center gap-3 px-3 py-2.5 text-sm font-medium"
+                      : "flex flex-col items-center justify-center gap-1 py-2 px-1 text-center",
                   )}
-                  title={isCollapsed ? item.label : undefined}
                 >
                   <Icon className="h-5 w-5 shrink-0" />
-                  {!isCollapsed && <span>{item.label}</span>}
+                  <span
+                    className={
+                      isFull
+                        ? undefined
+                        : "text-[10px] leading-[1.15] line-clamp-2 break-words w-full"
+                    }
+                  >
+                    {item.label}
+                  </span>
                 </span>
               </Link>
             );
           })}
         </nav>
-
-        {/* Nav de footer */}
-        <div className="py-4 px-2 space-y-1 border-t border-border shrink-0">
-          {visibleFooterItems.map((item) => {
-            const Icon = iconMap[item.icon] ?? Settings;
-            const isActive = pathname === item.href;
-
-            return (
-              <Link key={item.href} href={item.href} onClick={onMobileClose}>
-                <span
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
-                    "transition-colors duration-150",
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-text-2 hover:bg-surface-2 hover:text-text-1",
-                    isCollapsed && "justify-center px-0",
-                  )}
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  <Icon className="h-5 w-5 shrink-0" />
-                  {!isCollapsed && <span>{item.label}</span>}
-                </span>
-              </Link>
-            );
-          })}
-
-          {/* Toggle de collapse (desktop) */}
-          <button
-            onClick={toggle}
-            className={cn(
-              "hidden lg:flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium",
-              "text-text-2 hover:bg-surface-2 hover:text-text-1",
-              "transition-colors duration-150 cursor-pointer",
-              isCollapsed && "justify-center px-0",
-            )}
-            aria-label={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-5 w-5 shrink-0" />
-            ) : (
-              <>
-                <ChevronLeft className="h-5 w-5 shrink-0" />
-                {!isCollapsed && <span>Recolher</span>}
-              </>
-            )}
-          </button>
-        </div>
       </aside>
     </>
   );
