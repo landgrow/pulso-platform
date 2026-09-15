@@ -67,7 +67,7 @@ test.describe("Route protection", () => {
   });
 
   test("unauthenticated user is redirected from settings", async ({ page }) => {
-    await page.goto("/configuracoes/organizacoes");
+    await page.goto("/configuracoes");
 
     await page.waitForURL(/.*\/login/, { timeout: 5000 });
     await expect(page).toHaveURL(/.*\/login/);

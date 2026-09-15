@@ -17,7 +17,7 @@ export const STAFF_CAPABILITIES = [
   { id: "metricas", label: "Métricas / Financeiro", group: "financeiro" },
   { id: "acessos", label: "Acessos", group: "admin" },
   { id: "equipe", label: "Equipe", group: "admin" },
-  { id: "audit_log", label: "Audit Log", group: "admin" },
+  { id: "audit_log", label: "Histórico de ações", group: "admin" },
 ] as const;
 
 export type StaffCapabilityId = (typeof STAFF_CAPABILITIES)[number]["id"];

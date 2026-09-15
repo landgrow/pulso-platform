@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, Check } from "lucide-react";
+import Link from "next/link";
 
 const CLIENT_ROLES = new Set([
   "client_owner",
@@ -39,7 +40,15 @@ export default async function OrganizacoesPage(): Promise<JSX.Element> {
   return (
     <div className="space-y-8 max-w-4xl">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Organizações</h1>
+        <Link
+          href="/configuracoes"
+          className="text-sm text-primary hover:underline"
+        >
+          ← Configurações
+        </Link>
+        <h1 className="text-3xl font-bold tracking-tight mb-2 mt-2">
+          Organizações
+        </h1>
         <p className="text-text-2">
           Gerencie as empresas que você tem acesso na plataforma.
         </p>

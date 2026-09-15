@@ -1,4 +1,5 @@
 import { Download, FileJson, Shield } from "lucide-react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -28,7 +29,15 @@ export default async function DadosPage(): Promise<JSX.Element> {
   return (
     <div className="space-y-8 max-w-4xl">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Meus dados</h1>
+        <Link
+          href="/configuracoes"
+          className="text-sm text-primary hover:underline"
+        >
+          ← Configurações
+        </Link>
+        <h1 className="text-3xl font-bold tracking-tight mb-2 mt-2">
+          Meus dados
+        </h1>
         <p className="text-text-2">
           Exportar, visualizar e gerenciar seus dados pessoais na plataforma.
         </p>

@@ -5,12 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Layers,
-  Target,
   Settings,
   Building2,
-  FileJson,
-  Activity,
   UserPlus,
   Users,
   ClipboardList,
@@ -27,12 +23,8 @@ import type { StaffCapabilityId } from "@/lib/auth/staff-access";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "layout-dashboard": LayoutDashboard,
-  layers: Layers,
-  target: Target,
   settings: Settings,
   "building-2": Building2,
-  "file-json": FileJson,
-  activity: Activity,
   "user-plus": UserPlus,
   users: Users,
   "clipboard-list": ClipboardList,
@@ -55,18 +47,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "layout-dashboard" },
-  {
-    href: "/colecoes",
-    label: "Coleções",
-    icon: "layers",
-    visibility: "client",
-  },
-  {
-    href: "/programa",
-    label: "Programa",
-    icon: "target",
-    visibility: "client",
-  },
   {
     href: "/admin/painel",
     label: "Painel",
@@ -111,18 +91,6 @@ const navItems: NavItem[] = [
     visibility: "equipe",
   },
   { href: "/configuracoes", label: "Configurações", icon: "settings" },
-  {
-    href: "/configuracoes/dados",
-    label: "Meus dados",
-    icon: "file-json",
-    visibility: "client",
-  },
-  {
-    href: "/configuracoes/audit-log",
-    label: "Audit Log",
-    icon: "activity",
-    visibility: "audit_log",
-  },
 ];
 
 export function Sidebar({

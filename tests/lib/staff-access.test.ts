@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   staffCan,
   DEFAULT_CONSULTANT_CAPABILITIES,
+  STAFF_CAPABILITIES,
   STAFF_CAPABILITY_IDS,
 } from "@/lib/auth/staff-access";
 
@@ -32,5 +33,11 @@ describe("staffCan", () => {
     expect(DEFAULT_CONSULTANT_CAPABILITIES).not.toContain("metricas");
     expect(DEFAULT_CONSULTANT_CAPABILITIES).not.toContain("equipe");
     expect(STAFF_CAPABILITY_IDS).toContain("metricas");
+  });
+
+  it("names the audit trail in Portuguese for Equipe", () => {
+    expect(STAFF_CAPABILITIES.find((c) => c.id === "audit_log")?.label).toBe(
+      "Histórico de ações",
+    );
   });
 });

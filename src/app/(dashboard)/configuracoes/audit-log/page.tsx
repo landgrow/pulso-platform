@@ -1,4 +1,5 @@
 import { Activity, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -32,8 +33,8 @@ export default async function AuditLogPage({
             <h1 className="text-xl font-semibold mb-2">Acesso negado</h1>
             <p className="text-text-2 text-sm">{result.error}</p>
             <p className="text-text-2 text-xs mt-4">
-              Esta página é restrita a administradores da plataforma
-              (platform_admin).
+              Esta página é restrita a quem tem a função Histórico de ações em
+              Equipe.
             </p>
           </CardContent>
         </Card>
@@ -47,15 +48,19 @@ export default async function AuditLogPage({
   return (
     <div className="space-y-6 max-w-5xl">
       <div>
-        <div className="flex items-center gap-3 mb-2">
-          <h1 className="text-3xl font-bold tracking-tight">Audit Log</h1>
-          <Badge variant="outline" className="text-text-2">
-            admin only
-          </Badge>
+        <Link
+          href="/configuracoes"
+          className="text-sm text-primary hover:underline"
+        >
+          ← Configurações
+        </Link>
+        <div className="flex items-center gap-3 mb-2 mt-2">
+          <h1 className="text-3xl font-bold tracking-tight">
+            Histórico de ações
+          </h1>
         </div>
         <p className="text-text-2">
-          Histórico de ações sensíveis realizadas na plataforma. Total: {total}{" "}
-          registro(s).
+          Registro de ações sensíveis na plataforma. Total: {total} registro(s).
         </p>
       </div>
 
