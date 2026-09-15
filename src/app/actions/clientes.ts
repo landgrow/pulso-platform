@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformRole } from "@/lib/supabase/platform-role-server";
+import { inviteRedirectTo } from "@/lib/auth/invite-callback";
 import { setActiveOrganizationCookie } from "@/lib/supabase/organization-server";
 import type { ClientDirectoryEntry, Programa } from "@/types/clientes";
 
@@ -233,7 +234,7 @@ export async function addTeamMember(
   const { data: created, error: inviteError } =
     await admin.auth.admin.inviteUserByEmail(email, {
       data: { full_name: name },
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/reset-password`,
+      redirectTo: inviteRedirectTo(process.env.NEXT_PUBLIC_APP_URL),
     });
 
   if (inviteError || !created.user) {

@@ -4,7 +4,8 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSlug, ensureUniqueSlug } from "@/lib/utils/slug";
-import { requirePlatformAdmin } from "@/lib/supabase/platform-role-server";
+import { requireCapability } from "@/lib/supabase/platform-role-server";
+import { inviteRedirectTo } from "@/lib/auth/invite-callback";
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -30,9 +31,9 @@ const createClientAccountSchema = z.object({
  * Consulta a tabela platform_roles (mesma fonte de is_platform_admin() usada
  * nas policies de RLS) — profiles.is_platform_admin não existe no banco.
  */
-async function assertPlatformAdmin(): Promise<void> {
+async function assertCanManageAcessos(): Promise<void> {
   const supabase = await createClient();
-  await requirePlatformAdmin(supabase);
+  await requireCapability(supabase, "acessos");
 }
 
 // ─── Server Actions ─────────────────────────────────────────────────────────
@@ -42,7 +43,7 @@ export type IsPlatformAdminResult = { isAdmin: boolean };
 /** Usado pela página para decidir entre mostrar o formulário ou "acesso negado". */
 export async function getIsPlatformAdmin(): Promise<IsPlatformAdminResult> {
   try {
-    await assertPlatformAdmin();
+    await assertCanManageAcessos();
     return { isAdmin: true };
   } catch {
     return { isAdmin: false };
@@ -72,7 +73,7 @@ export async function createClientAccount(
   raw: unknown,
 ): Promise<CreateClientAccountResult> {
   try {
-    await assertPlatformAdmin();
+    await assertCanManageAcessos();
   } catch (e) {
     return {
       success: false,
@@ -94,7 +95,7 @@ export async function createClientAccount(
   const { data: created, error: createError } =
     await admin.auth.admin.inviteUserByEmail(email, {
       data: { full_name: name },
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/reset-password`,
+      redirectTo: inviteRedirectTo(process.env.NEXT_PUBLIC_APP_URL),
     });
 
   if (createError || !created.user) {
@@ -165,7 +166,7 @@ export async function createClientAccount(
       const { data: memberCreated, error: memberInviteError } =
         await admin.auth.admin.inviteUserByEmail(member.email, {
           data: { full_name: member.name },
-          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/reset-password`,
+          redirectTo: inviteRedirectTo(process.env.NEXT_PUBLIC_APP_URL),
         });
 
       if (memberInviteError || !memberCreated.user) {

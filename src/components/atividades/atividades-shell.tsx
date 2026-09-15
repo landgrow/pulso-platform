@@ -110,7 +110,8 @@ export function AtividadesShell({ orgId }: { orgId: string }): JSX.Element {
                   </span>
                   <span className="truncate">{b.name}</span>
                 </button>
-                {boards.length > 1 &&
+                {boards.filter((x) => x.kind !== "admin_only").length > 1 &&
+                  b.kind !== "admin_only" &&
                   nav.kind === "board" &&
                   nav.boardId === b.id && (
                     <button

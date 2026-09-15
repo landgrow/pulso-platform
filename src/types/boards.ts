@@ -103,11 +103,14 @@ export const BUILTIN_FIELDS: { key: string; label: string }[] = [
 
 export type BoardModule = "atividades" | "crm";
 
+export type BoardKind = "standard" | "admin_only";
+
 export interface Board {
   id: string;
   org_id: string;
   name: string;
   module: BoardModule;
+  kind: BoardKind;
   icon: string;
   color: string;
   columns: BoardColumn[];

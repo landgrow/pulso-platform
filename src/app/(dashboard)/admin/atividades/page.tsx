@@ -2,14 +2,14 @@ import { AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
-import { requirePlatformAdmin } from "@/lib/supabase/platform-role-server";
+import { requireCapability } from "@/lib/supabase/platform-role-server";
 import { AtividadesShell } from "@/components/atividades/atividades-shell";
 
 export default async function AdminAtividadesPage(): Promise<JSX.Element> {
   const supabase = await createClient();
 
   try {
-    await requirePlatformAdmin(supabase);
+    await requireCapability(supabase, "atividades");
   } catch (e) {
     return (
       <div className="max-w-2xl mx-auto py-12">
@@ -58,12 +58,12 @@ export default async function AdminAtividadesPage(): Promise<JSX.Element> {
         <div className="flex items-center gap-3 mb-2">
           <h1 className="text-3xl font-bold tracking-tight">Atividades</h1>
           <Badge variant="outline" className="text-text-2">
-            admin only
+            operação
           </Badge>
         </div>
         <p className="text-text-2">
-          Quadro interno da Land Grow — tarefas da operação, podem ser
-          vinculadas a um cliente específico ao abrir o card.
+          Quadro interno da Land Grow. O kanban “Tarefas administrativas” só
+          aparece para admin — o consultor não vê essas atividades.
         </p>
       </div>
 

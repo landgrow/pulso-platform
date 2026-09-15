@@ -50,8 +50,14 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     "/forgot-password",
     "/reset-password",
     "/auth/callback",
+    "/auth/confirm",
     "/preview",
   ];
+  const stayWhenAuthenticated = new Set([
+    "/reset-password",
+    "/auth/callback",
+    "/auth/confirm",
+  ]);
   const isPublicRoute =
     publicRoutes.some((r) => pathname === r) || pathname.startsWith("/preview");
 
@@ -107,7 +113,8 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     user &&
     pathname !== "/" &&
     !pathname.startsWith("/preview") &&
-    !isManualLogin
+    !isManualLogin &&
+    !stayWhenAuthenticated.has(pathname)
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";

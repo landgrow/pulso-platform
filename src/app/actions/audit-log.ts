@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { isPlatformAdmin } from "@/lib/supabase/platform-role-server";
+import { getStaffCapabilities } from "@/lib/supabase/platform-role-server";
 
 const PAGE_SIZE = 20;
 
@@ -27,8 +27,8 @@ export type AuditLogResult =
 export async function getAuditLog(page = 1): Promise<AuditLogResult> {
   const supabase = await createClient();
 
-  // Verifica se é platform_admin (só admins veem audit log)
-  if (!(await isPlatformAdmin(supabase))) {
+  const caps = await getStaffCapabilities(supabase);
+  if (!caps.includes("audit_log")) {
     return { success: false, error: "Acesso negado. Apenas administradores." };
   }
 

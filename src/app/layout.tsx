@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/providers/toaster";
+import { AuthHashCatcher } from "@/components/auth/auth-hash-catcher";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: RootLayoutProps): JSX.Element {
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <ThemeProvider defaultTheme="dark">
           <QueryProvider>
+            <AuthHashCatcher />
             {children}
             <Toaster />
           </QueryProvider>

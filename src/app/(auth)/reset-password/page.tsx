@@ -141,9 +141,10 @@ export default function ResetPasswordPage(): JSX.Element {
             </div>
             <span className="text-xl font-semibold text-text-1">PULSO</span>
           </div>
-          <CardTitle className="text-2xl">Nova senha</CardTitle>
+          <CardTitle className="text-2xl">Definir senha</CardTitle>
           <CardDescription>
-            Digite uma nova senha segura para sua conta.
+            Crie uma senha para acessar o PULSO. Use no mínimo 8 caracteres, com
+            1 maiúscula e 1 número.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>

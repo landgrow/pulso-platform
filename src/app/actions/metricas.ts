@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { requirePlatformAdmin } from "@/lib/supabase/platform-role-server";
+import { requireCapability } from "@/lib/supabase/platform-role-server";
 import { getAtividadesDashboard } from "@/app/actions/boards";
 import type { ContratoStatus, Moeda, Programa } from "@/types/clientes";
 
@@ -34,7 +34,7 @@ export interface MetricasGerais {
 export async function getMetricasGerais(): Promise<Result<MetricasGerais>> {
   const supabase = await createClient();
   try {
-    await requirePlatformAdmin(supabase);
+    await requireCapability(supabase, "metricas");
   } catch (e) {
     return {
       success: false,

@@ -2,14 +2,14 @@ import { AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
-import { requirePlatformAdmin } from "@/lib/supabase/platform-role-server";
+import { requireCapability } from "@/lib/supabase/platform-role-server";
 import { MindMapCanvas } from "@/components/mindmaps/mind-map-canvas";
 
 export default async function AdminMapaMentalPage(): Promise<JSX.Element> {
   const supabase = await createClient();
 
   try {
-    await requirePlatformAdmin(supabase);
+    await requireCapability(supabase, "mapa_mental");
   } catch (e) {
     return (
       <div className="max-w-2xl mx-auto py-12">

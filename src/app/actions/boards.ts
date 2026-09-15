@@ -185,7 +185,7 @@ const updateViewConfigSchema = z.object({
 });
 
 const BOARD_SELECT = `
-  id, org_id, name, module, icon, color, field_config, view_config,
+  id, org_id, name, module, kind, icon, color, field_config, view_config,
   board_columns ( id, label, color, position ),
   board_properties ( id, key, label, type, options, position, visible ),
   board_cards (
@@ -202,6 +202,7 @@ interface RawBoardRow {
   org_id: string;
   name: string;
   module: "atividades" | "crm";
+  kind: "standard" | "admin_only";
   icon: string;
   color: string;
   field_config: FieldConfig | null;
@@ -247,6 +248,7 @@ function mapBoard(row: RawBoardRow): Board {
     org_id: row.org_id,
     name: row.name,
     module: row.module,
+    kind: row.kind ?? "standard",
     icon: row.icon,
     color: row.color,
     columns: [...row.board_columns].sort((a, b) => a.position - b.position),
@@ -325,7 +327,15 @@ export async function listBoards(
   orgId: string,
   module: "atividades" | "crm" = "atividades",
 ): Promise<
-  Result<{ id: string; name: string; icon: string; color: string }[]>
+  Result<
+    {
+      id: string;
+      name: string;
+      icon: string;
+      color: string;
+      kind: "standard" | "admin_only";
+    }[]
+  >
 > {
   const parsed = listBoardsSchema.safeParse({ orgId, module });
   if (!parsed.success) return { success: false, error: "Organização inválida" };
@@ -333,14 +343,53 @@ export async function listBoards(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("boards")
-    .select("id, name, icon, color")
+    .select("id, name, icon, color, kind")
     .eq("org_id", parsed.data.orgId)
     .eq("module", parsed.data.module)
     .order("position", { ascending: true })
     .order("created_at", { ascending: true });
 
-  if (error) return { success: false, error: error.message };
-  return { success: true, data: data ?? [] };
+  if (error) {
+    if (error.message.toLowerCase().includes("kind")) {
+      const fallback = await supabase
+        .from("boards")
+        .select("id, name, icon, color")
+        .eq("org_id", parsed.data.orgId)
+        .eq("module", parsed.data.module)
+        .order("position", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (fallback.error)
+        return { success: false, error: fallback.error.message };
+      return {
+        success: true,
+        data: (fallback.data ?? []).map(
+          (row: { id: string; name: string; icon: string; color: string }) => ({
+            ...row,
+            kind: "standard" as const,
+          }),
+        ),
+      };
+    }
+    return { success: false, error: error.message };
+  }
+  return {
+    success: true,
+    data: (data ?? []).map(
+      (row: {
+        id: string;
+        name: string;
+        icon: string;
+        color: string;
+        kind: string | null;
+      }) => ({
+        ...row,
+        kind:
+          row.kind === "admin_only"
+            ? ("admin_only" as const)
+            : ("standard" as const),
+      }),
+    ),
+  };
 }
 
 /** Cria um novo kanban na org (Atividades ou CRM), já com as 4 colunas padrão. */
@@ -384,16 +433,14 @@ export async function createBoard(
       error: boardError?.message ?? "Erro ao criar kanban",
     };
 
-  const { error: colError } = await supabase
-    .from("board_columns")
-    .insert(
-      DEFAULT_COLUMNS.map((c, i) => ({
-        board_id: board.id,
-        label: c.label,
-        color: c.color,
-        position: i,
-      })),
-    );
+  const { error: colError } = await supabase.from("board_columns").insert(
+    DEFAULT_COLUMNS.map((c, i) => ({
+      board_id: board.id,
+      label: c.label,
+      color: c.color,
+      position: i,
+    })),
+  );
 
   if (colError) return { success: false, error: colError.message };
 
@@ -455,6 +502,18 @@ export async function deleteBoard(
   boardId: string,
 ): Promise<Result<{ removed: true }>> {
   const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from("boards")
+    .select("kind")
+    .eq("id", boardId)
+    .maybeSingle();
+  if (existing?.kind === "admin_only") {
+    return {
+      success: false,
+      error:
+        "O kanban de tarefas administrativas é fixo e não pode ser excluído.",
+    };
+  }
   const { error } = await supabase.from("boards").delete().eq("id", boardId);
   if (error) return { success: false, error: error.message };
   revalidatePath("/admin/atividades");

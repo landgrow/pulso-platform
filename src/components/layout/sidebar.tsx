@@ -23,6 +23,7 @@ import { useSidebar } from "@/components/layout/sidebar-context";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import { getMyPlatformRole } from "@/app/actions/me";
+import type { StaffCapabilityId } from "@/lib/auth/staff-access";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "layout-dashboard": LayoutDashboard,
@@ -46,17 +47,12 @@ interface NavItem {
   label: string;
   icon: string;
   /**
-   * "all" = qualquer usuário logado; "admin" = só platform_admin;
-   * "admin_or_consultant" = os dois; "client" = só quem NÃO é platform_admin
-   * nem consultant (organizações-cliente de verdade — Coleções/Programa/Meus
-   * dados são ferramentas do cliente, não fazem sentido no menu do admin).
+   * "all" = qualquer usuário logado; "client" = só cliente;
+   * capability = função admin marcada em Equipe (admin tem todas).
    */
-  visibility?: "all" | "admin" | "admin_or_consultant" | "client";
+  visibility?: "all" | "client" | StaffCapabilityId;
 }
 
-// Um menu só, sem divisão visual — filtrado por platformRole (ver
-// `visibility` de cada item). BIN e MIN não entram aqui — acessados por outro
-// caminho (ver Painel). Central IA saiu do menu (ainda é só placeholder).
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "layout-dashboard" },
   {
@@ -71,43 +67,48 @@ const navItems: NavItem[] = [
     icon: "target",
     visibility: "client",
   },
-  { href: "/admin/painel", label: "Painel", icon: "home", visibility: "admin" },
+  {
+    href: "/admin/painel",
+    label: "Painel",
+    icon: "home",
+    visibility: "painel",
+  },
   {
     href: "/admin/atividades",
     label: "Atividades",
     icon: "clipboard-list",
-    visibility: "admin",
+    visibility: "atividades",
   },
   {
     href: "/admin/mapa-mental",
     label: "Mapa Mental",
     icon: "share-2",
-    visibility: "admin",
+    visibility: "mapa_mental",
   },
   {
     href: "/admin/metricas",
     label: "Métricas",
     icon: "bar-chart-3",
-    visibility: "admin",
+    visibility: "metricas",
   },
-  { href: "/admin/crm", label: "CRM", icon: "contact", visibility: "admin" },
+  { href: "/admin/crm", label: "CRM", icon: "contact", visibility: "crm" },
   {
     href: "/admin/clientes",
     label: "Organizações",
     icon: "building-2",
-    visibility: "admin_or_consultant",
+    visibility: "clientes",
   },
   {
     href: "/admin/acessos",
     label: "Acessos",
     icon: "user-plus",
-    visibility: "admin",
+    visibility: "acessos",
   },
   {
     href: "/admin/equipe",
     label: "Equipe",
     icon: "users",
-    visibility: "admin",
+    visibility: "equipe",
   },
   { href: "/configuracoes", label: "Configurações", icon: "settings" },
   {
@@ -120,7 +121,7 @@ const navItems: NavItem[] = [
     href: "/configuracoes/audit-log",
     label: "Audit Log",
     icon: "activity",
-    visibility: "admin",
+    visibility: "audit_log",
   },
 ];
 
@@ -134,12 +135,16 @@ export function Sidebar({
   const [platformRole, setPlatformRole] = useState<
     "platform_admin" | "consultant" | null
   >(null);
+  const [capabilities, setCapabilities] = useState<StaffCapabilityId[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const { role } = await getMyPlatformRole();
-      if (!cancelled) setPlatformRole(role);
+      const { role, capabilities: nextCaps } = await getMyPlatformRole();
+      if (!cancelled) {
+        setPlatformRole(role);
+        setCapabilities(nextCaps);
+      }
     })();
     return () => {
       cancelled = true;
@@ -148,9 +153,8 @@ export function Sidebar({
 
   const visibleItems = navItems.filter((item) => {
     if (!item.visibility || item.visibility === "all") return true;
-    if (item.visibility === "admin") return platformRole === "platform_admin";
     if (item.visibility === "client") return platformRole === null;
-    return platformRole === "platform_admin" || platformRole === "consultant";
+    return capabilities.includes(item.visibility);
   });
 
   const isFull = variant === "full";

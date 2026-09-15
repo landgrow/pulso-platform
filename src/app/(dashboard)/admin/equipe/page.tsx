@@ -12,6 +12,8 @@ import { listClientDirectory } from "@/app/actions/clientes";
 import { AddPlatformTeamMemberForm } from "./add-team-member-form";
 import { RemovePlatformTeamMemberButton } from "./remove-team-member-button";
 import { ManageConsultantOrgs } from "./manage-consultant-orgs";
+import { ManageConsultantFunctions } from "./manage-consultant-functions";
+import { ResendInviteButton } from "./resend-invite-button";
 
 export default async function EquipePage(): Promise<JSX.Element> {
   const [teamResult, clientesResult] = await Promise.all([
@@ -48,8 +50,9 @@ export default async function EquipePage(): Promise<JSX.Element> {
           </Badge>
         </div>
         <p className="text-text-2">
-          Quem tem acesso administrativo ao PULSO. Admin vê e mexe em tudo;
-          consultor só enxerga os clientes atribuídos a ele.
+          Cliente vê só a própria empresa. Admin vê tudo. Consultor: marque as
+          funções no botão Funções. Tarefas no kanban “Tarefas administrativas”
+          continuam invisíveis para o consultor.
         </p>
       </div>
 
@@ -97,6 +100,10 @@ export default async function EquipePage(): Promise<JSX.Element> {
                     </Badge>
                     {m.role === "consultant" && (
                       <>
+                        <ManageConsultantFunctions
+                          consultantId={m.userId}
+                          granted={m.capabilities}
+                        />
                         <div className="hidden md:flex flex-wrap gap-1 max-w-[240px]">
                           {m.assignedOrgs.length === 0 ? (
                             <span className="text-xs text-text-2">
@@ -121,6 +128,10 @@ export default async function EquipePage(): Promise<JSX.Element> {
                         />
                       </>
                     )}
+                    <ResendInviteButton
+                      email={m.email}
+                      name={m.fullName ?? m.email}
+                    />
                     <RemovePlatformTeamMemberButton
                       userId={m.userId}
                       email={m.email}

@@ -59,7 +59,6 @@ function LoginFormContent(): JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Mostra mensagem se sessão expirou ou se há erro de auth vindo do callback.
   useEffect(() => {
     if (searchParams.get("expired") === "1") {
       toast.warning("Sua sessão expirou. Faça login novamente.");

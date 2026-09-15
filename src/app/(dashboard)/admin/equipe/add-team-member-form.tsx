@@ -42,7 +42,7 @@ export function AddPlatformTeamMemberForm(): JSX.Element {
         toast.error(result.error);
         return;
       }
-      toast.success(`${data.name} adicionado(a) à equipe`);
+      toast.success(result.data.message);
       reset({ role: "consultant" });
       router.refresh();
     } catch {
@@ -92,7 +92,7 @@ export function AddPlatformTeamMemberForm(): JSX.Element {
           >
             <option value="platform_admin">Admin (acesso total)</option>
             <option value="consultant">
-              Consultor (restrito aos clientes atribuídos)
+              Consultor (tudo, menos financeiro)
             </option>
           </select>
         </div>

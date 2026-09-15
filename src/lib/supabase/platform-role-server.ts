@@ -1,5 +1,9 @@
 import "server-only";
 import type { createClient } from "@/lib/supabase/server";
+import {
+  STAFF_CAPABILITY_IDS,
+  type StaffCapabilityId,
+} from "@/lib/auth/staff-access";
 
 type ServerSupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -28,6 +32,29 @@ export async function getPlatformRole(
   return (data?.role as PlatformRole | undefined) ?? null;
 }
 
+export async function getStaffCapabilities(
+  supabase: ServerSupabaseClient,
+): Promise<StaffCapabilityId[]> {
+  const role = await getPlatformRole(supabase);
+  if (role === "platform_admin") return [...STAFF_CAPABILITY_IDS];
+  if (role !== "consultant") return [];
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("consultant_capabilities")
+    .select("capability")
+    .eq("consultant_id", user.id);
+
+  if (error || !data) return [];
+  return data
+    .map((row: { capability: string }) => row.capability as StaffCapabilityId)
+    .filter((cap: StaffCapabilityId) => STAFF_CAPABILITY_IDS.includes(cap));
+}
+
 export async function isPlatformAdmin(
   supabase: ServerSupabaseClient,
 ): Promise<boolean> {
@@ -42,4 +69,35 @@ export async function requirePlatformAdmin(
   if (!(await isPlatformAdmin(supabase))) {
     throw new Error("Acesso negado. Apenas administradores da plataforma.");
   }
+}
+
+export async function isPlatformStaff(
+  supabase: ServerSupabaseClient,
+): Promise<boolean> {
+  const role = await getPlatformRole(supabase);
+  return role === "platform_admin" || role === "consultant";
+}
+
+/** Admin ou consultor — operação interna, sem financeiro. */
+export async function requirePlatformStaff(
+  supabase: ServerSupabaseClient,
+): Promise<PlatformRole> {
+  const role = await getPlatformRole(supabase);
+  if (role !== "platform_admin" && role !== "consultant") {
+    throw new Error("Acesso negado. Apenas equipe Land Grow.");
+  }
+  return role;
+}
+
+export async function requireCapability(
+  supabase: ServerSupabaseClient,
+  capability: StaffCapabilityId,
+): Promise<PlatformRole> {
+  const role = await getPlatformRole(supabase);
+  if (role === "platform_admin") return role;
+  if (role === "consultant") {
+    const caps = await getStaffCapabilities(supabase);
+    if (caps.includes(capability)) return role;
+  }
+  throw new Error("Acesso negado a esta função.");
 }

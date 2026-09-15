@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
-import { requirePlatformAdmin } from "@/lib/supabase/platform-role-server";
+import { requireCapability } from "@/lib/supabase/platform-role-server";
 import { AccessDenied } from "@/components/admin/access-denied";
 import { BinPageContent } from "@/components/admin/bin-page-content";
 
@@ -8,7 +8,7 @@ export default async function AdminBinPage(): Promise<JSX.Element> {
   const supabase = await createClient();
 
   try {
-    await requirePlatformAdmin(supabase);
+    await requireCapability(supabase, "bin");
   } catch (e) {
     return (
       <AccessDenied

@@ -1,7 +1,7 @@
 import { Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
-import { requirePlatformAdmin } from "@/lib/supabase/platform-role-server";
+import { requireCapability } from "@/lib/supabase/platform-role-server";
 import { AccessDenied } from "@/components/admin/access-denied";
 import { PlaceholderModule } from "@/components/admin/placeholder-module";
 
@@ -9,7 +9,7 @@ export default async function AdminCentralIaPage(): Promise<JSX.Element> {
   const supabase = await createClient();
 
   try {
-    await requirePlatformAdmin(supabase);
+    await requireCapability(supabase, "painel");
   } catch (e) {
     return (
       <AccessDenied

@@ -16,6 +16,7 @@ interface BoardListItem {
   name: string;
   icon: string;
   color: string;
+  kind?: "standard" | "admin_only";
 }
 
 /** Gerencia a lista de kanbans de um módulo (Atividades ou CRM) da org + o board atualmente aberto — usado pelo KanbanBoard (por-cliente), AtividadesShell e CrmShell (internos). */
@@ -103,8 +104,16 @@ export function useBoardList(
   }
 
   async function handleDeleteBoard(id: string): Promise<void> {
-    if (module === "atividades" && boards.length <= 1) {
-      toast.error("Precisa manter pelo menos um kanban.");
+    const target = boards.find((b) => b.id === id);
+    if (target?.kind === "admin_only") {
+      toast.error(
+        "O kanban de tarefas administrativas é fixo e não pode ser excluído.",
+      );
+      return;
+    }
+    const standardCount = boards.filter((b) => b.kind !== "admin_only").length;
+    if (module === "atividades" && standardCount <= 1) {
+      toast.error("Precisa manter pelo menos um kanban operacional.");
       return;
     }
     const result = await deleteBoard(id);
