@@ -1,18 +1,11 @@
 import Link from "next/link";
-import { Activity, Building2, ChevronRight, FileJson } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   getPlatformRole,
   getStaffCapabilities,
 } from "@/lib/supabase/platform-role-server";
-
-interface SettingsItem {
-  href: string;
-  title: string;
-  description: string;
-  icon: LucideIcon;
-}
+import { visibleSettingsNav } from "@/lib/settings/nav";
 
 export default async function ConfiguracoesPage(): Promise<JSX.Element> {
   const supabase = await createClient();
@@ -20,62 +13,53 @@ export default async function ConfiguracoesPage(): Promise<JSX.Element> {
     getPlatformRole(supabase),
     getStaffCapabilities(supabase),
   ]);
-  const isStaff = role !== null;
+  const items = visibleSettingsNav({
+    isStaff: role !== null,
+    canAudit: caps.includes("audit_log"),
+  });
 
-  const items: SettingsItem[] = [
-    {
-      href: "/configuracoes/dados",
-      title: "Meus dados",
-      description: "Exportar e gerenciar seus dados pessoais (LGPD).",
-      icon: FileJson,
-    },
-    {
-      href: isStaff ? "/admin/clientes" : "/configuracoes/organizacoes",
-      title: isStaff ? "Organizações" : "Minhas organizações",
-      description: isStaff
-        ? "Clientes e contratos da Land Grow."
-        : "Empresas às quais você tem acesso.",
-      icon: Building2,
-    },
-  ];
-
-  if (caps.includes("audit_log")) {
-    items.push({
-      href: "/configuracoes/audit-log",
-      title: "Histórico de ações",
-      description: "Quem criou ou apagou o quê na plataforma, e quando.",
-      icon: Activity,
-    });
-  }
+  const groups = [
+    { id: "conta", title: "Sua conta" },
+    { id: "trabalho", title: "Trabalho" },
+    { id: "privacidade", title: "Privacidade" },
+  ] as const;
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
         <p className="text-text-2">
-          Conta, organizações e histórico da plataforma.
+          Conta, aparência, avisos e segurança. Clientes e equipe continuam nos
+          menus Organizações e Equipe — daqui não se gerencia carteira.
         </p>
       </div>
 
-      <div className="grid gap-3">
-        {items.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center gap-4 rounded-lg border border-border bg-surface-1 p-4 hover:border-primary/40 hover:bg-surface-2 transition-colors"
-            >
-              <Icon className="h-5 w-5 text-text-2 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-text-1">{item.title}</p>
-                <p className="text-sm text-text-2">{item.description}</p>
-              </div>
-              <ChevronRight className="h-4 w-4 text-text-2 shrink-0" />
-            </Link>
-          );
-        })}
-      </div>
+      {groups.map((group) => {
+        const groupItems = items.filter((item) => item.group === group.id);
+        if (groupItems.length === 0) return null;
+        return (
+          <section key={group.id} className="space-y-3">
+            <h2 className="text-sm font-medium text-text-2">{group.title}</h2>
+            <div className="grid gap-2">
+              {groupItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="flex items-center gap-4 rounded-lg border border-border bg-surface-1 p-4 hover:border-primary/40 hover:bg-surface-2 transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-text-1">
+                      {item.label}
+                    </p>
+                    <p className="text-sm text-text-2">{item.description}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-text-2 shrink-0" />
+                </Link>
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
