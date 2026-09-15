@@ -42,3 +42,19 @@ export function resolveAuthCallbackNext(
   }
   return safeCallbackNext(next);
 }
+
+export function hasAuthHash(hash: string): boolean {
+  return /access_token=|refresh_token=|type=invite|type=recovery|type=signup/.test(
+    hash,
+  );
+}
+
+/**
+ * Callback sem `code`/`token_hash`: ou o Google devolveu `?error=`, ou o
+ * convite veio no fragmento `#access_token` (o servidor não vê o hash).
+ */
+export function emptyCallbackKind(
+  oauthError: string | null,
+): "oauth_error" | "consume_hash" {
+  return oauthError ? "oauth_error" : "consume_hash";
+}

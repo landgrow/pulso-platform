@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
-import { resolveAuthCallbackNext } from "@/lib/auth/invite-callback";
+import {
+  emptyCallbackKind,
+  resolveAuthCallbackNext,
+} from "@/lib/auth/invite-callback";
 
 /**
  * Callback unificado:
@@ -52,14 +55,14 @@ export async function GET(request: Request): Promise<NextResponse> {
     );
   }
 
-  // Sem code/token_hash: convite com tokens no hash, ou OAuth cancelado.
-  if (next === "/reset-password") {
-    const confirm = new URL("/auth/confirm", origin);
-    confirm.searchParams.set("next", next);
-    return NextResponse.redirect(confirm);
+  // Sem code/token_hash: Google cancelado (`?error=`) ou convite no hash.
+  if (emptyCallbackKind(searchParams.get("error")) === "oauth_error") {
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent("Login com Google cancelado ou inválido.")}`,
+    );
   }
 
-  return NextResponse.redirect(
-    `${origin}/login?error=${encodeURIComponent("Login com Google cancelado ou inválido.")}`,
-  );
+  const confirm = new URL("/auth/confirm", origin);
+  confirm.searchParams.set("next", "/reset-password");
+  return NextResponse.redirect(confirm);
 }

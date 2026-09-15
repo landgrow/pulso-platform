@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card";
 import { signIn } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
+import { hasAuthHash } from "@/lib/auth/invite-callback";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
@@ -60,6 +61,9 @@ function LoginFormContent(): JSX.Element {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    if (hasAuthHash(window.location.hash)) {
+      return;
+    }
     if (searchParams.get("expired") === "1") {
       toast.warning("Sua sessão expirou. Faça login novamente.");
     }
@@ -103,7 +107,9 @@ function LoginFormContent(): JSX.Element {
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+        },
       });
       if (error) {
         toast.error("Não foi possível iniciar o login com Google.");
@@ -129,30 +135,10 @@ function LoginFormContent(): JSX.Element {
         </div>
         <CardTitle className="text-2xl">Entrar</CardTitle>
         <CardDescription>
-          Acesse sua conta para gerenciar sua empresa
+          Use email e senha. No primeiro acesso, o convite abre a tela para
+          criar a senha — Google é opcional.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 pb-0">
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={handleGoogleLogin}
-          disabled={isGoogleLoading || isLoading}
-        >
-          {isGoogleLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <GoogleIcon />
-          )}
-          <span className="ml-2">Continuar com Google</span>
-        </Button>
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-xs text-text-2">ou</span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-      </CardContent>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -210,6 +196,25 @@ function LoginFormContent(): JSX.Element {
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Entrar
+          </Button>
+          <div className="flex items-center gap-3 w-full">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-text-2">ou</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleGoogleLogin}
+            disabled={isGoogleLoading || isLoading}
+          >
+            {isGoogleLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <GoogleIcon />
+            )}
+            <span className="ml-2">Continuar com Google</span>
           </Button>
           <p className="text-sm text-text-2 text-center">
             Acesso disponível apenas para clientes Land Grow. Sem conta? Fale

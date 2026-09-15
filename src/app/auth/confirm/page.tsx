@@ -39,6 +39,8 @@ function AuthConfirmContent(): JSX.Element {
           );
           return;
         }
+      } else if (accessToken) {
+        await supabase.auth.getSession();
       }
 
       const {

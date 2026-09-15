@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-
-function hasAuthHash(hash: string): boolean {
-  return /access_token=|refresh_token=|type=invite|type=recovery|type=signup/.test(
-    hash,
-  );
-}
+import { hasAuthHash } from "@/lib/auth/invite-callback";
 
 /**
  * Convite/recuperação do Supabase às vezes abre `/` ou `/login` com

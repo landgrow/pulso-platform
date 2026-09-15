@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
+  emptyCallbackKind,
+  hasAuthHash,
   inviteRedirectTo,
-  resolveAppUrl,
-  safeCallbackNext,
   isPasswordSetupType,
+  resolveAppUrl,
   resolveAuthCallbackNext,
+  safeCallbackNext,
 } from "@/lib/auth/invite-callback";
 
 describe("inviteRedirectTo", () => {
@@ -61,5 +63,22 @@ describe("isPasswordSetupType", () => {
     expect(isPasswordSetupType("invite")).toBe(true);
     expect(isPasswordSetupType("recovery")).toBe(true);
     expect(isPasswordSetupType("magiclink")).toBe(false);
+  });
+});
+
+describe("emptyCallbackKind", () => {
+  it("treats provider error as oauth cancel, not as invite", () => {
+    expect(emptyCallbackKind("access_denied")).toBe("oauth_error");
+  });
+
+  it("sends hash-only callbacks to consume the invite token", () => {
+    expect(emptyCallbackKind(null)).toBe("consume_hash");
+  });
+});
+
+describe("hasAuthHash", () => {
+  it("detects invite fragments", () => {
+    expect(hasAuthHash("#access_token=abc&type=invite")).toBe(true);
+    expect(hasAuthHash("")).toBe(false);
   });
 });
