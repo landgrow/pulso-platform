@@ -1,26 +1,20 @@
+import Link from "next/link";
 import { getActiveOrganization } from "@/lib/supabase/organization-server";
 import { getSession } from "@/lib/supabase/get-session";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  TrendingUp,
-  Target,
-  Users,
-  BarChart3,
-  ArrowRight,
-  Building2,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { createClient } from "@/lib/supabase/server";
+import { getStaffCapabilities } from "@/lib/supabase/platform-role-server";
+import { getAtividadesDashboard } from "@/app/actions/boards";
+import { getMetricasGerais } from "@/app/actions/metricas";
+import { PageHeader, EmptyState, KpiCard } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils";
 
 export default async function DashboardPage(): Promise<JSX.Element> {
-  const [session, active] = await Promise.all([
+  const supabase = await createClient();
+  const [session, active, caps] = await Promise.all([
     getSession(),
     getActiveOrganization(),
+    getStaffCapabilities(supabase),
   ]);
 
   const userName =
@@ -28,122 +22,145 @@ export default async function DashboardPage(): Promise<JSX.Element> {
     session?.user.email?.split("@")[0] ??
     "Usuário";
 
+  const isStaff = caps.length > 0;
+
+  if (isStaff) {
+    return <StaffHome userName={userName} caps={caps} />;
+  }
+
   if (!active) {
     return (
-      <div className="max-w-2xl mx-auto py-12 text-center">
-        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-          <Building2 className="h-6 w-6 text-primary" />
-        </div>
-        <h1 className="text-2xl font-bold mb-2">Bem-vindo, {userName}!</h1>
-        <p className="text-text-2 mb-6">
-          Você ainda não tem uma organização. Crie uma para começar.
-        </p>
-        <a
-          href="/configuracoes/organizacoes"
-          className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground h-10 px-4 text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          Criar organização
-        </a>
-      </div>
+      <EmptyState
+        title={`Bem-vindo, ${userName}`}
+        description="Você ainda não tem uma organização. Crie uma para começar."
+        action={
+          <Button asChild>
+            <Link href="/configuracoes/organizacoes">Criar organização</Link>
+          </Button>
+        }
+      />
     );
   }
 
   return (
     <div className="space-y-8 max-w-6xl">
-      {/* Hero */}
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <h1 className="text-3xl font-bold tracking-tight">Olá, {userName}</h1>
-          <Badge variant="outline" className="text-text-2">
-            {active.org.name}
-          </Badge>
-        </div>
-        <p className="text-text-2">
-          Bem-vindo de volta. Acompanhe a evolução da sua empresa.
+      <PageHeader
+        title={`Olá, ${userName}`}
+        description={`${active.org.name} — o que está aberto hoje.`}
+      />
+      <Link
+        href="/configuracoes"
+        className="block rounded-lg border border-border bg-surface-1 p-5 hover:border-primary/40 transition-colors"
+      >
+        <p className="text-sm font-semibold">Configurações</p>
+        <p className="text-sm text-text-2 mt-1">
+          Conta, notificações e dados da sua organização.
         </p>
+      </Link>
+    </div>
+  );
+}
+
+async function StaffHome({
+  userName,
+  caps,
+}: {
+  userName: string;
+  caps: string[];
+}): Promise<JSX.Element> {
+  const supabase = await createClient();
+  const { data: internalOrg } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("is_internal", true)
+    .maybeSingle();
+
+  const canAtividades = caps.includes("atividades");
+  const canMetricas = caps.includes("metricas");
+
+  const [dash, metricas] = await Promise.all([
+    canAtividades && internalOrg
+      ? getAtividadesDashboard(internalOrg.id, "atividades")
+      : Promise.resolve(null),
+    canMetricas ? getMetricasGerais() : Promise.resolve(null),
+  ]);
+
+  const stats = dash?.success ? dash.data : null;
+  const negocio = metricas?.success ? metricas.data : null;
+  const receitaBrl = negocio?.financeiro.receitaAtivaPorMoeda.BRL ?? 0;
+
+  return (
+    <div className="space-y-8 max-w-6xl">
+      <PageHeader
+        title={`Olá, ${userName}`}
+        description="Casa da Land Grow: nossas atividades, CRM e faturamento. A carteira de clientes está no Painel."
+      />
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Cards abertos"
+          value={String(stats?.total_cards ?? 0)}
+          hint="Plano de Ação interno"
+          accent="primary"
+        />
+        <KpiCard
+          label="Atrasados"
+          value={String(stats?.atrasados ?? 0)}
+          hint="Prazo vencido"
+          accent="neutral"
+        />
+        <KpiCard
+          label="Leads no CRM"
+          value={String(negocio?.crm.totalCards ?? 0)}
+          hint={
+            negocio
+              ? `${negocio.crm.taxaConversao.toFixed(0)}% convertidos`
+              : "Abra Métricas para o funil"
+          }
+          accent="primary"
+        />
+        <KpiCard
+          label="Receita ativa"
+          value={formatCurrency(receitaBrl)}
+          hint="Contratos ativos em BRL"
+          accent="lime"
+        />
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-primary" />
-              </div>
-              <ArrowRight className="h-4 w-4 text-text-2 group-hover:text-primary transition-colors" />
-            </div>
-            <CardTitle className="text-lg">Diagnóstico BIN</CardTitle>
-            <CardDescription>
-              Mapeie a maturidade do seu negócio em 10 áreas
-            </CardDescription>
-          </CardHeader>
-        </Card>
-
-        <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="h-10 w-10 rounded-lg bg-brand-lime/20 flex items-center justify-center">
-                <Target className="h-5 w-5 text-brand-lime" />
-              </div>
-              <ArrowRight className="h-4 w-4 text-text-2 group-hover:text-primary transition-colors" />
-            </div>
-            <CardTitle className="text-lg">Plano de Ação</CardTitle>
-            <CardDescription>
-              Suas tarefas e OKRs em um só lugar
-            </CardDescription>
-          </CardHeader>
-        </Card>
-
-        <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-primary" />
-              </div>
-              <ArrowRight className="h-4 w-4 text-text-2 group-hover:text-primary transition-colors" />
-            </div>
-            <CardTitle className="text-lg">Programa de Aceleração</CardTitle>
-            <CardDescription>
-              Acompanhe o progresso do seu programa de 6 meses
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-
-      {/* Status */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader>
-            <CardDescription>Maturidade Geral</CardDescription>
-            <CardTitle className="text-3xl">0%</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-text-2">Inicie o diagnóstico BIN</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardDescription>Tarefas Ativas</CardDescription>
-            <CardTitle className="text-3xl">0</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-text-2">Nenhuma tarefa em andamento</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardDescription>Equipe</CardDescription>
-            <CardTitle className="text-3xl flex items-center gap-2">
-              <Users className="h-6 w-6" /> 1
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-text-2">Apenas você por enquanto</p>
-          </CardContent>
-        </Card>
+      <div className="grid md:grid-cols-3 gap-3">
+        {canAtividades ? (
+          <Link
+            href="/admin/atividades"
+            className="rounded-lg border border-border bg-surface-1 p-5 hover:border-primary/40 transition-colors"
+          >
+            <p className="text-sm font-semibold">Atividades</p>
+            <p className="text-sm text-text-2 mt-1">
+              WorkSmart e Plano de Ação da Land Grow.
+            </p>
+          </Link>
+        ) : null}
+        {caps.includes("crm") ? (
+          <Link
+            href="/admin/crm"
+            className="rounded-lg border border-border bg-surface-1 p-5 hover:border-primary/40 transition-colors"
+          >
+            <p className="text-sm font-semibold">CRM</p>
+            <p className="text-sm text-text-2 mt-1">
+              Leads e parceiros — funil comercial nosso.
+            </p>
+          </Link>
+        ) : null}
+        {canMetricas ? (
+          <Link
+            href="/admin/metricas"
+            className="rounded-lg border border-border bg-surface-1 p-5 hover:border-primary/40 transition-colors"
+          >
+            <p className="text-sm font-semibold">Métricas</p>
+            <p className="text-sm text-text-2 mt-1">
+              Detalhe do funil e dos contratos.
+            </p>
+          </Link>
+        ) : null}
       </div>
     </div>
   );

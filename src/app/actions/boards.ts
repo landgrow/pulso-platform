@@ -17,6 +17,13 @@ import {
 } from "@/types/boards";
 import { normalizeViewConfig, type BoardViewConfig } from "@/types/board-view";
 import { createClientAccount } from "@/app/actions/admin";
+import {
+  CRM_DEFAULT_COLUMNS,
+  PLANO_DE_ACAO_COLUMNS,
+  URGENCIA_PROPERTY,
+  boardHasColumnLabel,
+  defaultAtividadesFieldConfig,
+} from "@/lib/boards/plano-de-acao-template";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -48,17 +55,15 @@ const updateBoardAppearanceSchema = z.object({
   color: z.string().min(1).optional(),
 });
 
-const DEFAULT_COLUMNS = [
-  { label: "A Fazer", color: "#94A3B8" },
-  { label: "Em Andamento", color: "#3B82F6" },
-  { label: "Revisão", color: "#EAB308" },
-  { label: "Concluído", color: "#22C55E" },
-];
+const DEFAULT_COLUMNS = CRM_DEFAULT_COLUMNS;
 
 const createCardSchema = z.object({
   boardId: z.string().uuid(),
   columnId: z.string().uuid(),
   titulo: z.string().min(1, "Título é obrigatório"),
+  observacoes: z.string().nullable().optional(),
+  sourceMeetingId: z.string().uuid().optional(),
+  sourceChecklistItemId: z.string().uuid().optional(),
 });
 
 const updateCardSchema = z.object({
@@ -392,7 +397,7 @@ export async function listBoards(
   };
 }
 
-/** Cria um novo kanban na org (Atividades ou CRM), já com as 4 colunas padrão. */
+/** Cria um novo kanban na org. Atividades já nasce com o modelo Plano de Ação. */
 export async function createBoard(
   raw: unknown,
 ): Promise<Result<{ id: string }>> {
@@ -415,6 +420,9 @@ export async function createBoard(
     .eq("org_id", orgId)
     .eq("module", module);
 
+  const columns =
+    module === "atividades" ? PLANO_DE_ACAO_COLUMNS : DEFAULT_COLUMNS;
+
   const { data: board, error: boardError } = await supabase
     .from("boards")
     .insert({
@@ -423,6 +431,8 @@ export async function createBoard(
       module,
       position: count ?? 0,
       created_by: user?.id ?? null,
+      field_config:
+        module === "atividades" ? defaultAtividadesFieldConfig() : {},
     })
     .select("id")
     .single();
@@ -434,7 +444,7 @@ export async function createBoard(
     };
 
   const { error: colError } = await supabase.from("board_columns").insert(
-    DEFAULT_COLUMNS.map((c, i) => ({
+    columns.map((c, i) => ({
       board_id: board.id,
       label: c.label,
       color: c.color,
@@ -444,8 +454,92 @@ export async function createBoard(
 
   if (colError) return { success: false, error: colError.message };
 
+  if (module === "atividades") {
+    await supabase.from("board_properties").insert({
+      board_id: board.id,
+      key: URGENCIA_PROPERTY.key,
+      label: URGENCIA_PROPERTY.label,
+      type: URGENCIA_PROPERTY.type,
+      options: URGENCIA_PROPERTY.options,
+      position: 0,
+      visible: true,
+    });
+  }
+
   revalidatePath(module === "crm" ? "/admin/crm" : "/admin/atividades");
   return { success: true, data: { id: board.id } };
+}
+
+/** Completa um kanban existente com as colunas e o campo Urgência do Plano de Ação. */
+export async function applyPlanoDeAcaoTemplate(
+  boardId: string,
+): Promise<Result<{ addedColumns: number }>> {
+  const parsed = z.string().uuid().safeParse(boardId);
+  if (!parsed.success) return { success: false, error: "Kanban inválido" };
+
+  const supabase = await createClient();
+  const { data: board, error } = await supabase
+    .from("boards")
+    .select("id, module")
+    .eq("id", parsed.data)
+    .single();
+  if (error || !board) {
+    return { success: false, error: error?.message ?? "Kanban não encontrado" };
+  }
+
+  const { data: existingCols } = await supabase
+    .from("board_columns")
+    .select("id, label, position")
+    .eq("board_id", board.id)
+    .order("position", { ascending: true });
+
+  const labels = (existingCols ?? []).map((c: { label: string }) => c.label);
+  const startPos = (existingCols ?? []).length;
+  const missing = PLANO_DE_ACAO_COLUMNS.filter(
+    (col) => !boardHasColumnLabel(labels, col.label),
+  );
+
+  if (missing.length > 0) {
+    const { error: colError } = await supabase.from("board_columns").insert(
+      missing.map((c, i) => ({
+        board_id: board.id,
+        label: c.label,
+        color: c.color,
+        position: startPos + i,
+      })),
+    );
+    if (colError) return { success: false, error: colError.message };
+  }
+
+  const { data: existingProps } = await supabase
+    .from("board_properties")
+    .select("key")
+    .eq("board_id", board.id);
+  const hasUrgencia = (existingProps ?? []).some(
+    (p: { key: string }) =>
+      p.key === URGENCIA_PROPERTY.key || p.key.toLowerCase().includes("urgenc"),
+  );
+  if (!hasUrgencia) {
+    await supabase.from("board_properties").insert({
+      board_id: board.id,
+      key: URGENCIA_PROPERTY.key,
+      label: URGENCIA_PROPERTY.label,
+      type: URGENCIA_PROPERTY.type,
+      options: URGENCIA_PROPERTY.options,
+      position: (existingProps ?? []).length,
+      visible: true,
+    });
+  }
+
+  await supabase
+    .from("boards")
+    .update({ field_config: defaultAtividadesFieldConfig() })
+    .eq("id", board.id);
+
+  revalidatePath("/admin/atividades");
+  revalidatePath("/admin/crm");
+  revalidatePath("/configuracoes/operacao");
+  return { success: true, data: { addedColumns: missing.length } };
 }
 
 export async function renameBoard(
@@ -554,7 +648,14 @@ export async function createCard(
       error: parsed.error.errors[0]?.message ?? "Dados inválidos",
     };
   }
-  const { boardId, columnId, titulo } = parsed.data;
+  const {
+    boardId,
+    columnId,
+    titulo,
+    observacoes,
+    sourceMeetingId,
+    sourceChecklistItemId,
+  } = parsed.data;
   const supabase = await createClient();
   const {
     data: { user },
@@ -565,15 +666,22 @@ export async function createCard(
     .select("id", { count: "exact", head: true })
     .eq("column_id", columnId);
 
+  const insert: Record<string, unknown> = {
+    board_id: boardId,
+    column_id: columnId,
+    titulo,
+    position: count ?? 0,
+    created_by: user?.id ?? null,
+  };
+  if (observacoes !== undefined) insert.observacoes = observacoes;
+  if (sourceMeetingId) insert.source_meeting_id = sourceMeetingId;
+  if (sourceChecklistItemId) {
+    insert.source_checklist_item_id = sourceChecklistItemId;
+  }
+
   const { data, error } = await supabase
     .from("board_cards")
-    .insert({
-      board_id: boardId,
-      column_id: columnId,
-      titulo,
-      position: count ?? 0,
-      created_by: user?.id ?? null,
-    })
+    .insert(insert)
     .select("id")
     .single();
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -17,7 +17,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { resetPassword } from "@/app/actions/auth";
+import { consumeAuthRedirect } from "@/lib/auth/consume-auth-redirect";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff, CheckCircle } from "lucide-react";
 
@@ -37,16 +38,43 @@ const schema = z
 
 type FormData = z.infer<typeof schema>;
 
+function passwordErrorMessage(message: string): string {
+  const msg = message.toLowerCase();
+  if (
+    msg.includes("auth session missing") ||
+    msg.includes("not authenticated")
+  ) {
+    return "Sua sessão de convite não foi encontrada. Abra o link do email de novo — ele vale uma vez só.";
+  }
+  if (msg.includes("expired") || msg.includes("invalid")) {
+    return "Este link expirou ou já foi usado. Peça um novo acesso.";
+  }
+  return message;
+}
+
 export default function ResetPasswordPage(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [done, setDone] = useState(false);
+  const [ready, setReady] = useState(false);
   const [invalidToken, setInvalidToken] = useState(false);
   const router = useRouter();
 
-  // A validação de token inválido (query param ?error=token_invalido) é tratada
-  // via middleware/redirect server-side. O server action resetPassword também
-  // verifica a sessão e redireciona se inválido.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { ok } = await consumeAuthRedirect();
+      if (cancelled) return;
+      if (!ok) {
+        setInvalidToken(true);
+        return;
+      }
+      setReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const {
     register,
@@ -59,27 +87,43 @@ export default function ResetPasswordPage(): JSX.Element {
   const onSubmit = async (data: FormData): Promise<void> => {
     setIsLoading(true);
     try {
-      const result = await resetPassword(data);
-      if (!result.success) {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({
+        password: data.password,
+      });
+      if (error) {
+        const message = passwordErrorMessage(error.message);
         if (
-          result.error.includes("not found") ||
-          result.error.includes("expired") ||
-          result.error.includes("invalid")
+          error.message.toLowerCase().includes("expired") ||
+          error.message.toLowerCase().includes("invalid") ||
+          error.message.toLowerCase().includes("auth session missing")
         ) {
           setInvalidToken(true);
           return;
         }
-        toast.error(result.error);
+        toast.error(message);
         return;
       }
+      await supabase.auth.signOut();
       setDone(true);
       setTimeout(() => router.push("/login"), 3000);
     } catch {
-      toast.error("Erro ao redefinir senha. Tente novamente.");
+      toast.error("Erro ao definir senha. Tente novamente.");
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (!ready && !invalidToken && !done) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="flex flex-col items-center gap-3 text-text-2">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <p className="text-sm">Validando seu convite...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (invalidToken) {
     return (
@@ -88,8 +132,8 @@ export default function ResetPasswordPage(): JSX.Element {
           <CardHeader>
             <CardTitle className="text-2xl text-error">Link expirado</CardTitle>
             <CardDescription>
-              Este link de recuperação expirou ou já foi utilizado. Solicite um
-              novo link.
+              Este link de convite ou recuperação expirou ou já foi utilizado.
+              Peça um novo acesso para criar sua senha.
             </CardDescription>
           </CardHeader>
           <CardFooter className="justify-center gap-2 flex-col sm:flex-row">
@@ -113,10 +157,9 @@ export default function ResetPasswordPage(): JSX.Element {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
               <CheckCircle className="h-6 w-6 text-green-500" />
             </div>
-            <CardTitle className="text-2xl">Senha redefinida!</CardTitle>
+            <CardTitle className="text-2xl">Senha definida!</CardTitle>
             <CardDescription>
-              Sua senha foi atualizada com sucesso. Redirecionando para o
-              login...
+              Sua senha foi salva. Redirecionando para o login...
             </CardDescription>
           </CardHeader>
           <CardFooter className="justify-center">

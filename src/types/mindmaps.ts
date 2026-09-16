@@ -3,6 +3,8 @@ export interface MindMapNode {
   text: string;
   color: string;
   children: MindMapNode[];
+  collapsed?: boolean;
+  pos?: { x: number; y: number };
 }
 
 export interface MindMapSummary {
@@ -11,8 +13,18 @@ export interface MindMapSummary {
   updated_at: string;
 }
 
-/** Como as colunas/blocos do mapa são dispostos — mesmos 3 layouts estruturados do protótipo (mmRenderColumnsBody/QuadrantBody/BlockGridBody). */
-export type MindMapLayout = "columns" | "quadrant" | "canvas-grid";
+/** radial = árvore com setas (preview / MindMeister). Os outros 3 são os templates estruturados. */
+export type MindMapLayout = "radial" | "columns" | "quadrant" | "canvas-grid";
+
+export const STRUCTURED_LAYOUTS: MindMapLayout[] = [
+  "columns",
+  "quadrant",
+  "canvas-grid",
+];
+
+export function isStructuredLayout(layout: MindMapLayout): boolean {
+  return STRUCTURED_LAYOUTS.includes(layout);
+}
 
 export interface MindMap {
   id: string;
@@ -29,13 +41,13 @@ export interface MindMapTemplate {
   desc: string;
 }
 
-/** Mesma lista de templates do protótipo (MM_TEMPLATES) — "em-branco" cria um mapa com uma coluna vazia. */
+/** Mesma lista de templates do protótipo (MM_TEMPLATES) — "em-branco" é a árvore radial. */
 export const MIND_MAP_TEMPLATES: MindMapTemplate[] = [
   {
     key: "em-branco",
     icon: "📄",
     title: "Em branco",
-    desc: "Uma coluna vazia. Monte do seu jeito.",
+    desc: "Só o tema central. Ramifique com o +.",
   },
   {
     key: "scamper",

@@ -1,6 +1,5 @@
 import { AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
 import { requireCapability } from "@/lib/supabase/platform-role-server";
 import { MindMapCanvas } from "@/components/mindmaps/mind-map-canvas";
@@ -53,19 +52,7 @@ export default async function AdminMapaMentalPage(): Promise<JSX.Element> {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <h1 className="text-3xl font-bold tracking-tight">Mapa Mental</h1>
-          <Badge variant="outline" className="text-text-2">
-            admin only
-          </Badge>
-        </div>
-        <p className="text-text-2">
-          Planejamento visual da operação interna da Land Grow.
-        </p>
-      </div>
-
+    <div className="-m-6 flex h-[calc(100%+3rem)] min-h-0 flex-col lg:-m-8 lg:h-[calc(100%+4rem)]">
       <MindMapCanvas orgId={internalOrg.id} />
     </div>
   );

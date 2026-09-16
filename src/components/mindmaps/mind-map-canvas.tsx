@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { ListSecondaryPanel } from "@/components/layout/list-secondary-panel";
 import { InlineText } from "@/components/layout/inline-text";
+import { MapViewport } from "@/components/mindmaps/map-viewport";
+import { RadialTree } from "@/components/mindmaps/radial-tree";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -36,6 +38,11 @@ import {
   deleteMindMap,
 } from "@/app/actions/mindmaps";
 import { generateMindMapFromText } from "@/app/actions/mindmap-ai";
+import {
+  isLegacyBlankColumnMap,
+  shouldUseRadialTree,
+  upgradeLegacyBlankToRadial,
+} from "@/lib/mindmap-templates";
 import {
   MIND_MAP_TEMPLATES,
   type MindMapLayout,
@@ -114,10 +121,10 @@ function LayoutBox({
   return (
     <div
       className={cn(
-        "group/box bg-surface-1 flex flex-col gap-2",
+        "group/box bg-surface-1 flex flex-col gap-2 shadow-sm",
         layout === "quadrant"
-          ? "rounded-xl p-4 min-h-[160px]"
-          : "rounded-lg p-3.5",
+          ? "rounded-2xl p-4 min-h-[160px]"
+          : "rounded-xl p-3.5",
       )}
       style={style}
     >
@@ -175,10 +182,45 @@ export function MindMapCanvas({ orgId }: { orgId: string }): JSX.Element {
   const [maps, setMaps] = useState<MindMapSummary[]>([]);
   const [activeMapId, setActiveMapId] = useState<string | null>(null);
   const [tree, setTree] = useState<MindMapNode | null>(null);
-  const [layout, setLayout] = useState<MindMapLayout>("columns");
+  const [layout, setLayout] = useState<MindMapLayout>("radial");
   const [loading, setLoading] = useState(true);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+
+  const hydrateMap = useCallback(
+    async (
+      mindMapId: string,
+      tree: MindMapNode,
+      layout: MindMapLayout,
+    ): Promise<void> => {
+      if (isLegacyBlankColumnMap(layout, tree)) {
+        const next = upgradeLegacyBlankToRadial(tree);
+        setTree(next);
+        setLayout("radial");
+        const saved = await saveMindMapTree({
+          mindMapId,
+          tree: next,
+          layout: "radial",
+        });
+        if (!saved.success) toast.error(saved.error);
+        return;
+      }
+      if (layout === "columns" && shouldUseRadialTree(layout, tree)) {
+        setTree(tree);
+        setLayout("radial");
+        const saved = await saveMindMapTree({
+          mindMapId,
+          tree,
+          layout: "radial",
+        });
+        if (!saved.success) toast.error(saved.error);
+        return;
+      }
+      setTree(tree);
+      setLayout(layout);
+    },
+    [],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -190,7 +232,7 @@ export function MindMapCanvas({ orgId }: { orgId: string }): JSX.Element {
     }
     let list = summaryResult.data;
     if (list.length === 0) {
-      const created = await createMindMap({ orgId, name: "Meu mapa" });
+      const created = await createMindMap({ orgId, name: "Novo Projeto" });
       if (!created.success) {
         toast.error(created.error);
         setLoading(false);
@@ -205,12 +247,11 @@ export function MindMapCanvas({ orgId }: { orgId: string }): JSX.Element {
     if (targetId) {
       const mapResult = await getMindMap(targetId);
       if (mapResult.success) {
-        setTree(mapResult.data.tree);
-        setLayout(mapResult.data.layout);
+        await hydrateMap(targetId, mapResult.data.tree, mapResult.data.layout);
       }
     }
     setLoading(false);
-  }, [orgId]);
+  }, [orgId, hydrateMap]);
 
   // Guarda de montagem: em dev, o React (StrictMode) monta o efeito 2x de
   // propósito pra achar bugs de efeito colateral — sem essa trava, as duas
@@ -229,8 +270,7 @@ export function MindMapCanvas({ orgId }: { orgId: string }): JSX.Element {
     setLoading(true);
     const result = await getMindMap(id);
     if (result.success) {
-      setTree(result.data.tree);
-      setLayout(result.data.layout);
+      await hydrateMap(id, result.data.tree, result.data.layout);
     } else {
       toast.error(result.error);
     }
@@ -362,51 +402,99 @@ export function MindMapCanvas({ orgId }: { orgId: string }): JSX.Element {
     );
   }
 
+  const useRadial = tree ? shouldUseRadialTree(layout, tree) : true;
   const boxesEditable = layout !== "quadrant";
+  const mapTools = (
+    <>
+      {useRadial ? (
+        <span className="mr-1 text-sm font-bold tracking-tight text-text-1">
+          Mapa
+        </span>
+      ) : (
+        tree && (
+          <InlineText
+            value={tree.text}
+            onCommit={handleRenameMap}
+            className="text-sm font-bold text-text-1"
+            inputClassName="h-8 w-auto max-w-md text-sm font-bold"
+          />
+        )
+      )}
+      <button
+        type="button"
+        onClick={() => setTemplatesOpen(true)}
+        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-text-2 hover:bg-surface-2 hover:text-text-1"
+      >
+        <LayoutTemplate className="h-3.5 w-3.5" />
+        Templates
+      </button>
+      <button
+        type="button"
+        onClick={() => setAiOpen(true)}
+        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/5"
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        Gerar com IA
+      </button>
+    </>
+  );
 
   return (
-    <div className="flex gap-4 items-start">
+    <div className="flex h-full min-h-0 items-stretch overflow-hidden">
       <ListSecondaryPanel
         sectionLabel="Mapas"
         items={maps.map((m) => ({ id: m.id, name: m.name }))}
         activeId={activeMapId}
         icon={<Share2 className="h-4 w-4" />}
         createLabel="Novo mapa"
+        className="rounded-none border-y-0 border-l-0"
         onSelect={(id) => void openMap(id)}
         onCreate={() => setTemplatesOpen(true)}
         onDelete={(id) => void handleDeleteMap(id)}
       />
 
       {tree && (
-        <div className="flex-1 min-w-0 space-y-4">
-          <div className="flex items-center gap-3">
-            <InlineText
-              value={tree.text}
-              onCommit={handleRenameMap}
-              className="text-lg font-semibold text-text-1"
-              inputClassName="h-9 w-auto max-w-md text-lg font-semibold"
-            />
-            <button
-              onClick={() => setAiOpen(true)}
-              className="ml-auto flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Gerar com IA
-            </button>
-            <button
-              onClick={() => setTemplatesOpen(true)}
-              className="flex items-center gap-1.5 text-xs text-text-2 hover:text-text-1"
-            >
-              <LayoutTemplate className="h-3.5 w-3.5" />
-              Templates
-            </button>
-          </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {useRadial && (
+            <MapViewport key={activeMapId} fill toolbarLeft={mapTools}>
+              <RadialTree tree={tree} onChange={(next) => void persist(next)} />
+            </MapViewport>
+          )}
 
-          {layout !== "quadrant" && layout !== "canvas-grid" && (
-            <div className="flex gap-4 items-start overflow-x-auto pb-2">
-              {tree.children.map((box) => (
-                <div key={box.id} className="w-64 shrink-0">
+          {layout === "columns" && !useRadial && (
+            <MapViewport key={activeMapId} fill toolbarLeft={mapTools}>
+              <div className="flex gap-4 items-start pb-2">
+                {tree.children.map((box) => (
+                  <div key={box.id} className="w-64 shrink-0">
+                    <LayoutBox
+                      node={box}
+                      layout={layout}
+                      editable={boxesEditable}
+                      onRenameTitle={(text) => handleRenameBox(box.id, text)}
+                      onDeleteBox={() => handleDeleteBox(box.id)}
+                      onRenameItem={handleRenameItem}
+                      onDeleteItem={handleDeleteItem}
+                      onAddItem={() => handleAddItem(box.id)}
+                    />
+                  </div>
+                ))}
+                <button
+                  onClick={handleAddBox}
+                  className="h-11 w-64 shrink-0 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-sm text-text-2 hover:text-text-1 hover:border-text-2"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Nova coluna
+                </button>
+              </div>
+            </MapViewport>
+          )}
+
+          {layout === "quadrant" && (
+            <MapViewport key={activeMapId} fill toolbarLeft={mapTools}>
+              <div className="grid grid-cols-2 gap-4 w-[48rem]">
+                {tree.children.map((box) => (
                   <LayoutBox
+                    key={box.id}
                     node={box}
                     layout={layout}
                     editable={boxesEditable}
@@ -416,64 +504,41 @@ export function MindMapCanvas({ orgId }: { orgId: string }): JSX.Element {
                     onDeleteItem={handleDeleteItem}
                     onAddItem={() => handleAddItem(box.id)}
                   />
-                </div>
-              ))}
-              <button
-                onClick={handleAddBox}
-                className="h-11 w-64 shrink-0 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-sm text-text-2 hover:text-text-1 hover:border-text-2"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Nova coluna
-              </button>
-            </div>
-          )}
-
-          {layout === "quadrant" && (
-            <div className="grid grid-cols-2 gap-4 max-w-3xl">
-              {tree.children.map((box) => (
-                <LayoutBox
-                  key={box.id}
-                  node={box}
-                  layout={layout}
-                  editable={boxesEditable}
-                  onRenameTitle={(text) => handleRenameBox(box.id, text)}
-                  onDeleteBox={() => handleDeleteBox(box.id)}
-                  onRenameItem={handleRenameItem}
-                  onDeleteItem={handleDeleteItem}
-                  onAddItem={() => handleAddItem(box.id)}
-                />
-              ))}
-            </div>
+                ))}
+              </div>
+            </MapViewport>
           )}
 
           {layout === "canvas-grid" && (
-            <div
-              className="grid gap-3.5"
-              style={{
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              }}
-            >
-              {tree.children.map((box) => (
-                <LayoutBox
-                  key={box.id}
-                  node={box}
-                  layout={layout}
-                  editable={boxesEditable}
-                  onRenameTitle={(text) => handleRenameBox(box.id, text)}
-                  onDeleteBox={() => handleDeleteBox(box.id)}
-                  onRenameItem={handleRenameItem}
-                  onDeleteItem={handleDeleteItem}
-                  onAddItem={() => handleAddItem(box.id)}
-                />
-              ))}
-              <button
-                onClick={handleAddBox}
-                className="h-11 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-sm text-text-2 hover:text-text-1 hover:border-text-2"
+            <MapViewport key={activeMapId} fill toolbarLeft={mapTools}>
+              <div
+                className="grid gap-3.5 w-[64rem]"
+                style={{
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                }}
               >
-                <Plus className="h-3.5 w-3.5" />
-                Novo bloco
-              </button>
-            </div>
+                {tree.children.map((box) => (
+                  <LayoutBox
+                    key={box.id}
+                    node={box}
+                    layout={layout}
+                    editable={boxesEditable}
+                    onRenameTitle={(text) => handleRenameBox(box.id, text)}
+                    onDeleteBox={() => handleDeleteBox(box.id)}
+                    onRenameItem={handleRenameItem}
+                    onDeleteItem={handleDeleteItem}
+                    onAddItem={() => handleAddItem(box.id)}
+                  />
+                ))}
+                <button
+                  onClick={handleAddBox}
+                  className="h-11 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-sm text-text-2 hover:text-text-1 hover:border-text-2"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Novo bloco
+                </button>
+              </div>
+            </MapViewport>
           )}
         </div>
       )}
@@ -537,7 +602,7 @@ function AiGenerateSheet({
         <div className="space-y-1.5">
           <p className="text-xs text-text-2">
             Cole notas, uma transcrição ou qualquer texto — a IA organiza em
-            colunas ou quadrantes automaticamente.
+            ramos, colunas ou quadrantes automaticamente.
           </p>
           <Textarea
             value={text}

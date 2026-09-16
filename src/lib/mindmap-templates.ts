@@ -57,7 +57,7 @@ export function buildMindMapTemplate(key: string): {
           mmNode(label, MM_COLORS[i % MM_COLORS.length] ?? "#3b82f6"),
         ),
       );
-      return { tree: root, layout: "columns" };
+      return { tree: root, layout: "radial" };
     }
     case "canva":
       return columnsOrGrid("Canva", "canvas-grid", [
@@ -99,9 +99,65 @@ export function buildMindMapTemplate(key: string): {
       return { tree: root, layout: "quadrant" };
     }
     case "em-branco":
-    default:
-      return columnsOrGrid("Novo mapa", "columns", [
-        ["Nova coluna", ["Item de exemplo"]],
-      ]);
+    default: {
+      const root = mmNode("Novo Projeto", "#27272a");
+      return { tree: root, layout: "radial" };
+    }
   }
+}
+
+/** Placeholder antigo do admin: uma coluna "Nova coluna" + item de exemplo. */
+export function isLegacyBlankColumnMap(
+  layout: MindMapLayout,
+  tree: MindMapNode,
+): boolean {
+  if (layout !== "columns") return false;
+  if (tree.children.length !== 1) return false;
+  const box = tree.children[0];
+  if (!box || box.text !== "Nova coluna") return false;
+  if (box.children.length > 1) return false;
+  if (
+    box.children.length === 1 &&
+    box.children[0]?.text !== "Item de exemplo"
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function upgradeLegacyBlankToRadial(tree: MindMapNode): MindMapNode {
+  return { ...tree, children: [] };
+}
+
+function sameLabels(tree: MindMapNode, expected: string[]): boolean {
+  const labels = tree.children.map((c) => c.text);
+  if (labels.length !== expected.length) return false;
+  return expected.every((label, i) => labels[i] === label);
+}
+
+/** Templates que no preview continuam em colunas/quadrantes, não em árvore. */
+export function isStructuredTemplateTree(
+  layout: MindMapLayout,
+  tree: MindMapNode,
+): boolean {
+  if (layout === "quadrant" || layout === "canvas-grid") return true;
+  if (layout !== "columns") return false;
+  return (
+    sameLabels(tree, [
+      "O que funcionou",
+      "O que não funcionou",
+      "Ações pra melhorar",
+    ]) || sameLabels(tree, ["Público", "Mensagem", "Canal", "Frequência"])
+  );
+}
+
+/**
+ * Qualquer mapa que não seja SWOT/Canva/Retrospectiva etc. vira a árvore
+ * com setas do preview — inclusive os "Meu mapa" antigos em colunas.
+ */
+export function shouldUseRadialTree(
+  layout: MindMapLayout,
+  tree: MindMapNode,
+): boolean {
+  return !isStructuredTemplateTree(layout, tree);
 }

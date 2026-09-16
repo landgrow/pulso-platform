@@ -28,6 +28,7 @@ export function ListSecondaryPanel({
   onSelect,
   onCreate,
   onDelete,
+  className,
 }: {
   /** Opcional — a barra principal já mostra o módulo ativo, repetir o nome aqui é redundante. */
   title?: string;
@@ -39,9 +40,15 @@ export function ListSecondaryPanel({
   onSelect: (id: string) => void;
   onCreate: () => void;
   onDelete?: (id: string) => void;
+  className?: string;
 }): JSX.Element {
   return (
-    <aside className="w-56 shrink-0 rounded-lg border border-border bg-surface-1 flex flex-col">
+    <aside
+      className={cn(
+        "flex h-full w-56 shrink-0 flex-col rounded-lg border border-border bg-surface-1",
+        className,
+      )}
+    >
       {title && (
         <div className="px-4 py-3 border-b border-border">
           <p className="font-semibold text-sm">{title}</p>

@@ -5,6 +5,12 @@ import { AccessDenied } from "@/components/admin/access-denied";
 import { listBoards } from "@/app/actions/boards";
 import { AutomationsPanel } from "@/components/atividades/automations-panel";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import {
+  ApplyTemplateButton,
+  RunNotificationsButton,
+} from "@/components/settings/operacao-actions";
+import { PLANO_DE_ACAO_COLUMNS } from "@/lib/boards/plano-de-acao-template";
 
 export default async function OperacaoPage(): Promise<JSX.Element> {
   const supabase = await createClient();
@@ -31,14 +37,35 @@ export default async function OperacaoPage(): Promise<JSX.Element> {
   );
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Operação</h1>
-        <p className="text-text-2">
-          Automações dos kanbans internos. Campos e colunas de cada base se
-          abrem no próprio board, em Atividades ou CRM.
+    <div className="space-y-8">
+      <PageHeader
+        title="Operação"
+        description="Modelo do Plano de Ação, automações ao mover card e disparo dos e-mails de prazo e reunião."
+        actions={<RunNotificationsButton />}
+      />
+
+      <section className="rounded-lg border border-border bg-surface-1 p-5 space-y-3">
+        <h2 className="text-sm font-semibold">Modelo Plano de Ação</h2>
+        <p className="text-sm text-text-2">
+          Kanban novo de Atividades já nasce com estas colunas e o campo
+          Urgência. Board antigo recebe o que ainda faltar, sem apagar o que
+          você já usa.
         </p>
-      </div>
+        <p className="text-xs text-text-3">
+          {PLANO_DE_ACAO_COLUMNS.map((c) => c.label).join(" · ")}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {boardOptions.map((board) => (
+            <div
+              key={board.id}
+              className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5"
+            >
+              <span className="text-sm">{board.name}</span>
+              <ApplyTemplateButton boardId={board.id} boardName={board.name} />
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline">

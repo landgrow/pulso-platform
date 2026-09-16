@@ -5,6 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies, headers } from "next/headers"; // headers: para IP do cliente no rate limiter
 import { redirect } from "next/navigation";
 import { isRateLimited } from "@/lib/supabase/rate-limit";
+import { inviteRedirectTo } from "@/lib/auth/invite-callback";
 
 // ─── Schemas de validação ────────────────────────────────────────────────────
 
@@ -156,7 +157,7 @@ export async function forgotPassword(
 
   // Sempre retorna sucesso — não revela se o email existe ou não.
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
+    redirectTo: inviteRedirectTo(process.env.NEXT_PUBLIC_APP_URL),
   });
 
   if (error) {
@@ -186,6 +187,14 @@ export async function resetPassword(
   const { error } = await supabase.auth.updateUser({ password });
 
   if (error) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes("auth session missing")) {
+      return {
+        success: false,
+        error:
+          "Sua sessão de convite não foi encontrada. Abra o link do email de novo — ele vale uma vez só.",
+      };
+    }
     return { success: false, error: error.message };
   }
 

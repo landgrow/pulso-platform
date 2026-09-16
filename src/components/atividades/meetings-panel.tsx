@@ -18,6 +18,7 @@ import {
   createMeeting,
   deleteMeeting,
   toggleChecklistItem,
+  generateCardsFromMeeting,
 } from "@/app/actions/meetings";
 import type { Meeting } from "@/types/meetings";
 import { formatDate } from "@/lib/utils";
@@ -74,7 +75,26 @@ export function MeetingsPanel({ orgId }: { orgId: string }): JSX.Element {
     setNovoItem((prev) => ({ ...prev, [meetingId]: "" }));
     const result = await toggleChecklistItem({ meetingId, texto });
     if (!result.success) toast.error(result.error);
-    else void refresh();
+    else {
+      toast.success(
+        "Item no checklist. Se for entrega da Land Grow, já virou card.",
+      );
+      void refresh();
+    }
+  }
+
+  async function handleGenerateCards(meetingId: string): Promise<void> {
+    const result = await generateCardsFromMeeting(meetingId);
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(
+      result.data.created > 0
+        ? `${result.data.created} card(s) no Plano de Ação.`
+        : "Nada novo para gerar (já existia ou não é entrega da Land Grow).",
+    );
+    void refresh();
   }
 
   if (loading) {
@@ -92,7 +112,7 @@ export function MeetingsPanel({ orgId }: { orgId: string }): JSX.Element {
         <div>
           <h2 className="text-lg font-semibold">Reuniões</h2>
           <p className="text-sm text-text-2">
-            Resumo, tópicos abordados e checklist de atividades.
+            Resumo, tópicos e checklist. Item da Land Grow vira card no kanban.
           </p>
         </div>
         <Button size="sm" onClick={() => setOpen(true)}>
@@ -164,9 +184,20 @@ export function MeetingsPanel({ orgId }: { orgId: string }): JSX.Element {
                       </div>
                     )}
                     <div>
-                      <p className="text-xs font-medium text-text-2 mb-1.5">
-                        Checklist de atividades
-                      </p>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <p className="text-xs font-medium text-text-2">
+                          Checklist de atividades
+                        </p>
+                        {m.checklist.length > 0 && (
+                          <button
+                            type="button"
+                            className="text-xs text-primary hover:underline"
+                            onClick={() => void handleGenerateCards(m.id)}
+                          >
+                            Gerar cards no kanban
+                          </button>
+                        )}
+                      </div>
                       <div className="space-y-1.5">
                         {m.checklist.map((item) => (
                           <div

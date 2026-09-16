@@ -117,5 +117,15 @@ export async function saveNotificationPrefs(
     data: { notification_prefs: parsed.data },
   });
   if (error) return { success: false, error: error.message };
+
+  await supabase.from("notification_prefs").upsert({
+    user_id: user.id,
+    prazo: parsed.data.prazo,
+    reuniao: parsed.data.reuniao,
+    convite_equipe: parsed.data.conviteEquipe,
+    resumo_diario: parsed.data.resumoDiario,
+    updated_at: new Date().toISOString(),
+  });
+
   return { success: true };
 }

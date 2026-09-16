@@ -59,6 +59,7 @@ import { BoardPanelView } from "@/components/boards/board-panel-view";
 import { BoardSettingsPanel } from "@/components/boards/board-settings-panel";
 import { BoardFilterBar } from "@/components/boards/board-filter-bar";
 import { PropertyField } from "@/components/boards/property-field";
+import { BoardExportButton } from "@/components/boards/board-export-button";
 
 type BoardView = "board" | "table" | "panel";
 const VIEW_TABS: { key: BoardView; label: string }[] = [
@@ -342,7 +343,8 @@ export function BoardContent({
             {tab.label}
           </button>
         ))}
-        <div className="ml-auto pb-2">
+        <div className="ml-auto pb-2 flex items-center gap-2">
+          <BoardExportButton boardId={board.id} />
           <BoardSettingsPanel board={board} onChanged={onChanged} />
         </div>
       </div>

@@ -58,3 +58,45 @@ export function emptyCallbackKind(
 ): "oauth_error" | "consume_hash" {
   return oauthError ? "oauth_error" : "consume_hash";
 }
+
+export type AuthCallbackParams = {
+  code: string | null;
+  tokenHash: string | null;
+  type: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+};
+
+/** Lê `code` / `token_hash` da query e tokens do fragmento `#access_token`. */
+export function parseAuthCallbackParams(
+  search: string,
+  hash: string,
+): AuthCallbackParams {
+  const query = new URLSearchParams(
+    search.startsWith("?") ? search.slice(1) : search,
+  );
+  const hashParams = new URLSearchParams(hash.replace(/^#/, ""));
+  return {
+    code: query.get("code"),
+    tokenHash: query.get("token_hash"),
+    type: hashParams.get("type") ?? query.get("type"),
+    accessToken: hashParams.get("access_token"),
+    refreshToken: hashParams.get("refresh_token"),
+  };
+}
+
+/**
+ * HTML no próprio `/auth/callback`: um 302 para `/auth/confirm` apaga o
+ * `#access_token` (o servidor nunca vê o hash). Ficar na mesma URL preserva
+ * o fragmento; o script só o encaminha.
+ */
+export const HASH_FORWARD_HTML = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>PULSO</title></head>
+<body>
+<script>
+  location.replace("/auth/confirm?next=/reset-password" + location.hash);
+</script>
+<p>Validando seu convite...</p>
+</body>
+</html>`;

@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { requireCapability } from "@/lib/supabase/platform-role-server";
 import { AccessDenied } from "@/components/admin/access-denied";
 import { MetricasPageContent } from "@/components/admin/metricas-page-content";
+import { MetricasExportButton } from "@/components/admin/metricas-export-button";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default async function AdminMetricasPage(): Promise<JSX.Element> {
   const supabase = await createClient();
@@ -23,18 +25,18 @@ export default async function AdminMetricasPage(): Promise<JSX.Element> {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <h1 className="text-3xl font-bold tracking-tight">Métricas</h1>
-          <Badge variant="outline" className="text-text-2">
-            admin only
-          </Badge>
-        </div>
-        <p className="text-text-2">
-          Indicadores gerais do negócio — funil de CRM e financeiro (contratos
-          ativos).
-        </p>
-      </div>
+      <PageHeader
+        title="Métricas"
+        description="Indicadores gerais do negócio — funil de CRM e financeiro (contratos ativos)."
+        actions={
+          <>
+            <Badge variant="outline" className="text-text-2">
+              admin only
+            </Badge>
+            <MetricasExportButton />
+          </>
+        }
+      />
       <MetricasPageContent />
     </div>
   );

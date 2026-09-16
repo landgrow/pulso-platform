@@ -3,46 +3,46 @@
 
 /* ============================================
    PULSO Design System — Land Grow
+   Tokens: Notion + Linear, indigo de ação, lima de dado.
    ============================================ */
 
 @custom-variant dark (&:is(.dark *));
 
-/* Light theme (default if not specified) */
 :root {
   color-scheme: light;
-  --bg: #ffffff;
-  --surface-1: #f8fafc;
-  --surface-2: #f1f5f9;
-  --border: #e2e8f0;
-  --text-1: #0f172a;
-  --text-2: #64748b;
-  --text-3: #94a3b8;
+  --bg: #f7f8fb;
+  --surface-1: #ffffff;
+  --surface-2: #eef1f7;
+  --surface-3: #e4e9f4;
+  --border: #d8deea;
+  --border-strong: #b7c0d3;
+  --text-1: #1a2340;
+  --text-2: #5b6788;
+  --text-3: #8a93ab;
 
-  /* Primary = azul neutro (referência: kanban-board da Arun Jdass) — sem
-     verde/lima, cor usada com moderação, só em CTA e foco. */
-  --primary: #3b82f6;
+  --primary: #6366f1;
   --primary-foreground: #ffffff;
-  --primary-hover: #2563eb;
-  --primary-50: #eff6ff;
-  --primary-100: #dbeafe;
-  --primary-200: #bfdbfe;
-  --primary-300: #93c5fd;
-  --primary-500: #3b82f6;
-  --primary-600: #2563eb;
-  --primary-700: #1d4ed8;
+  --primary-hover: #4f46e5;
+  --primary-50: #eef2ff;
+  --primary-100: #e0e7ff;
+  --primary-200: #c7d2fe;
+  --primary-300: #a5b4fc;
+  --primary-500: #6366f1;
+  --primary-600: #4f46e5;
+  --primary-700: #4338ca;
 
-  /* brand-lime fica só pro selo/logo — não é mais cor de UI */
-  --brand-lime: #c4e600;
-  --brand-lime-foreground: #0d1a00;
+  --brand-lime: #b8f000;
+  --brand-lime-foreground: #0a0f1e;
   --brand-teal: #1e8a9e;
   --brand-teal-foreground: #ffffff;
-  --brand-navy: #111113;
-  --brand-navy-deep: #0a0a0b;
+  --brand-navy: #111827;
+  --brand-navy-deep: #0a0f1e;
 
-  --success: #10b981;
+  --success: #22c55e;
   --warning: #f59e0b;
   --error: #ef4444;
-  --info: #3b82f6;
+  --danger: #ef4444;
+  --info: #38bdf8;
 
   --radius: 0.5rem;
   --radius-sm: 0.375rem;
@@ -54,38 +54,37 @@
   --foreground: var(--text-1);
 }
 
-/* Dark theme (default no PULSO) — preto/cinza neutro, igual ao
-   kanban-board de referência (bg-[#111113] / bg-[#1a1b1e] / bg-[#25262b]),
-   não navy azulado. */
 .dark {
   color-scheme: dark;
-  --bg: #111113;
-  --surface-1: #1a1b1e;
-  --surface-2: #25262b;
-  --border: #27272a;
-  --text-1: #f3f4f6;
-  --text-2: #9ca3af;
-  --text-3: #6b7280;
+  --bg: #0a0f1e;
+  --surface-1: #111827;
+  --surface-2: #1a2340;
+  --surface-3: #232d4d;
+  --border: #26304d;
+  --border-strong: #38446b;
+  --text-1: #e8ecf5;
+  --text-2: #9aa5c0;
+  --text-3: #6b7699;
 
-  --primary: #3b82f6;
+  --primary: #6366f1;
   --primary-foreground: #ffffff;
-  --primary-hover: #60a5fa;
-  --primary-50: #1e3a5f;
-  --primary-100: #1e40af;
-  --primary-200: #1d4ed8;
-  --primary-300: #2563eb;
-  --primary-500: #3b82f6;
-  --primary-600: #60a5fa;
-  --primary-700: #93c5fd;
+  --primary-hover: #818cf8;
+  --primary-50: #1e1b4b;
+  --primary-100: #312e81;
+  --primary-200: #3730a3;
+  --primary-300: #4338ca;
+  --primary-500: #6366f1;
+  --primary-600: #818cf8;
+  --primary-700: #a5b4fc;
 
-  --brand-lime: #c4e600;
-  --brand-lime-foreground: #0d1a00;
+  --brand-lime: #b8f000;
+  --brand-lime-foreground: #0a0f1e;
   --brand-teal: #1e8a9e;
   --brand-teal-foreground: #ffffff;
-  --brand-navy: #111113;
-  --brand-navy-deep: #0a0a0b;
+  --brand-navy: #111827;
+  --brand-navy-deep: #0a0f1e;
 
-  --info: #3b82f6;
+  --info: #38bdf8;
 
   --background: var(--bg);
   --foreground: var(--text-1);
@@ -96,7 +95,9 @@
   --color-foreground: var(--foreground);
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-text-1: var(--text-1);
   --color-text-2: var(--text-2);
   --color-text-3: var(--text-3);
@@ -111,6 +112,7 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-error: var(--error);
+  --color-danger: var(--danger);
   --color-info: var(--info);
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
@@ -118,10 +120,6 @@
   --radius-xl: var(--radius-xl);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui;
 }
-
-/* ============================================
-   Base Styles
-   ============================================ */
 
 * {
   border-color: var(--border);
@@ -141,7 +139,16 @@ body {
   min-height: 100vh;
 }
 
-/* Scrollbar customization */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -157,13 +164,11 @@ body {
   background: var(--text-3);
 }
 
-/* Focus ring global */
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
-/* Selection */
 ::selection {
   background: var(--primary-200);
   color: var(--text-1);

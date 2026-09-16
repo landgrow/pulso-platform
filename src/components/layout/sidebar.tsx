@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Settings,
   Building2,
-  UserPlus,
   Users,
   ClipboardList,
   Share2,
@@ -25,7 +24,6 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "layout-dashboard": LayoutDashboard,
   settings: Settings,
   "building-2": Building2,
-  "user-plus": UserPlus,
   users: Users,
   "clipboard-list": ClipboardList,
   "share-2": Share2,
@@ -77,12 +75,6 @@ const navItems: NavItem[] = [
     label: "Organizações",
     icon: "building-2",
     visibility: "clientes",
-  },
-  {
-    href: "/admin/acessos",
-    label: "Acessos",
-    icon: "user-plus",
-    visibility: "acessos",
   },
   {
     href: "/admin/equipe",
@@ -188,7 +180,7 @@ export function Sidebar({
                   className={cn(
                     "transition-colors duration-150 rounded-lg",
                     isActive
-                      ? "bg-primary/10 text-primary"
+                      ? "bg-primary/15 text-primary ring-1 ring-primary/30"
                       : "text-text-2 hover:bg-surface-2 hover:text-text-1",
                     isFull
                       ? "flex items-center gap-3 px-3 py-2.5 text-sm font-medium"

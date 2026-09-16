@@ -273,11 +273,27 @@
     .mm-toolbar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
     .mm-toolbar-title{font-family:var(--font-heading);font-weight:700;font-size:14px;margin-right:8px}
     .mm-toolbar-right{margin-left:auto;display:flex;align-items:center;gap:4px}
+    .mm-help{position:absolute;left:12px;top:12px;z-index:20;max-width:min(calc(100% - 24px),280px)}
+    .mm-help-card{background:color-mix(in srgb, var(--surface) 95%, transparent);border:1px solid var(--border);border-radius:14px;padding:12px;box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+    .mm-help-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+    .mm-help-head strong{font-size:12px;font-weight:700;color:var(--text)}
+    .mm-help-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+    .mm-help-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--text-muted);line-height:1.4}
+    .mm-help-keys{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+    .mm-help-keys span{color:var(--text-faint);font-size:11px}
+    .mm-help kbd{display:inline-flex;align-items:center;justify-content:center;min-height:20px;padding:0 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface-hover);font-size:10px;font-weight:700;color:var(--text);font-family:var(--font-body)}
+    .mm-help-close,.mm-help-open{border:none;background:none;cursor:pointer;color:var(--text-muted);width:24px;height:24px;min-width:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;padding:0}
+    .mm-help-close:hover,.mm-help-open:hover{background:var(--surface-hover);color:var(--text)}
+    .mm-help-open{width:36px;height:36px;min-width:36px;border-radius:999px;background:color-mix(in srgb, var(--surface) 95%, transparent);border:1px solid var(--border);box-shadow:var(--shadow);font-size:16px;font-weight:700}
+    .mm-help.collapsed .mm-help-card{display:none}
+    .mm-help:not(.collapsed) .mm-help-open{display:none}
     .mm-zoom-label{font-size:12px;color:var(--text-muted);width:42px;text-align:center}
-    .mm-canvas-wrap{flex:1;overflow:auto;position:relative;cursor:grab;background:
-      radial-gradient(circle, var(--border) 1px, transparent 1px) 0 0/22px 22px, var(--bg)}
+    .mm-canvas-wrap{flex:1;overflow:hidden;position:relative;cursor:grab;touch-action:none;background-color:var(--bg);background-image:
+      linear-gradient(to right, color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px);background-size:24px 24px}
     .mm-canvas-wrap.panning{cursor:grabbing;user-select:none}
-    .mm-canvas{position:relative;transform-origin:0 0}
+    .mm-world{transform-origin:0 0;width:max-content;min-width:100%;min-height:100%}
+    .mm-canvas{position:relative}
     .mm-connectors{position:absolute;top:0;left:0;overflow:visible;pointer-events:none}
     .mm-node{position:absolute;transform:translate(-2px,-19px);display:flex;align-items:center;gap:4px;max-width:220px;cursor:grab}
     .mm-node:active{cursor:grabbing}
@@ -296,6 +312,7 @@
     .mm-node-btn{width:18px;height:18px;min-width:18px;border-radius:50%;border:none;background:var(--surface);color:var(--text-muted);box-shadow:var(--shadow-sm);font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
     .mm-node-btn:hover{background:var(--surface-hover);color:var(--text)}
     .mm-node-collapse{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--node-color,var(--primary));color:white;border:2px solid var(--bg);font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;top:50%;transform:translateY(-50%);right:-8px}
+    .mm-node[data-side="-1"] .mm-node-collapse{right:auto;left:-8px}
     .mm-empty-hint{position:absolute;top:16px;left:16px;font-size:12px;color:var(--text-faint);background:var(--surface);border:1px dashed var(--border-strong);border-radius:var(--radius-sm);padding:8px 12px;max-width:260px;line-height:1.5}
 
     /* ─── Layouts estruturados (quadrante, colunas, grid de blocos) ─── */
@@ -551,12 +568,30 @@
         <button class="icon-btn" id="mmZoomReset" title="Ajustar à tela">&#10021;</button>
       </div>
     </div>
-    <div class="mm-canvas-wrap" id="mmCanvasWrap">
+    <div class="mm-canvas-wrap" id="mmCanvasWrap" title="Clique e arraste o fundo · Alt + tópico para alinhar o galho · Ctrl + scroll para zoom">
+      <div class="mm-world" id="mmWorld">
       <div class="mm-canvas" id="mmCanvas">
         <svg class="mm-connectors" id="mmConnectors"></svg>
         <div id="mmNodes"></div>
       </div>
       <div class="mm-structured" id="mmStructured" style="display:none"></div>
+      </div>
+      <div class="mm-help" id="mmHelp">
+        <button class="mm-help-open" id="mmHelpOpen" title="Como usar" aria-label="Ver como usar o mapa">?</button>
+        <div class="mm-help-card" id="mmHelpCard">
+          <div class="mm-help-head">
+            <strong>Como usar</strong>
+            <button class="mm-help-close" id="mmHelpClose" type="button" aria-label="Fechar atalhos">✕</button>
+          </div>
+          <ul class="mm-help-list">
+            <li><span class="mm-help-keys"><kbd>Arrastar fundo</kbd></span> Mover o mapa</li>
+            <li><span class="mm-help-keys"><kbd>Ctrl</kbd><span>+</span><kbd>scroll</kbd></span> Zoom</li>
+            <li><span class="mm-help-keys"><kbd>Alt</kbd><span>+</span><kbd>arrastar</kbd></span> Alinhar tópico e galho</li>
+            <li><span class="mm-help-keys"><kbd>Clique</kbd></span> Editar o texto</li>
+            <li><span class="mm-help-keys"><kbd>+</kbd></span> Criar tópico filho</li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1487,11 +1522,6 @@ const SECONDARY_PANELS = {
         {nav:'paineis', icon:'dashboard', label:'Dashboard'},
         {nav:'reunioes', icon:'calendar', label:'Reuniões'},
         {nav:'importar', icon:'import', label:'Importar Dados'}
-      ]},
-      { label:'Rituais', items: [
-        {nav:'standup', icon:'calendar', label:'Daily Standup'},
-        {nav:'weekly', icon:'chart', label:'Weekly Review'},
-        {nav:'resultado', icon:'target', label:'Sessão de Resultado'}
       ]},
       { items: [
         {nav:'automacoes', icon:'zap', label:'Automações'},
@@ -2800,6 +2830,7 @@ function toggleTheme() {
 // EVENT DELEGATION - MAIN DISPATCHER
 // ====================================================================
 document.addEventListener('click', function(e) {
+  if (mm.panned) { mm.panned = false; return; }
   // --- SIDEBAR: SELECIONAR MÓDULO NO RAIL PRIMÁRIO ---
   const moduleBtn = e.target.closest('[data-module]');
   if (moduleBtn) { selectModule(moduleBtn.getAttribute('data-module')); return; }
@@ -3652,6 +3683,9 @@ const MM_LEAF_GAP = 46;
 let mm = {
   tree: null,
   zoom: 1,
+  panX: 40,
+  panY: 32,
+  panned: false,
   selectedId: null,
   nextId: 1,
   maps: [],
@@ -3829,38 +3863,60 @@ function mmFindParent(node, id, parent) {
   return undefined;
 }
 
-// ─── Layout (árvore horizontal, esquerda → direita) ────────────────────────
+// ─── Layout (árvore orgânica: raiz no centro, ramos pra esquerda e direita) ─
 function mmLayout(root) {
-  let leafIndex = 0;
-  function visit(node, depth) {
-    node._depth = depth;
-    const visibleChildren = node.collapsed ? [] : (node.children || []);
-    if (visibleChildren.length === 0) {
-      node._y = leafIndex * MM_LEAF_GAP;
-      leafIndex++;
-    } else {
-      visibleChildren.forEach(c => visit(c, depth + 1));
-      const ys = visibleChildren.map(c => c._y);
-      node._y = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const NODE_W = MM_NODE_W, LEVEL_GAP = MM_LEVEL_GAP, LEAF_GAP = MM_LEAF_GAP;
+  const laid = [];
+
+  function packSide(nodes, side, leaf) {
+    function visit(node, depth) {
+      const kids = node.collapsed ? [] : (node.children || []);
+      node._depth = depth;
+      node._side = side;
+      if (kids.length === 0) {
+        node._y = leaf.i * LEAF_GAP;
+        leaf.i += 1;
+      } else {
+        kids.forEach(c => visit(c, depth + 1));
+        const ys = kids.map(c => c._y);
+        node._y = (Math.min(...ys) + Math.max(...ys)) / 2;
+      }
+      node._x = side * depth * (NODE_W + LEVEL_GAP);
+      laid.push(node);
     }
-    node._x = depth * (MM_NODE_W + MM_LEVEL_GAP);
+    nodes.forEach(n => visit(n, 1));
   }
-  visit(root, 0);
 
-  // normaliza pra nada ficar negativo, com um respiro nas bordas
-  const all = mmFlatten(root);
-  const minY = Math.min(...all.map(n => n._y));
+  const children = root.collapsed ? [] : (root.children || []);
+  const right = children.filter((_, i) => i % 2 === 0);
+  const left = children.filter((_, i) => i % 2 === 1);
+  packSide(right, 1, { i: 0 });
+  packSide(left, -1, { i: 0 });
+
+  root._depth = 0;
+  root._side = 0;
+  root._x = 0;
+  const first = children;
+  if (first.length) {
+    const ys = first.map(n => n._y);
+    root._y = (Math.min(...ys) + Math.max(...ys)) / 2;
+  } else {
+    root._y = 0;
+  }
+  laid.push(root);
+
   const pad = 40;
-  all.forEach(n => { n._y = n._y - minY + pad; });
+  const minY = Math.min(...laid.map(n => n._y));
+  const minX = Math.min(...laid.map(n => n._x));
+  laid.forEach(n => {
+    n._y = n._y - minY + pad;
+    n._x = n._x - minX + pad;
+  });
+  laid.forEach(n => { if (n.pos) { n._x = n.pos.x; n._y = n.pos.y; } });
 
-  // Nós arrastados manualmente (node.pos) usam a posição salva em vez da
-  // calculada pela árvore — só depois de normalizar, senão a posição
-  // manual ia deslocando um pouco a cada render.
-  all.forEach(n => { if (n.pos) { n._x = n.pos.x; n._y = n.pos.y; } });
-
-  const maxY = Math.max(...all.map(n => n._y)) + pad;
-  const maxX = Math.max(...all.map(n => n._x)) + MM_NODE_W + pad;
-  return { nodes: all, width: maxX, height: maxY };
+  const maxY = Math.max(...laid.map(n => n._y)) + pad;
+  const maxX = Math.max(...laid.map(n => n._x)) + NODE_W + pad;
+  return { nodes: laid, width: maxX, height: maxY };
 }
 
 function mmFlatten(node, acc) {
@@ -3892,12 +3948,12 @@ function mmRender() {
   $('mmStructured').style.display = structured ? 'block' : 'none';
   if (structured) mmRenderStructured();
   else mmRenderRadial();
+  mmApplyView();
 }
 
 function mmRenderStructured() {
   const root = mm.tree;
   const structuredEl = $('mmStructured');
-  structuredEl.style.transform = 'scale(' + mm.zoom + ')';
   const header = '<div class="mm-structured-header">'
     + '<span class="mm-structured-title" data-mm-text="'+root.id+'" spellcheck="false">'+escapeHtml(root.text)+'</span>'
     + '</div>';
@@ -3955,7 +4011,6 @@ function mmRenderRadial() {
 
   canvas.style.width = layout.width + 'px';
   canvas.style.height = layout.height + 'px';
-  canvas.style.transform = 'scale(' + mm.zoom + ')';
   svg.setAttribute('width', layout.width);
   svg.setAttribute('height', layout.height);
 
@@ -3968,7 +4023,7 @@ function mmRenderRadial() {
     const collapseBtn = hasChildren
       ? '<button class="mm-node-collapse" data-mm-toggle-collapse="'+n.id+'" title="'+(n.collapsed?'Expandir':'Recolher')+'">'+(n.collapsed?'+':'−')+'</button>'
       : '';
-    return '<div class="mm-node'+selectedCls+'" data-node-id="'+n.id+'" data-root="'+(isRoot?'1':'0')+'" data-depth="'+n._depth+'" style="left:'+n._x+'px;top:'+n._y+'px;--node-color:'+(n.color||'var(--primary)')+'">'
+    return '<div class="mm-node'+selectedCls+'" data-node-id="'+n.id+'" data-root="'+(isRoot?'1':'0')+'" data-depth="'+n._depth+'" data-side="'+(n._side||0)+'" style="left:'+n._x+'px;top:'+n._y+'px;--node-color:'+(n.color||'var(--primary)')+'">'
       + '<span class="mm-node-pill" data-mm-text="'+n.id+'" spellcheck="false">'+escapeHtml(n.text)+'</span>'
       + collapseBtn
       + '<div class="mm-node-actions">'
@@ -4029,10 +4084,29 @@ function mmToggleCollapse(id) {
   mmRender();
 }
 
+function mmApplyView() {
+  const world = $('mmWorld');
+  const label = $('mmZoomLabel');
+  if (world) {
+    world.style.transform = 'translate(' + mm.panX + 'px,' + mm.panY + 'px) scale(' + mm.zoom + ')';
+  }
+  if (label) label.textContent = Math.round(mm.zoom * 100) + '%';
+}
+
+function mmZoomAt(pointer, nextZoom) {
+  const z = Math.max(0.25, Math.min(2.5, nextZoom));
+  const worldX = (pointer.x - mm.panX) / mm.zoom;
+  const worldY = (pointer.y - mm.panY) / mm.zoom;
+  mm.zoom = z;
+  mm.panX = pointer.x - worldX * z;
+  mm.panY = pointer.y - worldY * z;
+  mmApplyView();
+}
+
 function mmSetZoom(z) {
-  mm.zoom = Math.max(0.3, Math.min(2, z));
-  $('mmZoomLabel').textContent = Math.round(mm.zoom * 100) + '%';
-  mmRender();
+  const wrap = $('mmCanvasWrap');
+  const rect = wrap ? wrap.getBoundingClientRect() : { width: 0, height: 0 };
+  mmZoomAt({ x: rect.width / 2, y: rect.height / 2 }, z);
 }
 
 // "Ajustar à tela" de verdade: calcula o zoom que faz a árvore inteira caber
@@ -4040,17 +4114,18 @@ function mmSetZoom(z) {
 // pro tamanho real do conteúdo, então uma árvore grande continuava cortada.
 function mmFitToScreen() {
   const wrap = $('mmCanvasWrap');
-  if (MM_STRUCTURED_LAYOUTS.includes(mm.tree.layout)) {
-    mmSetZoom(1);
-    wrap.scrollLeft = 0; wrap.scrollTop = 0;
+  mm.panX = 40;
+  mm.panY = 32;
+  if (!wrap || !mm.tree || MM_STRUCTURED_LAYOUTS.includes(mm.tree.layout)) {
+    mm.zoom = 1;
+    mmApplyView();
     return;
   }
   const layout = mmLayout(mm.tree);
   const availW = wrap.clientWidth - 48;
   const availH = wrap.clientHeight - 48;
-  const z = Math.max(0.3, Math.min(2, Math.min(availW / layout.width, availH / layout.height)));
-  mmSetZoom(z);
-  wrap.scrollLeft = 0; wrap.scrollTop = 0;
+  mm.zoom = Math.max(0.25, Math.min(2.5, Math.min(availW / layout.width, availH / layout.height)));
+  mmApplyView();
 }
 
 function mmNewMap() {
@@ -4302,24 +4377,41 @@ async function mmHandleUploaderFiles(items) {
   }
 }
 
-// ─── Pan do canvas (arrastar o fundo pra navegar, tipo Miro) ───────────────
+// ─── Pan do canvas (arrastar pra navegar, tipo Miro) ───────────────────────
+function mmIsEditingTarget(el) {
+  return el && el.closest && el.closest('input, textarea, [contenteditable="true"]');
+}
+
 function mmInitPan() {
   const wrap = $('mmCanvasWrap');
   if (!wrap || wrap._mmPanReady) return;
   wrap._mmPanReady = true;
-  let dragging = false, startX = 0, startY = 0, startScrollLeft = 0, startScrollTop = 0;
+  let dragging = false, moved = false, startX = 0, startY = 0, lastX = 0, lastY = 0;
   wrap.addEventListener('mousedown', (e) => {
-    // só inicia pan clicando no fundo vazio, não em nós/botões/conectores
-    if (e.target.closest('.mm-node')) return;
+    if (e.button !== 0) return;
+    if (mmIsEditingTarget(e.target)) return;
+    if (e.target.closest && e.target.closest('.mm-node, .mm-help')) return;
     dragging = true;
-    startX = e.clientX; startY = e.clientY;
-    startScrollLeft = wrap.scrollLeft; startScrollTop = wrap.scrollTop;
-    wrap.classList.add('panning');
+    moved = false;
+    startX = lastX = e.clientX;
+    startY = lastY = e.clientY;
   });
   document.addEventListener('mousemove', (e) => {
     if (!dragging) return;
-    wrap.scrollLeft = startScrollLeft - (e.clientX - startX);
-    wrap.scrollTop = startScrollTop - (e.clientY - startY);
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (!moved) {
+      if (Math.hypot(dx, dy) < 6) return;
+      moved = true;
+      mm.panned = true;
+      wrap.classList.add('panning');
+    }
+    e.preventDefault();
+    mm.panX += e.clientX - lastX;
+    mm.panY += e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    mmApplyView();
   });
   document.addEventListener('mouseup', () => {
     if (!dragging) return;
@@ -4327,63 +4419,86 @@ function mmInitPan() {
     wrap.classList.remove('panning');
   });
 
-  // Zoom com Ctrl+scroll ou pinça no trackpad (o navegador manda a
-  // mesma coisa: wheel com ctrlKey=true). Sem Ctrl, a roda continua
-  // só rolando a tela (comportamento nativo do overflow:auto).
   wrap.addEventListener('wheel', (e) => {
-    if (!e.ctrlKey) return;
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.08 : 0.08;
-    mmSetZoom(mm.zoom + delta);
+    const rect = wrap.getBoundingClientRect();
+    const pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+    mmZoomAt(pointer, mm.zoom * factor);
   }, { passive: false });
 }
 
 // Redesenha só as linhas de conexão (usado durante o arraste de nó — muito
 // mais barato que rodar mmLayout de novo a cada pixel de movimento).
+function mmAttachX(parent, child) {
+  const parentMid = parent._x + MM_NODE_W / 2;
+  const childMid = child._x + MM_NODE_W / 2;
+  if (childMid >= parentMid) return { x1: parent._x + MM_NODE_W, x2: child._x };
+  return { x1: parent._x, x2: child._x + MM_NODE_W };
+}
+
 function mmRedrawEdges() {
   const svg = $('mmConnectors');
   if (!svg) return;
   const NODE_HALF_H = 19;
   const allNodes = mmFlatten(mm.tree);
+  const byId = {};
+  allNodes.forEach(n => { byId[n.id] = n; });
   const edges = mmEdges(allNodes);
   const paths = edges.map(([a, b]) => {
-    const x1 = a._x + MM_NODE_W, y1 = a._y + NODE_HALF_H;
-    const x2 = b._x, y2 = b._y + NODE_HALF_H;
-    const mx = (x1 + x2) / 2;
+    const pts = mmAttachX(a, b);
+    const x1 = pts.x1, y1 = a._y + NODE_HALF_H;
+    const x2 = pts.x2, y2 = b._y + NODE_HALF_H;
     const color = b.color || a.color || '#94A3B8';
-    return '<path d="M '+x1+' '+y1+' C '+mx+' '+y1+', '+mx+' '+y2+', '+x2+' '+y2+'" stroke="'+color+'" stroke-width="2" fill="none" opacity="0.55"/>';
+    return '<path d="M '+x1+' '+y1+' C '+(x1+(x2-x1)*0.55)+' '+y1+', '+(x2-(x2-x1)*0.55)+' '+y2+', '+x2+' '+y2+'" stroke="'+color+'" stroke-width="2.25" stroke-linecap="round" fill="none" opacity="0.7"/>';
   }).join('');
-  // Bolinha de junção nos galhos (nível 1+) que têm filhos — só visual,
-  // imitando o ponto de ramificação do MindMeister.
   const dots = allNodes.filter(n => n._depth >= 1 && !n.collapsed && (n.children||[]).length > 0).map(n => {
-    const cx = n._x + MM_NODE_W, cy = n._y + NODE_HALF_H;
+    const outgoing = (n.children || []).map(c => byId[c.id]).filter(Boolean);
+    const left = outgoing.some(c => (c._x + MM_NODE_W / 2) < (n._x + MM_NODE_W / 2));
+    const right = outgoing.some(c => (c._x + MM_NODE_W / 2) >= (n._x + MM_NODE_W / 2));
+    const cy = n._y + NODE_HALF_H;
     const color = n.color || '#94A3B8';
-    return '<circle class="mm-junction" cx="'+cx+'" cy="'+cy+'" r="4" stroke="'+color+'"/>';
+    let html = '';
+    if (right) html += '<circle class="mm-junction" cx="'+(n._x + MM_NODE_W)+'" cy="'+cy+'" r="4" stroke="'+color+'"/>';
+    if (left) html += '<circle class="mm-junction" cx="'+n._x+'" cy="'+cy+'" r="4" stroke="'+color+'"/>';
+    return html;
   }).join('');
   svg.innerHTML = paths + dots;
 }
 
-// Arrastar um nó individual pra qualquer posição (estilo Miro) — quebra o
-// posicionamento automático da árvore só pra esse nó (grava em node.pos).
-// Distingue de um clique normal por um limiar de movimento: só vira "drag"
-// se o mouse andar mais que alguns pixels antes de soltar.
+// Alt + arrastar um nó (e o galho: filhos vêm junto) pra alinhar, estilo MindMeister.
+function mmSubtreeIds(node) {
+  const ids = [];
+  function walk(n) {
+    ids.push(n.id);
+    (n.children || []).forEach(walk);
+  }
+  walk(node);
+  return ids;
+}
+
 function mmInitNodeDrag() {
   const wrap = $('mmCanvasWrap');
   if (!wrap || wrap._mmNodeDragReady) return;
   wrap._mmNodeDragReady = true;
-  let dragging = false, moved = false, nodeEl = null, nodeId = null;
-  let startX = 0, startY = 0, startNodeX = 0, startNodeY = 0;
+  let dragging = false, moved = false;
+  let startX = 0, startY = 0;
+  let items = [];
   wrap.addEventListener('mousedown', (e) => {
+    if (!e.altKey || e.button !== 0) return;
     const el = e.target.closest('.mm-node');
     if (!el) return;
-    // deixa o clique normal (editar texto, +, ×, colapsar) acontecer sem virar drag
-    if (e.target.closest('[data-mm-text],[data-mm-add],[data-mm-del],[data-mm-toggle-collapse]')) return;
+    if (e.target.closest('[data-mm-add],[data-mm-del],[data-mm-toggle-collapse]')) return;
     const node = mmFindNode(mm.tree, el.getAttribute('data-node-id'));
     if (!node) return;
     dragging = true; moved = false;
-    nodeEl = el; nodeId = node.id;
     startX = e.clientX; startY = e.clientY;
-    startNodeX = node._x; startNodeY = node._y;
+    items = mmSubtreeIds(node).map(id => {
+      const n = mmFindNode(mm.tree, id);
+      const nodeEl = wrap.querySelector('.mm-node[data-node-id="'+id+'"]');
+      return n && nodeEl ? { id, node: n, el: nodeEl, startX: n._x, startY: n._y } : null;
+    }).filter(Boolean);
+    e.preventDefault();
     e.stopPropagation();
   }, true);
   document.addEventListener('mousemove', (e) => {
@@ -4392,21 +4507,47 @@ function mmInitNodeDrag() {
     const dy = (e.clientY - startY) / mm.zoom;
     if (!moved && Math.hypot(dx, dy) < 4) return;
     moved = true;
-    const node = mmFindNode(mm.tree, nodeId);
-    if (!node) return;
-    node._x = startNodeX + dx;
-    node._y = startNodeY + dy;
-    node.pos = { x: node._x, y: node._y };
-    nodeEl.style.left = node._x + 'px';
-    nodeEl.style.top = node._y + 'px';
+    wrap.classList.add('panning');
+    items.forEach(it => {
+      it.node._x = it.startX + dx;
+      it.node._y = it.startY + dy;
+      it.node.pos = { x: it.node._x, y: it.node._y };
+      it.el.style.left = it.node._x + 'px';
+      it.el.style.top = it.node._y + 'px';
+    });
     mmRedrawEdges();
   });
   document.addEventListener('mouseup', () => {
     if (!dragging) return;
     dragging = false;
-    if (moved) { mmSave(); mmRender(); }
-    nodeEl = null; nodeId = null;
+    wrap.classList.remove('panning');
+    if (moved) { mm.panned = true; mmSave(); mmRender(); }
+    items = [];
   });
+}
+
+function mmInitHelp() {
+  const root = $('mmHelp');
+  if (!root || root._mmHelpReady) {
+    if (root) mmSyncHelp(root);
+    return;
+  }
+  root._mmHelpReady = true;
+  function setOpen(open) {
+    try { localStorage.setItem('pulso-map-help', open ? '1' : '0'); } catch (e) {}
+    mmSyncHelp(root);
+  }
+  const openBtn = $('mmHelpOpen');
+  const closeBtn = $('mmHelpClose');
+  if (openBtn) openBtn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(true); });
+  if (closeBtn) closeBtn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(false); });
+  mmSyncHelp(root);
+}
+
+function mmSyncHelp(root) {
+  let open = true;
+  try { open = localStorage.getItem('pulso-map-help') !== '0'; } catch (e) {}
+  root.classList.toggle('collapsed', !open);
 }
 
 // ─── Entrada do módulo (chamada por navigateTo) ────────────────────────────
@@ -4423,7 +4564,9 @@ function renderMindMapPage() {
   }
   mmInitPan();
   mmInitNodeDrag();
+  mmInitHelp();
   renderMapsSecondaryPanel();
+  mmRender();
   mmSetZoom(mm.zoom);
 }
 

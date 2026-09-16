@@ -11,8 +11,11 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { listClientDirectory } from "@/app/actions/clientes";
+import { getIsPlatformAdmin } from "@/app/actions/admin";
 import { PROGRAMA_LABELS, type ClientDirectoryEntry } from "@/types/clientes";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
+import { NovoClienteSheet } from "./novo-cliente-sheet";
 
 function contratosAtivos(entry: ClientDirectoryEntry) {
   return entry.contratos.filter((c) => c.status === "ativo");
@@ -40,7 +43,10 @@ function periodoContrato(entry: ClientDirectoryEntry): string {
 }
 
 export default async function AdminClientesPage(): Promise<JSX.Element> {
-  const result = await listClientDirectory();
+  const [result, { isAdmin }] = await Promise.all([
+    listClientDirectory(),
+    getIsPlatformAdmin(),
+  ]);
 
   if (!result.success) {
     return (
@@ -60,18 +66,11 @@ export default async function AdminClientesPage(): Promise<JSX.Element> {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
-          <Badge variant="outline" className="text-text-2">
-            admin only
-          </Badge>
-        </div>
-        <p className="text-text-2">
-          Carteira de clientes da Land Grow: dono, time, programa contratado e
-          contrato. Clique num cliente para ver os detalhes.
-        </p>
-      </div>
+      <PageHeader
+        title="Organizações"
+        description="Carteira de clientes: contrato, time e acesso. Novo cliente e convite de login ficam aqui — não há aba Acessos."
+        {...(isAdmin ? { actions: <NovoClienteSheet /> } : {})}
+      />
 
       <Card>
         <CardContent className="p-0">
@@ -82,14 +81,9 @@ export default async function AdminClientesPage(): Promise<JSX.Element> {
                 Nenhum cliente ainda
               </h3>
               <p className="text-text-2 text-sm">
-                Crie o primeiro acesso em{" "}
-                <Link
-                  href="/admin/acessos"
-                  className="text-primary hover:underline"
-                >
-                  Acessos
-                </Link>
-                .
+                {isAdmin
+                  ? "Use Novo cliente para criar a organização e enviar o convite."
+                  : "Nenhum cliente atribuído a você."}
               </p>
             </div>
           ) : (

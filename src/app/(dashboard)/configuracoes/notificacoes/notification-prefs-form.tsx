@@ -81,9 +81,9 @@ export function NotificationPrefsForm({
         ))}
       </ul>
       <p className="text-xs text-text-2">
-        Convite de acesso já sai por e-mail. Prazo, reunião e resumo ficam
-        gravados aqui e passam a disparar quando o envio automático estiver no
-        ar — sem inventar aviso que ainda não existe.
+        O PULSO lê isso a cada hora. Prazo e reunião saem por e-mail quando a
+        tarefa vence ou a reunião é hoje/amanhã. O resumo do dia sai às 8h
+        (horário de Brasília). Convite de acesso continua vindo do Supabase.
       </p>
       <Button type="submit" disabled={saving}>
         Salvar preferências

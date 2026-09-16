@@ -21,6 +21,7 @@ const createMindMapSchema = z.object({
 const saveTreeSchema = z.object({
   mindMapId: z.string().uuid(),
   tree: z.custom<MindMapNode>((v) => typeof v === "object" && v !== null),
+  layout: z.enum(["radial", "columns", "quadrant", "canvas-grid"]).optional(),
 });
 
 const mindMapIdSchema = z.object({ mindMapId: z.string().uuid() });
@@ -55,7 +56,17 @@ export async function getMindMap(mindMapId: string): Promise<Result<MindMap>> {
 
   if (error || !data)
     return { success: false, error: error?.message ?? "Mapa não encontrado" };
-  return { success: true, data: data as MindMap };
+  return {
+    success: true,
+    data: {
+      ...(data as MindMap),
+      layout: (["radial", "columns", "quadrant", "canvas-grid"].includes(
+        data.layout as string,
+      )
+        ? data.layout
+        : "radial") as MindMap["layout"],
+    },
+  };
 }
 
 /** Cria um mapa novo pra org a partir de um template (mesmos 8 do protótipo — "em-branco" é o padrão). */
@@ -100,12 +111,12 @@ export async function saveMindMapTree(
 ): Promise<Result<{ id: string }>> {
   const parsed = saveTreeSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: "Dados inválidos" };
-  const { mindMapId, tree } = parsed.data;
+  const { mindMapId, tree, layout } = parsed.data;
   const supabase = await createClient();
 
   const { error } = await supabase
     .from("mind_maps")
-    .update({ tree })
+    .update(layout ? { tree, layout } : { tree })
     .eq("id", mindMapId);
 
   if (error) return { success: false, error: error.message };

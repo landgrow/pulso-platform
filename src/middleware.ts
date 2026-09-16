@@ -52,6 +52,8 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     "/auth/callback",
     "/auth/confirm",
     "/preview",
+    "/privacy",
+    "/terms",
   ];
   const stayWhenAuthenticated = new Set([
     "/reset-password",
@@ -59,7 +61,9 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     "/auth/confirm",
   ]);
   const isPublicRoute =
-    publicRoutes.some((r) => pathname === r) || pathname.startsWith("/preview");
+    publicRoutes.some((r) => pathname === r) ||
+    pathname.startsWith("/preview") ||
+    pathname.startsWith("/api/cron");
 
   // Escape hatch do auto-login: /login?manual=1 sempre mostra a tela de
   // login de verdade, mesmo com auto-login configurado — usado pra logar
@@ -112,7 +116,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     isPublicRoute &&
     user &&
     pathname !== "/" &&
+    pathname !== "/privacy" &&
+    pathname !== "/terms" &&
     !pathname.startsWith("/preview") &&
+    !pathname.startsWith("/api/cron") &&
     !isManualLogin &&
     !stayWhenAuthenticated.has(pathname)
   ) {

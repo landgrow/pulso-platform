@@ -62,8 +62,8 @@ export default async function AdminAtividadesPage(): Promise<JSX.Element> {
           </Badge>
         </div>
         <p className="text-text-2">
-          Quadro interno da Land Grow. O kanban “Tarefas administrativas” só
-          aparece para admin — o consultor não vê essas atividades.
+          WorkSmart: objetivo na mão, SMART, key results e cards 5H2W no Plano
+          de Ação. O kanban continua na coluna à esquerda.
         </p>
       </div>
 

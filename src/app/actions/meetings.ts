@@ -5,6 +5,10 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { ChecklistItem, Meeting } from "@/types/meetings";
+import {
+  meetingFromRow,
+  promoteMeetingChecklist,
+} from "@/lib/meetings/promote-checklist";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -138,6 +142,58 @@ export async function toggleChecklistItem(
     .update({ checklist })
     .eq("id", meetingId);
   if (error) return { success: false, error: error.message };
+
+  const { data: full } = await supabase
+    .from("meetings")
+    .select("id, org_id, titulo, data, checklist")
+    .eq("id", meetingId)
+    .single();
+  if (full) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await promoteMeetingChecklist(
+      supabase,
+      meetingFromRow(full as Parameters<typeof meetingFromRow>[0]),
+      user?.id ?? null,
+    );
+  }
+
   revalidatePath("/admin/atividades");
   return { success: true, data: { id: meetingId } };
+}
+
+export async function generateCardsFromMeeting(
+  meetingId: string,
+): Promise<Result<{ created: number; skippedClientOps: number }>> {
+  const parsed = z.string().uuid().safeParse(meetingId);
+  if (!parsed.success) return { success: false, error: "Reunião inválida" };
+  const supabase = await createClient();
+  const { data: full, error } = await supabase
+    .from("meetings")
+    .select("id, org_id, titulo, data, checklist")
+    .eq("id", parsed.data)
+    .single();
+  if (error || !full) {
+    return {
+      success: false,
+      error: error?.message ?? "Reunião não encontrada",
+    };
+  }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const result = await promoteMeetingChecklist(
+    supabase,
+    meetingFromRow(full as Parameters<typeof meetingFromRow>[0]),
+    user?.id ?? null,
+  );
+  revalidatePath("/admin/atividades");
+  return {
+    success: true,
+    data: {
+      created: result.created,
+      skippedClientOps: result.skippedClientOps,
+    },
+  };
 }

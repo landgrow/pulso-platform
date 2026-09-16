@@ -11,28 +11,26 @@ import {
   Loader2,
   Plus,
   Trash2,
+  Target,
 } from "lucide-react";
 import { useBoardList } from "@/hooks/use-board-list";
 import { BoardContent } from "@/components/boards/board-content";
 import { AtividadesDashboard } from "@/components/atividades/atividades-dashboard";
 import { MeetingsPanel } from "@/components/atividades/meetings-panel";
 import { ImportPanel } from "@/components/atividades/import-panel";
-import { RitualsPanel } from "@/components/atividades/rituals-panel";
 import { AutomationsPanel } from "@/components/atividades/automations-panel";
+import { WorksmartPanel } from "@/components/atividades/worksmart-panel";
 import { cn } from "@/lib/utils";
-import { RITUAL_LABELS, type RitualTipo } from "@/types/rituals";
 
 type Nav =
   | { kind: "dashboard" }
+  | { kind: "worksmart" }
   | { kind: "meetings" }
   | { kind: "import" }
   | { kind: "board"; boardId: string }
-  | { kind: "ritual"; tipo: RitualTipo }
   | { kind: "automations" };
 
-const RITUAL_TIPOS: RitualTipo[] = ["standup", "weekly", "resultado"];
-
-/** Shell completo de Atividades — painel secundário com submenu (Dashboard/Reuniões/Importar Dados, Plano de Ação, Rituais, Automações/Permissões), mesma estrutura do protótipo (SECONDARY_PANELS['gestor-tarefas']). */
+/** Shell de Atividades: WorkSmart (objetivo → SMART → KR → 5H2W) + Plano de Ação. Sem BIN por enquanto. */
 export function AtividadesShell({ orgId }: { orgId: string }): JSX.Element {
   const {
     boards,
@@ -46,15 +44,15 @@ export function AtividadesShell({ orgId }: { orgId: string }): JSX.Element {
     updateBoardOptimistic,
   } = useBoardList(orgId);
 
-  const [nav, setNav] = useState<Nav>({ kind: "board", boardId: "" });
+  const [nav, setNav] = useState<Nav>({ kind: "worksmart" });
 
-  // Abre direto no Plano de Ação (kanban) assim que o primeiro board carrega — só na primeira vez.
+  // Só sincroniza o board ativo em segundo plano; a tela inicial é Objetivos.
   const initializedRef = useRef(false);
   useEffect(() => {
     if (initializedRef.current || !activeBoardId) return;
     initializedRef.current = true;
-    setNav({ kind: "board", boardId: activeBoardId });
-  }, [activeBoardId]);
+    void openBoard(activeBoardId);
+  }, [activeBoardId, openBoard]);
 
   function selectBoard(id: string): void {
     setNav({ kind: "board", boardId: id });
@@ -65,24 +63,21 @@ export function AtividadesShell({ orgId }: { orgId: string }): JSX.Element {
     <div className="flex gap-4 items-start">
       <aside className="w-56 shrink-0 rounded-lg border border-border bg-surface-1 flex flex-col">
         <div className="flex-1 p-2 overflow-y-auto">
+          <p className="px-2 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-2">
+            WorkSmart
+          </p>
           <nav className="space-y-0.5">
             <NavButton
-              icon={<LayoutDashboard className="h-4 w-4" />}
-              label="Dashboard"
-              active={nav.kind === "dashboard"}
-              onClick={() => setNav({ kind: "dashboard" })}
+              icon={<Target className="h-4 w-4" />}
+              label="Objetivos"
+              active={nav.kind === "worksmart"}
+              onClick={() => setNav({ kind: "worksmart" })}
             />
             <NavButton
               icon={<Calendar className="h-4 w-4" />}
               label="Reuniões"
               active={nav.kind === "meetings"}
               onClick={() => setNav({ kind: "meetings" })}
-            />
-            <NavButton
-              icon={<Upload className="h-4 w-4" />}
-              label="Importar Dados"
-              active={nav.kind === "import"}
-              onClick={() => setNav({ kind: "import" })}
             />
           </nav>
 
@@ -134,23 +129,19 @@ export function AtividadesShell({ orgId }: { orgId: string }): JSX.Element {
           </button>
 
           <div className="h-px bg-border my-2" />
-          <p className="px-2 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-2">
-            Rituais
-          </p>
           <nav className="space-y-0.5">
-            {RITUAL_TIPOS.map((tipo) => (
-              <NavButton
-                key={tipo}
-                icon={<Calendar className="h-4 w-4" />}
-                label={RITUAL_LABELS[tipo]}
-                active={nav.kind === "ritual" && nav.tipo === tipo}
-                onClick={() => setNav({ kind: "ritual", tipo })}
-              />
-            ))}
-          </nav>
-
-          <div className="h-px bg-border my-2" />
-          <nav className="space-y-0.5">
+            <NavButton
+              icon={<LayoutDashboard className="h-4 w-4" />}
+              label="Dashboard"
+              active={nav.kind === "dashboard"}
+              onClick={() => setNav({ kind: "dashboard" })}
+            />
+            <NavButton
+              icon={<Upload className="h-4 w-4" />}
+              label="Importar Dados"
+              active={nav.kind === "import"}
+              onClick={() => setNav({ kind: "import" })}
+            />
             <NavButton
               icon={<Zap className="h-4 w-4" />}
               label="Automações"
@@ -170,12 +161,12 @@ export function AtividadesShell({ orgId }: { orgId: string }): JSX.Element {
 
       <div className="flex-1 min-w-0">
         {nav.kind === "dashboard" && <AtividadesDashboard orgId={orgId} />}
+        {nav.kind === "worksmart" && (
+          <WorksmartPanel orgId={orgId} onOpenBoard={selectBoard} />
+        )}
         {nav.kind === "meetings" && <MeetingsPanel orgId={orgId} />}
         {nav.kind === "import" && <ImportPanel boards={boards} />}
         {nav.kind === "automations" && <AutomationsPanel boards={boards} />}
-        {nav.kind === "ritual" && (
-          <RitualsPanel orgId={orgId} tipo={nav.tipo} />
-        )}
         {nav.kind === "board" &&
           (loading ? (
             <div className="flex items-center justify-center py-16 text-text-2">

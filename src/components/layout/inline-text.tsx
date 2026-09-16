@@ -10,11 +10,13 @@ export function InlineText({
   onCommit,
   className,
   inputClassName,
+  wrap = false,
 }: {
   value: string;
   onCommit: (text: string) => void;
   className?: string;
   inputClassName?: string;
+  wrap?: boolean;
 }): JSX.Element {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -50,7 +52,11 @@ export function InlineText({
         setDraft(value);
         setEditing(true);
       }}
-      className={cn("text-left truncate", className)}
+      className={cn(
+        "text-left",
+        wrap ? "whitespace-normal" : "truncate",
+        className,
+      )}
       title="Clique para editar"
     >
       {value}
