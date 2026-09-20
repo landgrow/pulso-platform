@@ -5,9 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isPlatformStaff } from "@/lib/supabase/platform-role-server";
 import {
-  CHANNEL_LABELS,
   INTEGRATION_CATALOG,
-  TRIGGER_LABELS,
   isAutomationTrigger,
   isIntegrationKind,
   type IntegrationKind,
@@ -340,18 +338,6 @@ export async function deleteWorkspaceAutomation(
   if (error) return { success: false, error: error.message };
   revalidatePath("/configuracoes/integracoes");
   return { success: true, data: { removed: true } };
-}
-
-export function integrationLabels(): {
-  triggers: typeof TRIGGER_LABELS;
-  channels: typeof CHANNEL_LABELS;
-  catalog: typeof INTEGRATION_CATALOG;
-} {
-  return {
-    triggers: TRIGGER_LABELS,
-    channels: CHANNEL_LABELS,
-    catalog: INTEGRATION_CATALOG,
-  };
 }
 
 export type { IntegrationKind };
