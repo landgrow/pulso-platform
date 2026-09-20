@@ -8,6 +8,8 @@ import {
 } from "@/lib/boards/plano-de-acao-template";
 import { addDaysIso, dateInSaoPaulo } from "@/lib/notify/calendar";
 import { buildOutboundEmails, type NotifyUser } from "@/lib/notify/select-due";
+import { buildEventEmails } from "@/lib/notify/card-events";
+import { parseDriveFileId } from "@/lib/google/drive-url";
 import { isAuthorizedCronRequest } from "@/lib/notify/cron-auth";
 import { boardToRows, rowsToCsv } from "@/lib/reports/serialize";
 import type { Board } from "@/types/boards";
@@ -24,6 +26,10 @@ const staff: NotifyUser = {
     reuniao: true,
     conviteEquipe: true,
     resumoDiario: true,
+    comentario: true,
+    arquivo: true,
+    cardCliente: true,
+    clienteAtraso: true,
   },
 };
 
@@ -92,7 +98,9 @@ describe("notification job selection", () => {
       ],
       today: "2026-09-15",
       tomorrow: "2026-09-16",
+      horizon: "2026-09-17",
       digestHour: true,
+      clientUserIds: new Set(),
     });
 
     expect(emails.some((e) => e.kind === "prazo" && e.entityKey === "c1")).toBe(
@@ -110,9 +118,94 @@ describe("notification job selection", () => {
       meetings: [],
       today: "2026-09-15",
       tomorrow: "2026-09-16",
+      horizon: "2026-09-17",
       digestHour: false,
+      clientUserIds: new Set(),
     });
     expect(emails.filter((e) => e.kind === "resumo")).toHaveLength(0);
+  });
+
+  it("emails upcoming cards and client overdue to staff", () => {
+    const emails = buildOutboundEmails({
+      users: [staff],
+      cards: [
+        {
+          id: "soon",
+          titulo: "Enviar proposta",
+          prazo: "2026-09-17",
+          responsavelId: "u1",
+          orgId: "org1",
+          boardName: "Plano de Ação",
+          columnLabel: "A FAZER",
+        },
+        {
+          id: "late-client",
+          titulo: "Enviar extrato",
+          prazo: "2026-09-10",
+          responsavelId: "client1",
+          orgId: "org1",
+          boardName: "Plano de Ação",
+          columnLabel: "A FAZER",
+        },
+      ],
+      meetings: [],
+      today: "2026-09-15",
+      tomorrow: "2026-09-16",
+      horizon: "2026-09-17",
+      digestHour: false,
+      clientUserIds: new Set(["client1"]),
+    });
+    expect(
+      emails.some((e) => e.kind === "prazo" && e.entityKey === "soon:soon"),
+    ).toBe(true);
+    expect(
+      emails.some(
+        (e) => e.kind === "cliente_atraso" && e.entityKey === "late-client",
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("card event emails", () => {
+  it("skips the author and emails staff on client card change", () => {
+    const emails = buildEventEmails(
+      [
+        staff,
+        {
+          ...staff,
+          id: "client1",
+          email: "cliente@js.com",
+          isStaff: false,
+          prefs: { ...staff.prefs, cardCliente: true },
+        },
+      ],
+      {
+        cardId: "c1",
+        cardTitle: "Enviar extrato",
+        boardName: "Plano de Ação",
+        orgId: "org1",
+        assigneeId: "u1",
+        actorId: "client1",
+        actorName: "Jefferson",
+        kind: "card_cliente",
+        detail: "atualizou o card",
+        entityKey: "evt-1",
+      },
+    );
+    expect(emails).toHaveLength(1);
+    expect(emails[0]?.userId).toBe("u1");
+    expect(emails[0]?.subject).toContain("Cliente no card");
+  });
+});
+
+describe("drive url", () => {
+  it("reads file id from docs and drive links", () => {
+    expect(
+      parseDriveFileId("https://docs.google.com/document/d/abc123/edit"),
+    ).toBe("abc123");
+    expect(parseDriveFileId("https://drive.google.com/file/d/xyz99/view")).toBe(
+      "xyz99",
+    );
   });
 });
 
@@ -174,6 +267,7 @@ describe("board export", () => {
           observacoes: null,
           subtarefas: [],
           comentarios: [],
+          arquivos: [],
           bloqueada_por: null,
           position: 0,
           custom_values: {},

@@ -53,26 +53,35 @@ export async function runNotificationJob(
   const admin = await createAdminClient();
   const today = dateInSaoPaulo(now);
   const tomorrow = addDaysIso(today, 1);
+  const horizon = addDaysIso(today, 2);
   const digestHour = isDigestHour(now);
 
-  const [authUsers, prefsRes, rolesRes, membersRes, cardsRes, meetingsRes] =
-    await Promise.all([
-      listAuthUsers(admin),
-      admin.from("notification_prefs").select("*"),
-      admin.from("platform_roles").select("user_id, role"),
-      admin.from("memberships").select("user_id, org_id"),
-      admin
-        .from("board_cards")
-        .select(
-          "id, titulo, prazo, responsavel_id, board_id, boards!inner(org_id, name), board_columns!inner(label)",
-        )
-        .not("prazo", "is", null)
-        .lte("prazo", today),
-      admin
-        .from("meetings")
-        .select("id, titulo, data, org_id")
-        .in("data", [today, tomorrow]),
-    ]);
+  const [
+    authUsers,
+    prefsRes,
+    rolesRes,
+    membersRes,
+    assignmentsRes,
+    cardsRes,
+    meetingsRes,
+  ] = await Promise.all([
+    listAuthUsers(admin),
+    admin.from("notification_prefs").select("*"),
+    admin.from("platform_roles").select("user_id, role"),
+    admin.from("memberships").select("user_id, org_id, role"),
+    admin.from("consultant_assignments").select("consultant_id, org_id"),
+    admin
+      .from("board_cards")
+      .select(
+        "id, titulo, prazo, responsavel_id, board_id, boards!inner(org_id, name), board_columns!inner(label)",
+      )
+      .not("prazo", "is", null)
+      .lte("prazo", horizon),
+    admin
+      .from("meetings")
+      .select("id, titulo, data, org_id")
+      .in("data", [today, tomorrow]),
+  ]);
 
   const prefsByUser = new Map<string, NotificationPrefs>();
   for (const row of prefsRes.data ?? []) {
@@ -82,24 +91,43 @@ export async function runNotificationJob(
       reuniao: boolean;
       convite_equipe: boolean;
       resumo_diario: boolean;
+      comentario?: boolean;
+      arquivo?: boolean;
+      card_cliente?: boolean;
+      cliente_atraso?: boolean;
     };
-    prefsByUser.set(r.user_id, {
-      prazo: r.prazo,
-      reuniao: r.reuniao,
-      conviteEquipe: r.convite_equipe,
-      resumoDiario: r.resumo_diario,
-    });
+    prefsByUser.set(
+      r.user_id,
+      parseNotificationPrefs({
+        prazo: r.prazo,
+        reuniao: r.reuniao,
+        conviteEquipe: r.convite_equipe,
+        resumoDiario: r.resumo_diario,
+        comentario: r.comentario,
+        arquivo: r.arquivo,
+        cardCliente: r.card_cliente,
+        clienteAtraso: r.cliente_atraso,
+      }),
+    );
   }
 
   const staffIds = new Set(
     (rolesRes.data ?? []).map((r: { user_id: string }) => r.user_id),
   );
   const orgIdsByUser = new Map<string, string[]>();
+  const clientUserIds = new Set<string>();
   for (const row of membersRes.data ?? []) {
-    const m = row as { user_id: string; org_id: string };
+    const m = row as { user_id: string; org_id: string; role: string };
     const list = orgIdsByUser.get(m.user_id) ?? [];
     list.push(m.org_id);
     orgIdsByUser.set(m.user_id, list);
+    if (m.role.startsWith("client_")) clientUserIds.add(m.user_id);
+  }
+  for (const row of assignmentsRes.data ?? []) {
+    const a = row as { consultant_id: string; org_id: string };
+    const list = orgIdsByUser.get(a.consultant_id) ?? [];
+    if (!list.includes(a.org_id)) list.push(a.org_id);
+    orgIdsByUser.set(a.consultant_id, list);
   }
 
   const users: NotifyUser[] = authUsers
@@ -167,7 +195,9 @@ export async function runNotificationJob(
     meetings,
     today,
     tomorrow,
+    horizon,
     digestHour,
+    clientUserIds,
   });
 
   const result: NotificationJobResult = {

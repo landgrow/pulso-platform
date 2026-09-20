@@ -23,9 +23,9 @@ export async function sendTransactionalEmail(
     };
   }
 
-  const from =
-    process.env.NOTIFY_FROM_EMAIL ??
-    "PULSO Land Grow <noreply@landgrow.com.br>";
+  const { resolveNotifyFromEmail } =
+    await import("@/lib/integrations/from-address");
+  const from = await resolveNotifyFromEmail();
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",

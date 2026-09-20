@@ -27,6 +27,12 @@ export interface NotifyUser {
   prefs: NotificationPrefs;
 }
 
+function isMineOrStaffUnassigned(card: OpenCard, user: NotifyUser): boolean {
+  if (card.responsavelId === user.id) return true;
+  if (!card.responsavelId && user.isStaff) return true;
+  return false;
+}
+
 export function cardsForPrazoEmail(
   cards: OpenCard[],
   user: NotifyUser,
@@ -36,9 +42,41 @@ export function cardsForPrazoEmail(
   return cards.filter((card) => {
     if (isClosedColumnLabel(card.columnLabel)) return false;
     if (card.prazo > today) return false;
-    if (card.responsavelId === user.id) return true;
-    if (!card.responsavelId && user.isStaff) return true;
-    return false;
+    return isMineOrStaffUnassigned(card, user);
+  });
+}
+
+/** Vence amanhã ou depois de amanhã — aviso ao responsável (e staff se sem dono). */
+export function cardsForUpcomingEmail(
+  cards: OpenCard[],
+  user: NotifyUser,
+  today: string,
+  horizon: string,
+): OpenCard[] {
+  if (!user.prefs.prazo) return [];
+  return cards.filter((card) => {
+    if (isClosedColumnLabel(card.columnLabel)) return false;
+    if (card.prazo <= today || card.prazo > horizon) return false;
+    return isMineOrStaffUnassigned(card, user);
+  });
+}
+
+/** Equipe: cliente responsável atrasou a tarefa. */
+export function cardsForStaffClientOverdue(
+  cards: OpenCard[],
+  user: NotifyUser,
+  today: string,
+  clientUserIds: Set<string>,
+): OpenCard[] {
+  if (!user.isStaff || !user.prefs.clienteAtraso) return [];
+  return cards.filter((card) => {
+    if (isClosedColumnLabel(card.columnLabel)) return false;
+    if (card.prazo >= today) return false;
+    if (!card.responsavelId) return false;
+    if (card.responsavelId === user.id) return false;
+    if (!clientUserIds.has(card.responsavelId)) return false;
+    if (user.orgIds.length === 0) return true;
+    return user.orgIds.includes(card.orgId);
   });
 }
 
@@ -86,7 +124,7 @@ export function shouldSendDigest(
   return user.prefs.resumoDiario && digestHour;
 }
 
-export type OutboundKind = "prazo" | "reuniao" | "resumo";
+export type OutboundKind = "prazo" | "reuniao" | "resumo" | "cliente_atraso";
 
 export interface OutboundEmail {
   userId: string;
@@ -103,7 +141,9 @@ export function buildOutboundEmails(input: {
   meetings: UpcomingMeeting[];
   today: string;
   tomorrow: string;
+  horizon: string;
   digestHour: boolean;
+  clientUserIds: Set<string>;
 }): OutboundEmail[] {
   const out: OutboundEmail[] = [];
   for (const user of input.users) {
@@ -130,6 +170,60 @@ export function buildOutboundEmails(input: {
           `Prazo: ${card.prazo}`,
           "",
           "Abra Atividades no PULSO para atualizar.",
+        ].join("\n"),
+      });
+    }
+
+    const upcoming = cardsForUpcomingEmail(
+      input.cards,
+      user,
+      input.today,
+      input.horizon,
+    );
+    for (const card of upcoming) {
+      out.push({
+        userId: user.id,
+        email: user.email,
+        kind: "prazo",
+        entityKey: `${card.id}:soon`,
+        subject: `Prazo perto: ${card.titulo}`,
+        text: [
+          `Olá, ${user.fullName || "equipe"}.`,
+          "",
+          "Este card vence em breve.",
+          `Tarefa: ${card.titulo}`,
+          `Kanban: ${card.boardName}`,
+          `Coluna: ${card.columnLabel}`,
+          `Prazo: ${card.prazo}`,
+          "",
+          "Abra Atividades no PULSO para atualizar.",
+        ].join("\n"),
+      });
+    }
+
+    const clientLate = cardsForStaffClientOverdue(
+      input.cards,
+      user,
+      input.today,
+      input.clientUserIds,
+    );
+    for (const card of clientLate) {
+      out.push({
+        userId: user.id,
+        email: user.email,
+        kind: "cliente_atraso",
+        entityKey: card.id,
+        subject: `Cliente atrasou: ${card.titulo}`,
+        text: [
+          `Olá, ${user.fullName || "equipe"}.`,
+          "",
+          "Uma tarefa do cliente passou do prazo.",
+          `Tarefa: ${card.titulo}`,
+          `Kanban: ${card.boardName}`,
+          `Coluna: ${card.columnLabel}`,
+          `Prazo: ${card.prazo}`,
+          "",
+          "Abra Atividades no PULSO.",
         ].join("\n"),
       });
     }

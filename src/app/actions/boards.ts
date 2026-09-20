@@ -9,6 +9,7 @@ import {
   type Board,
   type BoardAutomation,
   type BoardCard,
+  type CardFile,
   type Comentario,
   type CustomValue,
   type FieldConfig,
@@ -17,6 +18,11 @@ import {
 } from "@/types/boards";
 import { normalizeViewConfig, type BoardViewConfig } from "@/types/board-view";
 import { createClientAccount } from "@/app/actions/admin";
+import {
+  dispatchCardEvent,
+  loadCardEventContext,
+  notifyClientCardChange,
+} from "@/lib/notify/dispatch";
 import {
   CRM_DEFAULT_COLUMNS,
   PLANO_DE_ACAO_COLUMNS,
@@ -198,9 +204,15 @@ const BOARD_SELECT = `
     subtarefas, comentarios, bloqueada_por, position, custom_values,
     responsavel_id, related_org_id,
     responsavel:profiles!board_cards_responsavel_id_fkey ( full_name ),
-    related_org:organizations!board_cards_related_org_id_fkey ( name )
+    related_org:organizations!board_cards_related_org_id_fkey ( name ),
+    card_files ( id, name, mime_type, web_view_link, uploaded_by, created_at )
   )
 `;
+
+const BOARD_SELECT_NO_FILES = BOARD_SELECT.replace(
+  ",\n    card_files ( id, name, mime_type, web_view_link, uploaded_by, created_at )",
+  "",
+);
 
 interface RawBoardRow {
   id: string;
@@ -244,6 +256,7 @@ interface RawBoardRow {
     related_org_id: string | null;
     responsavel: { full_name: string | null } | null;
     related_org: { name: string } | null;
+    card_files?: CardFile[];
   }>;
 }
 
@@ -278,6 +291,7 @@ function mapBoard(row: RawBoardRow): Board {
         observacoes: c.observacoes,
         subtarefas: c.subtarefas ?? [],
         comentarios: c.comentarios ?? [],
+        arquivos: c.card_files ?? [],
         bloqueada_por: c.bloqueada_por,
         position: c.position,
         custom_values: c.custom_values ?? {},
@@ -289,16 +303,38 @@ async function fetchBoardById(
   supabase: Awaited<ReturnType<typeof createClient>>,
   boardId: string,
 ): Promise<Result<Board>> {
-  const { data, error } = await supabase
+  const first = await supabase
     .from("boards")
     .select(BOARD_SELECT)
     .eq("id", boardId)
     .single();
 
-  if (error || !data) {
-    return { success: false, error: error?.message ?? "Board não encontrado" };
+  if (!first.error && first.data) {
+    return {
+      success: true,
+      data: mapBoard(first.data as unknown as RawBoardRow),
+    };
   }
-  return { success: true, data: mapBoard(data as unknown as RawBoardRow) };
+
+  const fallback = await supabase
+    .from("boards")
+    .select(BOARD_SELECT_NO_FILES)
+    .eq("id", boardId)
+    .single();
+
+  if (fallback.error || !fallback.data) {
+    return {
+      success: false,
+      error:
+        first.error?.message ??
+        fallback.error?.message ??
+        "Board não encontrado",
+    };
+  }
+  return {
+    success: true,
+    data: mapBoard(fallback.data as unknown as RawBoardRow),
+  };
 }
 
 /** Board principal da org — cria com as 4 colunas padrão na primeira visita. */
@@ -688,6 +724,12 @@ export async function createCard(
   if (error || !data)
     return { success: false, error: error?.message ?? "Erro ao criar card" };
   await applyAutomation(supabase, columnId, data.id);
+  void notifyClientCardChange(
+    data.id,
+    user?.id ?? null,
+    (user?.user_metadata?.full_name as string | undefined) ?? "Cliente",
+    `criou o card "${titulo}"`,
+  );
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { id: data.id } };
@@ -705,6 +747,9 @@ export async function updateCard(
   }
   const { cardId, ...rest } = parsed.data;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const patch: Record<string, unknown> = {};
   if (rest.titulo !== undefined) patch.titulo = rest.titulo;
@@ -721,6 +766,12 @@ export async function updateCard(
     .update(patch)
     .eq("id", cardId);
   if (error) return { success: false, error: error.message };
+  void notifyClientCardChange(
+    cardId,
+    user?.id ?? null,
+    (user?.user_metadata?.full_name as string | undefined) ?? "Cliente",
+    "atualizou o card",
+  );
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { id: cardId } };
@@ -881,6 +932,19 @@ export async function addComentario(
     .update({ comentarios })
     .eq("id", cardId);
   if (error) return { success: false, error: error.message };
+
+  const ctx = await loadCardEventContext(cardId);
+  if (ctx) {
+    void dispatchCardEvent({
+      ...ctx,
+      actorId: user?.id ?? null,
+      actorName: profile?.full_name ?? "Alguém",
+      kind: "comentario",
+      detail: texto,
+      entityKey: comentarios[comentarios.length - 1]?.id ?? cardId,
+    });
+  }
+
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { id: cardId } };

@@ -23,7 +23,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   {
     href: "/configuracoes/integracoes",
     label: "Integrações",
-    description: "Google e os conectores que ainda vão entrar.",
+    description: "E-mail, Drive e automações que você cria aqui.",
     group: "conta",
   },
   {

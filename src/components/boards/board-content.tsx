@@ -29,6 +29,7 @@ import {
   CircleDot,
   Tag,
   Send,
+  Paperclip,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,12 @@ import {
   updateCardCustomValue,
   convertCardToClient,
 } from "@/app/actions/boards";
+import {
+  deleteCardFile,
+  linkDriveFileToCard,
+  openOrgDriveFolder,
+  uploadCardFile,
+} from "@/app/actions/drive";
 import { listTeamMembers } from "@/app/actions/team";
 import {
   PRIORIDADE_LABELS,
@@ -439,6 +446,7 @@ export function BoardContent({
             columns={board.columns}
             properties={board.properties}
             module={board.module}
+            orgId={board.org_id}
             onChanged={onChanged}
             onClose={() => setSelectedCardId(null)}
           />
@@ -474,6 +482,7 @@ function CardDetail({
   columns,
   properties,
   module,
+  orgId,
   onChanged,
   onClose,
 }: {
@@ -481,6 +490,7 @@ function CardDetail({
   columns: BoardColumn[];
   properties: BoardProperty[];
   module: Board["module"];
+  orgId: string;
   onChanged: () => void;
   onClose: () => void;
 }): JSX.Element {
@@ -501,6 +511,8 @@ function CardDetail({
   >([]);
   const [convertEmail, setConvertEmail] = useState("");
   const [converting, setConverting] = useState(false);
+  const [driveLink, setDriveLink] = useState("");
+  const [fileBusy, setFileBusy] = useState(false);
 
   useEffect(() => {
     void listTeamMembers().then((result) => {
@@ -843,6 +855,94 @@ function CardDetail({
             onChange={(e) => setNovaSubtarefa(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void handleAddSub()}
           />
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-text-1">Arquivos no Drive</p>
+          {(card.arquivos ?? []).map((file) => (
+            <div key={file.id} className="flex items-center gap-2 text-sm">
+              <Paperclip className="h-3.5 w-3.5 shrink-0 text-text-2" />
+              <a
+                href={file.web_view_link}
+                target="_blank"
+                rel="noreferrer"
+                className="min-w-0 flex-1 truncate text-primary hover:underline"
+              >
+                {file.name}
+              </a>
+              <button
+                type="button"
+                aria-label="Remover arquivo"
+                onClick={() => {
+                  void deleteCardFile(file.id).then((result) => {
+                    if (!result.success) toast.error(result.error);
+                    else onChanged();
+                  });
+                }}
+              >
+                <X className="h-3.5 w-3.5 text-text-2 hover:text-error" />
+              </button>
+            </div>
+          ))}
+          <Input
+            placeholder="Colar link do Drive"
+            className="h-8 text-sm"
+            value={driveLink}
+            onChange={(e) => setDriveLink(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || !driveLink.trim()) return;
+              e.preventDefault();
+              setFileBusy(true);
+              void linkDriveFileToCard({
+                cardId: card.id,
+                url: driveLink.trim(),
+              }).then((result) => {
+                setFileBusy(false);
+                if (!result.success) toast.error(result.error);
+                else {
+                  setDriveLink("");
+                  onChanged();
+                }
+              });
+            }}
+            disabled={fileBusy}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-xs text-primary hover:underline cursor-pointer">
+              Enviar arquivo
+              <input
+                type="file"
+                className="sr-only"
+                disabled={fileBusy}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) return;
+                  const data = new FormData();
+                  data.set("cardId", card.id);
+                  data.set("file", file);
+                  setFileBusy(true);
+                  void uploadCardFile(data).then((result) => {
+                    setFileBusy(false);
+                    if (!result.success) toast.error(result.error);
+                    else onChanged();
+                  });
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              className="text-xs text-primary hover:underline"
+              onClick={() => {
+                void openOrgDriveFolder(orgId).then((result) => {
+                  if (!result.success) toast.error(result.error);
+                  else window.open(result.data.url, "_blank", "noreferrer");
+                });
+              }}
+            >
+              Abrir pasta do cliente
+            </button>
+          </div>
         </div>
 
         <div className="pt-2">

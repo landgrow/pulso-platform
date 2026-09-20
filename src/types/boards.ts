@@ -22,6 +22,15 @@ export interface Comentario {
   created_at: string;
 }
 
+export interface CardFile {
+  id: string;
+  name: string;
+  mime_type: string | null;
+  web_view_link: string;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
 export interface BoardColumn {
   id: string;
   label: string;
@@ -78,6 +87,7 @@ export interface BoardCard {
   observacoes: string | null;
   subtarefas: Subtarefa[];
   comentarios: Comentario[];
+  arquivos: CardFile[];
   bloqueada_por: string | null;
   position: number;
   custom_values: Record<string, CustomValue>;

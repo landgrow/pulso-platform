@@ -31,6 +31,10 @@ const prefsSchema = z.object({
   reuniao: z.boolean(),
   conviteEquipe: z.boolean(),
   resumoDiario: z.boolean(),
+  comentario: z.boolean(),
+  arquivo: z.boolean(),
+  cardCliente: z.boolean(),
+  clienteAtraso: z.boolean(),
 });
 
 export type SettingsActionResult =
@@ -124,6 +128,10 @@ export async function saveNotificationPrefs(
     reuniao: parsed.data.reuniao,
     convite_equipe: parsed.data.conviteEquipe,
     resumo_diario: parsed.data.resumoDiario,
+    comentario: parsed.data.comentario,
+    arquivo: parsed.data.arquivo,
+    card_cliente: parsed.data.cardCliente,
+    cliente_atraso: parsed.data.clienteAtraso,
     updated_at: new Date().toISOString(),
   });
 
