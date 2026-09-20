@@ -8,6 +8,7 @@ export function Toaster(): JSX.Element {
       position="top-right"
       richColors
       closeButton
+      style={{ zIndex: 120 }}
       toastOptions={{
         classNames: {
           toast:

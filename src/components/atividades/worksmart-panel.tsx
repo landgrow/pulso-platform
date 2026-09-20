@@ -9,13 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/page-header";
-import {
-  Sheet,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { TaskModal } from "@/components/ui/task-modal";
 import {
   createWorksmartAction,
   createWorksmartKeyResult,
@@ -23,11 +17,14 @@ import {
   deleteWorksmartAction,
   deleteWorksmartKeyResult,
   deleteWorksmartObjective,
+  generateWorksmartCascade,
   listWorksmartObjectives,
   updateWorksmartKeyResult,
   updateWorksmartObjective,
 } from "@/app/actions/worksmart";
+import { exportWorksmartPdf } from "@/app/actions/reports";
 import { listTeamMembers, type TeamMember } from "@/app/actions/team";
+import { PdfExportButton } from "@/components/reports/pdf-export-button";
 import { AREA_LABELS, type AreaCanonical } from "@/types";
 import {
   WORKSMART_STATUS_LABELS,
@@ -38,12 +35,93 @@ import {
   filledSmartCount,
   fiveH2WSummary,
   horizonChip,
+  isObjectiveAchieved,
+  isSmartComplete,
   krProgressLabel,
   krProgressPercent,
+  objectiveProgressPercent,
 } from "@/lib/worksmart/cascade";
 import { cn } from "@/lib/utils";
 
 const AREAS = Object.entries(AREA_LABELS) as [AreaCanonical, string][];
+
+const OBJECTIVE_EXAMPLES = {
+  title: "Ex.: Sair da venda no fundador — o resultado que muda o jogo.",
+  setor: "Ex.: Comercial. Só preencha se o objetivo puxa um setor.",
+  especifica:
+    "Ex.: O closer conduz a visita; o fundador não entra mais na reunião de venda.",
+  mensuravel: "Ex.: 70% das visitas qualificadas sem o fundador.",
+  atingivel: "Ex.: Script pronto e closer no time; dá para fazer em 90 dias.",
+  relevante:
+    "Ex.: Sem isso a empresa não escala — o gargalo é o fundador na venda.",
+  temporal: "Ex.: data de corte, tipo 18/12/2026.",
+} as const;
+
+function ObjectiveChipList({
+  objectives,
+  selectedId,
+  onSelect,
+}: {
+  objectives: WorksmartObjective[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}): JSX.Element {
+  const open = objectives.filter((o) => !isObjectiveAchieved(o));
+  const won = objectives.filter((o) => isObjectiveAchieved(o));
+
+  function chips(items: WorksmartObjective[], wonStyle: boolean): JSX.Element {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {items.map((objective) => {
+          const on = objective.id === selectedId;
+          return (
+            <button
+              key={objective.id}
+              type="button"
+              onClick={() => onSelect(objective.id)}
+              className={cn(
+                "rounded-md border px-3 py-2 text-left text-sm max-w-xs",
+                on
+                  ? "border-primary bg-primary/10 text-primary"
+                  : wonStyle
+                    ? "border-success/40 bg-success/10 text-text-1 hover:bg-success/15"
+                    : "border-border bg-surface-1 text-text-1 hover:bg-surface-2",
+              )}
+            >
+              <span className="block font-medium truncate">
+                {objective.title}
+              </span>
+              <span className="block text-[11px] text-text-2 mt-0.5">
+                {wonStyle
+                  ? "Resultado"
+                  : WORKSMART_STATUS_LABELS[objective.status]}
+                {objective.orgName ? ` · ${objective.orgName}` : ""}
+                {objective.setor ? ` · ${objective.setor}` : ""}
+                {objective.keyResults.length > 0
+                  ? ` · ${Math.round(objectiveProgressPercent(objective.keyResults))}%`
+                  : ""}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {open.length > 0 ? chips(open, false) : null}
+      {won.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-text-2">
+            Resultados
+          </p>
+          {chips(won, true)}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 /** Cascata WorkSmart: objetivo na mão → SMART → key results → card 5H2W. Sem BIN. */
 export function WorksmartPanel({
@@ -103,14 +181,21 @@ export function WorksmartPanel({
         <div>
           <h2 className="text-lg font-semibold">Objetivos WorkSmart</h2>
           <p className="text-sm text-text-2">
-            Você escreve o objetivo de maior impacto. Lapida em SMART, define o
-            percurso em key results e cada ação vira card 5H2W no Plano de Ação.
+            SMART completo gera o key result, a métrica e os cards 5H2W no Plano
+            de Ação. Acompanhe atual versus meta aqui; o andamento segue no
+            kanban.
           </p>
         </div>
-        <Button size="sm" onClick={() => setNewObjectiveOpen(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
-          Novo objetivo
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <PdfExportButton
+            label="Exportar PDF"
+            run={() => exportWorksmartPdf(orgId)}
+          />
+          <Button size="sm" onClick={() => setNewObjectiveOpen(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            Novo objetivo
+          </Button>
+        </div>
       </div>
 
       {objectives.length === 0 ? (
@@ -124,37 +209,17 @@ export function WorksmartPanel({
           }
         />
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {objectives.map((objective) => {
-            const on = objective.id === selectedId;
-            return (
-              <button
-                key={objective.id}
-                type="button"
-                onClick={() => setSelectedId(objective.id)}
-                className={cn(
-                  "rounded-md border px-3 py-2 text-left text-sm max-w-xs",
-                  on
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-surface-1 text-text-1 hover:bg-surface-2",
-                )}
-              >
-                <span className="block font-medium truncate">
-                  {objective.title}
-                </span>
-                <span className="block text-[11px] text-text-2 mt-0.5">
-                  {WORKSMART_STATUS_LABELS[objective.status]}
-                  {objective.setor ? ` · ${objective.setor}` : ""}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <ObjectiveChipList
+          objectives={objectives}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+        />
       )}
 
       {selected ? (
         <ObjectiveDetail
           objective={selected}
+          team={team}
           today={today}
           onOpenBoard={onOpenBoard}
           onChanged={() => void refresh()}
@@ -165,6 +230,7 @@ export function WorksmartPanel({
 
       <NewObjectiveSheet
         orgId={orgId}
+        team={team}
         open={newObjectiveOpen}
         onOpenChange={setNewObjectiveOpen}
         onCreated={(id) => {
@@ -205,6 +271,7 @@ export function WorksmartPanel({
 
 function ObjectiveDetail({
   objective,
+  team,
   today,
   onOpenBoard,
   onChanged,
@@ -212,6 +279,7 @@ function ObjectiveDetail({
   onAddAction,
 }: {
   objective: WorksmartObjective;
+  team: TeamMember[];
   today: string;
   onOpenBoard?: ((boardId: string) => void) | undefined;
   onChanged: () => void;
@@ -226,6 +294,15 @@ function ObjectiveDetail({
     temporal: objective.smartTemporal,
   };
   const chip = horizonChip(objective.smartTemporal, today);
+  const smartReady = isSmartComplete(smart);
+  const missingActions = objective.keyResults.some(
+    (kr) => kr.actions.length === 0,
+  );
+  const needsCascade =
+    smartReady && (objective.keyResults.length === 0 || missingActions);
+  const progress = objectiveProgressPercent(objective.keyResults);
+  const [generating, setGenerating] = useState(false);
+  const [quemId, setQuemId] = useState("");
 
   async function saveSmart(patch: {
     status?: "rascunho" | "ativo" | "concluido";
@@ -240,13 +317,41 @@ function ObjectiveDetail({
       ...patch,
     });
     if (!result.success) toast.error(result.error);
-    else onChanged();
+    else {
+      if (patch.status === "concluido") {
+        toast.success(
+          "Resultado registrado. Aparece em Objetivos e no Dashboard.",
+        );
+      }
+      onChanged();
+    }
   }
 
   async function handleDelete(): Promise<void> {
     const result = await deleteWorksmartObjective(objective.id);
     if (!result.success) toast.error(result.error);
     else onChanged();
+  }
+
+  async function handleGenerate(): Promise<void> {
+    setGenerating(true);
+    const result = await generateWorksmartCascade({
+      objectiveId: objective.id,
+      quemId: quemId || null,
+    });
+    setGenerating(false);
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+    if (result.data.keyResults === 0 && result.data.cards === 0) {
+      toast.message("Este objetivo já tem percurso e cards no kanban.");
+    } else {
+      toast.success(
+        `Percurso gerado: ${result.data.keyResults} key result, ${result.data.cards} cards no Plano de Ação.`,
+      );
+    }
+    onChanged();
   }
 
   return (
@@ -264,6 +369,9 @@ function ObjectiveDetail({
           <p className="text-xs text-text-2 mt-1">
             {filledSmartCount(smart)}/5 SMART ·{" "}
             {WORKSMART_STATUS_LABELS[objective.status]}
+            {objective.keyResults.length > 0
+              ? ` · ${Math.round(progress)}% do percurso`
+              : ""}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -291,29 +399,49 @@ function ObjectiveDetail({
         </div>
       </header>
 
+      {objective.keyResults.length > 0 ? (
+        <div
+          className="h-1.5 rounded-full bg-surface-2 overflow-hidden"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress)}
+          aria-label={`${Math.round(progress)} por cento do objetivo`}
+        >
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      ) : null}
+
       <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
         <SmartField
           key={`${objective.id}-especifica`}
           label="Específica"
           value={objective.smartEspecifica ?? ""}
+          example={OBJECTIVE_EXAMPLES.especifica}
           onSave={(value) => void saveSmart({ smartEspecifica: value })}
         />
         <SmartField
           key={`${objective.id}-mensuravel`}
           label="Mensurável"
           value={objective.smartMensuravel ?? ""}
+          example={OBJECTIVE_EXAMPLES.mensuravel}
           onSave={(value) => void saveSmart({ smartMensuravel: value })}
         />
         <SmartField
           key={`${objective.id}-atingivel`}
           label="Atingível"
           value={objective.smartAtingivel ?? ""}
+          example={OBJECTIVE_EXAMPLES.atingivel}
           onSave={(value) => void saveSmart({ smartAtingivel: value })}
         />
         <SmartField
           key={`${objective.id}-relevante`}
           label="Relevante"
           value={objective.smartRelevante ?? ""}
+          example={OBJECTIVE_EXAMPLES.relevante}
           onSave={(value) => void saveSmart({ smartRelevante: value })}
         />
         <div className="rounded-md border border-border bg-background p-2 space-y-1">
@@ -330,8 +458,46 @@ function ObjectiveDetail({
               }
             />
           </dd>
+          <p className="text-[11px] leading-snug text-text-2">
+            {OBJECTIVE_EXAMPLES.temporal}
+          </p>
         </div>
       </dl>
+
+      {needsCascade ? (
+        <div className="rounded-md border border-dashed border-primary/40 bg-primary/5 p-4 space-y-3">
+          <p className="text-sm text-text-1">
+            {objective.keyResults.length === 0
+              ? "O SMART está pronto. Isso vira key result com métrica e cards 5H2W no Plano de Ação."
+              : "Há key result sem cards. Gera as atividades no kanban a partir do SMART."}
+          </p>
+          <div className="max-w-xs space-y-1">
+            <p className="text-[11px] uppercase tracking-wide text-text-2">
+              Responsável dos cards
+            </p>
+            <Select value={quemId} onChange={(e) => setQuemId(e.target.value)}>
+              <option value="">Eu — quem está gerando</option>
+              {team.map((member) => (
+                <option key={member.userId} value={member.userId}>
+                  {member.fullName ?? member.email}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => void handleGenerate()}
+            disabled={generating}
+          >
+            {generating ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            Gerar percurso e cards no kanban
+          </Button>
+        </div>
+      ) : null}
 
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">Key results</p>
@@ -341,11 +507,12 @@ function ObjectiveDetail({
         </Button>
       </div>
 
-      {objective.keyResults.length === 0 ? (
+      {objective.keyResults.length === 0 && !needsCascade ? (
         <p className="text-sm text-text-2">
-          Ainda não há percurso. Crie o primeiro key result.
+          Complete os cinco campos SMART para gerar o percurso, ou crie o
+          primeiro key result à mão.
         </p>
-      ) : (
+      ) : objective.keyResults.length === 0 ? null : (
         <div className="grid gap-3 lg:grid-cols-2">
           {objective.keyResults.map((kr, index) => (
             <KeyResultCard
@@ -366,10 +533,12 @@ function ObjectiveDetail({
 function SmartField({
   label,
   value,
+  example,
   onSave,
 }: {
   label: string;
   value: string;
+  example: string;
   onSave: (value: string) => void;
 }): JSX.Element {
   const [local, setLocal] = useState(value);
@@ -389,6 +558,7 @@ function SmartField({
           }}
         />
       </dd>
+      <p className="text-[11px] leading-snug text-text-2">{example}</p>
     </div>
   );
 }
@@ -459,19 +629,38 @@ function KeyResultCard({
           <h4 className="text-sm font-semibold">
             KR{index} · {kr.title}
           </h4>
-          <div className="flex items-center gap-2 mt-1">
-            <Input
-              type="number"
-              min={0}
-              step="any"
-              className="h-7 w-20 text-xs"
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
-              onBlur={() => void saveCurrent()}
-              aria-label="Valor atual do key result"
-            />
-            <span className="text-xs text-text-2">{label}</span>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <label className="space-y-1">
+              <span className="block text-[11px] uppercase tracking-wide text-text-2">
+                Atual
+              </span>
+              <Input
+                type="number"
+                min={0}
+                step="any"
+                className="h-8 text-sm"
+                value={current}
+                onChange={(e) => setCurrent(e.target.value)}
+                onBlur={() => void saveCurrent()}
+                aria-label="Valor atual do key result"
+              />
+            </label>
+            <div className="space-y-1">
+              <span className="block text-[11px] uppercase tracking-wide text-text-2">
+                Meta
+              </span>
+              <p className="h-8 flex items-center text-sm font-medium">
+                {kr.targetValue != null
+                  ? `${kr.targetValue}${kr.unit ? ` ${kr.unit}` : ""}`
+                  : "sem número"}
+              </p>
+            </div>
           </div>
+          <p className="text-xs text-text-2 mt-1">
+            {kr.targetValue != null
+              ? `Acompanhe ${label}. Os cards no kanban mostram o que está em execução.`
+              : `${doneCards}/${totalCards} cards no kanban. Sem meta numérica — o progresso vem das atividades.`}
+          </p>
         </div>
         <button
           type="button"
@@ -558,11 +747,13 @@ function KeyResultCard({
 
 function NewObjectiveSheet({
   orgId,
+  team,
   open,
   onOpenChange,
   onCreated,
 }: {
   orgId: string;
+  team: TeamMember[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (id: string) => void;
@@ -574,6 +765,7 @@ function NewObjectiveSheet({
   const [atingivel, setAtingivel] = useState("");
   const [relevante, setRelevante] = useState("");
   const [temporal, setTemporal] = useState("");
+  const [quemId, setQuemId] = useState("");
   const [saving, setSaving] = useState(false);
 
   function reset(): void {
@@ -584,6 +776,7 @@ function NewObjectiveSheet({
     setAtingivel("");
     setRelevante("");
     setTemporal("");
+    setQuemId("");
   }
 
   async function handleCreate(): Promise<void> {
@@ -598,6 +791,7 @@ function NewObjectiveSheet({
       smartAtingivel: atingivel,
       smartRelevante: relevante,
       smartTemporal: temporal || null,
+      quemId: quemId || null,
     });
     setSaving(false);
     if (!result.success) {
@@ -609,20 +803,23 @@ function NewObjectiveSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto">
-        <SheetHeader className="p-0">
-          <SheetTitle>Novo objetivo</SheetTitle>
-        </SheetHeader>
+    <TaskModal open={open} onClose={() => onOpenChange(false)}>
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto p-6 gap-4">
+        <div className="p-0">
+          <h2 className="font-semibold text-foreground">Novo objetivo</h2>
+        </div>
         <div className="space-y-4">
-          <Field label="Objetivo de maior impacto">
+          <Field
+            label="Objetivo de maior impacto"
+            example={OBJECTIVE_EXAMPLES.title}
+          >
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ex: Sair da venda no fundador"
             />
           </Field>
-          <Field label="Setor (opcional)">
+          <Field label="Setor (opcional)" example={OBJECTIVE_EXAMPLES.setor}>
             <Select value={setor} onChange={(e) => setSetor(e.target.value)}>
               <option value="">Sem setor</option>
               {AREAS.map(([key, label]) => (
@@ -632,39 +829,52 @@ function NewObjectiveSheet({
               ))}
             </Select>
           </Field>
+          <Field
+            label="Responsável dos cards"
+            example="Ex.: quem leva o percurso no Plano de Ação. Vazio = você."
+          >
+            <Select value={quemId} onChange={(e) => setQuemId(e.target.value)}>
+              <option value="">Eu — quem está criando</option>
+              {team.map((member) => (
+                <option key={member.userId} value={member.userId}>
+                  {member.fullName ?? member.email}
+                </option>
+              ))}
+            </Select>
+          </Field>
           <p className="text-xs text-text-2">
             SMART pode ficar para depois — o status vira Ativo quando os cinco
             campos estiverem preenchidos.
           </p>
-          <Field label="Específica">
+          <Field label="Específica" example={OBJECTIVE_EXAMPLES.especifica}>
             <Textarea
               rows={2}
               value={especifica}
               onChange={(e) => setEspecifica(e.target.value)}
             />
           </Field>
-          <Field label="Mensurável">
+          <Field label="Mensurável" example={OBJECTIVE_EXAMPLES.mensuravel}>
             <Textarea
               rows={2}
               value={mensuravel}
               onChange={(e) => setMensuravel(e.target.value)}
             />
           </Field>
-          <Field label="Atingível">
+          <Field label="Atingível" example={OBJECTIVE_EXAMPLES.atingivel}>
             <Textarea
               rows={2}
               value={atingivel}
               onChange={(e) => setAtingivel(e.target.value)}
             />
           </Field>
-          <Field label="Relevante">
+          <Field label="Relevante" example={OBJECTIVE_EXAMPLES.relevante}>
             <Textarea
               rows={2}
               value={relevante}
               onChange={(e) => setRelevante(e.target.value)}
             />
           </Field>
-          <Field label="Temporal">
+          <Field label="Temporal" example={OBJECTIVE_EXAMPLES.temporal}>
             <Input
               type="date"
               value={temporal}
@@ -672,16 +882,16 @@ function NewObjectiveSheet({
             />
           </Field>
         </div>
-        <SheetFooter className="p-0 mt-auto">
+        <div className="p-0 mt-auto">
           <Button
             onClick={() => void handleCreate()}
             disabled={saving || !title.trim()}
           >
             Criar objetivo
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </div>
+      </div>
+    </TaskModal>
   );
 }
 
@@ -728,11 +938,11 @@ function NewKrSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto">
-        <SheetHeader className="p-0">
-          <SheetTitle>Novo key result</SheetTitle>
-        </SheetHeader>
+    <TaskModal open={open} onClose={() => onOpenChange(false)}>
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto p-6 gap-4">
+        <div className="p-0">
+          <h2 className="font-semibold text-foreground">Novo key result</h2>
+        </div>
         <div className="space-y-4">
           <Field label="Percurso mensurável">
             <Input
@@ -758,16 +968,16 @@ function NewKrSheet({
             />
           </Field>
         </div>
-        <SheetFooter className="p-0 mt-auto">
+        <div className="p-0 mt-auto">
           <Button
             onClick={() => void handleCreate()}
             disabled={saving || !title.trim()}
           >
             Criar key result
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </div>
+      </div>
+    </TaskModal>
   );
 }
 
@@ -815,11 +1025,11 @@ function NewActionSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto">
-        <SheetHeader className="p-0">
-          <SheetTitle>Card 5H2W</SheetTitle>
-        </SheetHeader>
+    <TaskModal open={open} onClose={() => onOpenChange(false)}>
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto p-6 gap-4">
+        <div className="p-0">
+          <h2 className="font-semibold text-foreground">Card 5H2W</h2>
+        </div>
         <div className="space-y-4">
           <Field label="O quê">
             <Input
@@ -870,30 +1080,35 @@ function NewActionSheet({
             />
           </Field>
         </div>
-        <SheetFooter className="p-0 mt-auto">
+        <div className="p-0 mt-auto">
           <Button
             onClick={() => void handleCreate()}
             disabled={saving || !oQue.trim()}
           >
             Criar e mandar ao kanban
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </div>
+      </div>
+    </TaskModal>
   );
 }
 
 function Field({
   label,
+  example,
   children,
 }: {
   label: string;
+  example?: string;
   children: ReactNode;
 }): JSX.Element {
   return (
     <div className="space-y-1.5">
       <p className="text-xs text-text-2">{label}</p>
       {children}
+      {example ? (
+        <p className="text-[11px] leading-snug text-text-2">{example}</p>
+      ) : null}
     </div>
   );
 }

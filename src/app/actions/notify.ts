@@ -6,6 +6,23 @@ import { runNotificationJob } from "@/lib/notify/run-job";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
+export async function getLaunchReadiness(): Promise<
+  Result<{ cronSecret: boolean; resend: boolean; fromEmail: boolean }>
+> {
+  const supabase = await createClient();
+  if (!(await isPlatformStaff(supabase))) {
+    return { success: false, error: "Só a equipe Land Grow vê o ambiente." };
+  }
+  return {
+    success: true,
+    data: {
+      cronSecret: Boolean(process.env.CRON_SECRET),
+      resend: Boolean(process.env.RESEND_API_KEY),
+      fromEmail: Boolean(process.env.NOTIFY_FROM_EMAIL),
+    },
+  };
+}
+
 export async function runNotificationsNow(): Promise<
   Result<Awaited<ReturnType<typeof runNotificationJob>>>
 > {

@@ -5,9 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getStaffCapabilities } from "@/lib/supabase/platform-role-server";
 import { getAtividadesDashboard } from "@/app/actions/boards";
 import { getMetricasGerais } from "@/app/actions/metricas";
-import { PageHeader, EmptyState, KpiCard } from "@/components/ui/page-header";
+import { StaffBiDashboard } from "@/components/ops/staff-bi-dashboard";
+import { EmptyState, PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils";
 
 export default async function DashboardPage(): Promise<JSX.Element> {
   const supabase = await createClient();
@@ -22,9 +22,7 @@ export default async function DashboardPage(): Promise<JSX.Element> {
     session?.user.email?.split("@")[0] ??
     "Usuário";
 
-  const isStaff = caps.length > 0;
-
-  if (isStaff) {
+  if (caps.length > 0) {
     return <StaffHome userName={userName} caps={caps} />;
   }
 
@@ -45,7 +43,7 @@ export default async function DashboardPage(): Promise<JSX.Element> {
   return (
     <div className="space-y-8 max-w-6xl">
       <PageHeader
-        title={`Olá, ${userName}`}
+        title={userName}
         description={`${active.org.name} — o que está aberto hoje.`}
       />
       <Link
@@ -76,92 +74,48 @@ async function StaffHome({
     .maybeSingle();
 
   const canAtividades = caps.includes("atividades");
-  const canMetricas = caps.includes("metricas");
+  const canNegocio = caps.includes("metricas") || caps.includes("financeiro");
 
   const [dash, metricas] = await Promise.all([
     canAtividades && internalOrg
       ? getAtividadesDashboard(internalOrg.id, "atividades")
       : Promise.resolve(null),
-    canMetricas ? getMetricasGerais() : Promise.resolve(null),
+    canNegocio ? getMetricasGerais() : Promise.resolve(null),
   ]);
 
   const stats = dash?.success ? dash.data : null;
   const negocio = metricas?.success ? metricas.data : null;
-  const receitaBrl = negocio?.financeiro.receitaAtivaPorMoeda.BRL ?? 0;
 
   return (
-    <div className="space-y-8 max-w-6xl">
-      <PageHeader
-        title={`Olá, ${userName}`}
-        description="Casa da Land Grow: nossas atividades, CRM e faturamento. A carteira de clientes está no Painel."
-      />
-
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          label="Cards abertos"
-          value={String(stats?.total_cards ?? 0)}
-          hint="Plano de Ação interno"
-          accent="primary"
-        />
-        <KpiCard
-          label="Atrasados"
-          value={String(stats?.atrasados ?? 0)}
-          hint="Prazo vencido"
-          accent="neutral"
-        />
-        <KpiCard
-          label="Leads no CRM"
-          value={String(negocio?.crm.totalCards ?? 0)}
-          hint={
-            negocio
-              ? `${negocio.crm.taxaConversao.toFixed(0)}% convertidos`
-              : "Abra Métricas para o funil"
-          }
-          accent="primary"
-        />
-        <KpiCard
-          label="Receita ativa"
-          value={formatCurrency(receitaBrl)}
-          hint="Contratos ativos em BRL"
-          accent="lime"
-        />
-      </div>
-
-      <div className="grid md:grid-cols-3 gap-3">
-        {canAtividades ? (
-          <Link
-            href="/admin/atividades"
-            className="rounded-lg border border-border bg-surface-1 p-5 hover:border-primary/40 transition-colors"
-          >
-            <p className="text-sm font-semibold">Atividades</p>
-            <p className="text-sm text-text-2 mt-1">
-              WorkSmart e Plano de Ação da Land Grow.
-            </p>
-          </Link>
-        ) : null}
-        {caps.includes("crm") ? (
-          <Link
-            href="/admin/crm"
-            className="rounded-lg border border-border bg-surface-1 p-5 hover:border-primary/40 transition-colors"
-          >
-            <p className="text-sm font-semibold">CRM</p>
-            <p className="text-sm text-text-2 mt-1">
-              Leads e parceiros — funil comercial nosso.
-            </p>
-          </Link>
-        ) : null}
-        {canMetricas ? (
-          <Link
-            href="/admin/metricas"
-            className="rounded-lg border border-border bg-surface-1 p-5 hover:border-primary/40 transition-colors"
-          >
-            <p className="text-sm font-semibold">Métricas</p>
-            <p className="text-sm text-text-2 mt-1">
-              Detalhe do funil e dos contratos.
-            </p>
-          </Link>
-        ) : null}
-      </div>
-    </div>
+    <StaffBiDashboard
+      userName={userName}
+      stats={
+        stats
+          ? {
+              totalCards: stats.total_cards,
+              concluidos: stats.concluidos,
+              atrasados: stats.atrasados,
+              porSetor: stats.por_setor,
+              porResponsavel: stats.por_responsavel,
+            }
+          : null
+      }
+      crmLeads={negocio?.crm.totalCards ?? 0}
+      crmConvertidos={negocio?.crm.convertidos ?? 0}
+      crmConversion={negocio ? negocio.crm.taxaConversao : null}
+      receitaBrl={negocio?.financeiro.receitaAtivaPorMoeda.BRL ?? 0}
+      receitaContratosBrl={negocio?.financeiro.receitaContratosBrl ?? 0}
+      receitaObjetivosBrl={negocio?.financeiro.receitaObjetivosBrl ?? 0}
+      finance={
+        negocio
+          ? {
+              mes: negocio.financeiro.mes,
+              livroMes: negocio.financeiro.livroMes,
+              cashflow: negocio.financeiro.cashflow,
+              entradasPorOrigem: negocio.financeiro.entradasPorOrigem,
+            }
+          : null
+      }
+    />
   );
 }

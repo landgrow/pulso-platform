@@ -6,10 +6,17 @@ import { createClient } from "@/lib/supabase/server";
 import { isClosedColumnLabel } from "@/lib/boards/plano-de-acao-template";
 import {
   derivedObjectiveStatus,
+  isKrAchieved,
+  isSmartComplete,
+  resolveCascadeOwner,
   toNumber,
   type SmartFields,
 } from "@/lib/worksmart/cascade";
 import { promoteWorksmartAction } from "@/lib/worksmart/promote-action";
+import {
+  suggestActions,
+  suggestKeyResults,
+} from "@/lib/worksmart/suggest-cascade";
 import type {
   WorksmartAction,
   WorksmartKeyResult,
@@ -56,6 +63,12 @@ const createObjectiveSchema = z.object({
   smartAtingivel: optionalText,
   smartRelevante: optionalText,
   smartTemporal: optionalDate,
+  quemId: z.string().uuid().nullable().optional(),
+});
+
+const generateCascadeSchema = z.object({
+  objectiveId: z.string().uuid(),
+  quemId: z.string().uuid().nullable().optional(),
 });
 
 const updateObjectiveSchema = z.object({
@@ -101,6 +114,7 @@ const OBJECTIVE_SELECT = `
   id, org_id, title, setor,
   smart_especifica, smart_mensuravel, smart_atingivel, smart_relevante, smart_temporal,
   status, created_at,
+  organizations ( name ),
   worksmart_key_results (
     id, objective_id, title, target_value, current_value, unit, position,
     worksmart_actions (
@@ -157,6 +171,7 @@ type ObjectiveRow = {
   smart_temporal: string | null;
   status: WorksmartStatus;
   created_at: string;
+  organizations: { name: string } | { name: string }[] | null;
   worksmart_key_results: KrRow[] | null;
 };
 
@@ -218,6 +233,9 @@ function mapObjective(row: ObjectiveRow): WorksmartObjective {
     smartTemporal: row.smart_temporal,
     status: row.status,
     createdAt: row.created_at,
+    orgName: Array.isArray(row.organizations)
+      ? (row.organizations[0]?.name ?? null)
+      : (row.organizations?.name ?? null),
     keyResults,
   };
 }
@@ -240,20 +258,28 @@ function smartFromInput(input: {
 
 function revalidateAtividades(): void {
   revalidatePath("/admin/atividades");
+  revalidatePath("/dashboard");
+  revalidatePath("/admin/metricas");
+  revalidatePath("/admin/crm");
 }
 
 export async function listWorksmartObjectives(
-  orgId: string,
+  orgId?: string,
 ): Promise<Result<WorksmartObjective[]>> {
-  const parsed = orgIdSchema.safeParse({ orgId });
-  if (!parsed.success) return { success: false, error: "Organização inválida" };
-
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("worksmart_objectives")
     .select(OBJECTIVE_SELECT)
-    .eq("org_id", orgId)
     .order("created_at", { ascending: false });
+
+  if (orgId) {
+    const parsed = orgIdSchema.safeParse({ orgId });
+    if (!parsed.success)
+      return { success: false, error: "Organização inválida" };
+    query = query.eq("org_id", orgId);
+  }
+
+  const { data, error } = await query;
 
   if (error) return { success: false, error: error.message };
   return {
@@ -303,6 +329,12 @@ export async function createWorksmartObjective(
     };
   }
   revalidateAtividades();
+  if (isSmartComplete(smartFromInput(input))) {
+    await generateWorksmartCascade({
+      objectiveId: data.id,
+      quemId: input.quemId ?? user?.id ?? null,
+    });
+  }
   return { success: true, data: { id: data.id } };
 }
 
@@ -379,6 +411,23 @@ export async function updateWorksmartObjective(
     .update(patch)
     .eq("id", objectiveId);
   if (error) return { success: false, error: error.message };
+
+  if (isSmartComplete(nextSmart)) {
+    const { count } = await supabase
+      .from("worksmart_key_results")
+      .select("id", { count: "exact", head: true })
+      .eq("objective_id", objectiveId);
+    if ((count ?? 0) === 0) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      await generateWorksmartCascade({
+        objectiveId,
+        quemId: user?.id ?? null,
+      });
+    }
+  }
+
   revalidateAtividades();
   return { success: true, data: { id: objectiveId } };
 }
@@ -474,6 +523,39 @@ export async function updateWorksmartKeyResult(
     .update(patch)
     .eq("id", keyResultId);
   if (error) return { success: false, error: error.message };
+
+  if (rest.currentValue !== undefined) {
+    const { data: kr } = await supabase
+      .from("worksmart_key_results")
+      .select("objective_id")
+      .eq("id", keyResultId)
+      .single();
+    if (kr?.objective_id) {
+      const { data: siblings } = await supabase
+        .from("worksmart_key_results")
+        .select("current_value, target_value")
+        .eq("objective_id", kr.objective_id);
+      const rows = (siblings ?? []) as {
+        current_value: unknown;
+        target_value: unknown;
+      }[];
+      const allHit = rows.every((row) =>
+        isKrAchieved({
+          currentValue: toNumber(row.current_value),
+          targetValue: toNumber(row.target_value),
+          actions: [],
+        }),
+      );
+      if (allHit && (siblings ?? []).length > 0) {
+        await supabase
+          .from("worksmart_objectives")
+          .update({ status: "concluido" })
+          .eq("id", kr.objective_id)
+          .neq("status", "concluido");
+      }
+    }
+  }
+
   revalidateAtividades();
   return { success: true, data: { id: keyResultId } };
 }
@@ -589,4 +671,102 @@ export async function deleteWorksmartAction(
   if (error) return { success: false, error: error.message };
   revalidateAtividades();
   return { success: true, data: { removed: true } };
+}
+
+export async function generateWorksmartCascade(
+  raw: unknown,
+): Promise<
+  Result<{ keyResults: number; cards: number; boardId: string | null }>
+> {
+  const parsed = generateCascadeSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { success: false, error: "Objetivo inválido" };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const ownerId = resolveCascadeOwner(parsed.data.quemId, user?.id);
+  if (!ownerId) {
+    return {
+      success: false,
+      error: "Escolha quem fica responsável pelos cards.",
+    };
+  }
+
+  const { data: objective, error } = await supabase
+    .from("worksmart_objectives")
+    .select(
+      "id, title, smart_especifica, smart_mensuravel, smart_atingivel, smart_relevante, smart_temporal, worksmart_key_results ( id )",
+    )
+    .eq("id", parsed.data.objectiveId)
+    .single();
+  if (error || !objective) {
+    return {
+      success: false,
+      error: error?.message ?? "Objetivo não encontrado",
+    };
+  }
+
+  const source = {
+    title: objective.title as string,
+    smartEspecifica: (objective.smart_especifica as string | null) ?? null,
+    smartMensuravel: (objective.smart_mensuravel as string | null) ?? null,
+    smartAtingivel: (objective.smart_atingivel as string | null) ?? null,
+    smartRelevante: (objective.smart_relevante as string | null) ?? null,
+    smartTemporal: (objective.smart_temporal as string | null) ?? null,
+  };
+
+  const existingKrs = (
+    (objective.worksmart_key_results ?? []) as { id: string }[]
+  ).map((row) => row.id);
+
+  let keyResultsCreated = 0;
+  const krIds = [...existingKrs];
+  if (krIds.length === 0) {
+    for (const suggested of suggestKeyResults(source)) {
+      const created = await createWorksmartKeyResult({
+        objectiveId: parsed.data.objectiveId,
+        title: suggested.title,
+        targetValue: suggested.targetValue,
+        currentValue: 0,
+        unit: suggested.unit,
+      });
+      if (!created.success) return created;
+      krIds.push(created.data.id);
+      keyResultsCreated += 1;
+    }
+  }
+
+  const suggested = suggestActions(source);
+  let cardsCreated = 0;
+  let boardId: string | null = null;
+  for (const krId of krIds) {
+    const { count } = await supabase
+      .from("worksmart_actions")
+      .select("id", { count: "exact", head: true })
+      .eq("key_result_id", krId);
+    if ((count ?? 0) > 0) continue;
+    for (const action of suggested) {
+      const created = await createWorksmartAction({
+        keyResultId: krId,
+        oQue: action.oQue,
+        quemId: ownerId,
+        quando: action.quando,
+        porQue: action.porQue,
+        como: action.como,
+        quanto: action.quanto,
+      });
+      if (!created.success) return created;
+      cardsCreated += 1;
+      boardId = created.data.boardId;
+    }
+  }
+
+  revalidateAtividades();
+  return {
+    success: true,
+    data: { keyResults: keyResultsCreated, cards: cardsCreated, boardId },
+  };
 }

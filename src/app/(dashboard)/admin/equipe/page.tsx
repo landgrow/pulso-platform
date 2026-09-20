@@ -50,9 +50,8 @@ export default async function EquipePage(): Promise<JSX.Element> {
           </Badge>
         </div>
         <p className="text-text-2">
-          Cliente vê só a própria empresa. Admin vê tudo. Consultor: marque as
-          funções no botão Funções. Tarefas no kanban “Tarefas administrativas”
-          continuam invisíveis para o consultor.
+          Admin vê tudo. Consultor só entra nos lugares marcados abaixo. O
+          kanban “Tarefas administrativas” continua invisível para consultor.
         </p>
       </div>
 
@@ -80,63 +79,66 @@ export default async function EquipePage(): Promise<JSX.Element> {
           ) : (
             <div className="divide-y divide-border">
               {members.map((m) => (
-                <div
-                  key={m.userId}
-                  className="flex items-center justify-between gap-4 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {m.fullName ?? m.email}
-                    </p>
-                    <p className="text-xs text-text-2 truncate">{m.email}</p>
+                <div key={m.userId} className="space-y-4 px-4 py-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {m.fullName ?? m.email}
+                      </p>
+                      <p className="text-xs text-text-2 truncate">{m.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge
+                        variant={
+                          m.role === "platform_admin" ? "success" : "outline"
+                        }
+                      >
+                        {m.role === "platform_admin" ? "Admin" : "Consultor"}
+                      </Badge>
+                      <ResendInviteButton
+                        email={m.email}
+                        name={m.fullName ?? m.email}
+                      />
+                      <RemovePlatformTeamMemberButton
+                        userId={m.userId}
+                        email={m.email}
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <Badge
-                      variant={
-                        m.role === "platform_admin" ? "success" : "outline"
-                      }
-                    >
-                      {m.role === "platform_admin" ? "Admin" : "Consultor"}
-                    </Badge>
-                    {m.role === "consultant" && (
-                      <>
-                        <ManageConsultantFunctions
-                          consultantId={m.userId}
-                          granted={m.capabilities}
-                        />
-                        <div className="hidden md:flex flex-wrap gap-1 max-w-[240px]">
-                          {m.assignedOrgs.length === 0 ? (
-                            <span className="text-xs text-text-2">
-                              nenhum cliente
-                            </span>
-                          ) : (
-                            m.assignedOrgs.map((o) => (
-                              <Badge
-                                key={o.org_id}
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                {o.org_name}
-                              </Badge>
-                            ))
-                          )}
-                        </div>
+                  {m.role === "consultant" ? (
+                    <div className="space-y-3">
+                      <ManageConsultantFunctions
+                        consultantId={m.userId}
+                        granted={m.capabilities}
+                      />
+                      <div className="flex flex-wrap items-center gap-2">
+                        {m.assignedOrgs.length === 0 ? (
+                          <span className="text-xs text-text-2">
+                            Nenhum cliente atribuído
+                          </span>
+                        ) : (
+                          m.assignedOrgs.map((o) => (
+                            <Badge
+                              key={o.org_id}
+                              variant="outline"
+                              className="text-xs"
+                            >
+                              {o.org_name}
+                            </Badge>
+                          ))
+                        )}
                         <ManageConsultantOrgs
                           consultantId={m.userId}
                           allOrgs={allOrgs}
                           assignedOrgIds={m.assignedOrgs.map((o) => o.org_id)}
                         />
-                      </>
-                    )}
-                    <ResendInviteButton
-                      email={m.email}
-                      name={m.fullName ?? m.email}
-                    />
-                    <RemovePlatformTeamMemberButton
-                      userId={m.userId}
-                      email={m.email}
-                    />
-                  </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-text-2">
+                      Acesso total — todas as abas liberadas.
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

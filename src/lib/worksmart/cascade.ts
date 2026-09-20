@@ -45,10 +45,41 @@ export function derivedObjectiveStatus(
   return isSmartComplete(fields) ? "ativo" : "rascunho";
 }
 
+/** Card gerado nunca nasce órfão: quem explícito, senão quem está gerando. */
+export function resolveCascadeOwner(
+  explicit: string | null | undefined,
+  userId: string | null | undefined,
+): string | null {
+  const owner = explicit?.trim() || userId?.trim() || "";
+  return owner.length > 0 ? owner : null;
+}
+
 export function toNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const n = typeof value === "number" ? value : Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+export function objectiveProgressPercent(
+  krs: Array<{
+    currentValue: number | null;
+    targetValue: number | null;
+    actions: { done: boolean }[];
+  }>,
+): number {
+  if (krs.length === 0) return 0;
+  const total = krs.reduce((sum, kr) => {
+    return (
+      sum +
+      krProgressPercent({
+        current: kr.currentValue,
+        target: kr.targetValue,
+        doneCards: kr.actions.filter((a) => a.done).length,
+        totalCards: kr.actions.length,
+      })
+    );
+  }, 0);
+  return total / krs.length;
 }
 
 export function krProgressPercent(input: {
@@ -81,6 +112,55 @@ export function krProgressLabel(input: {
     return `${input.current} / ${input.target}${unit}`;
   }
   return `${input.doneCards} / ${input.totalCards}`;
+}
+
+export function isKrAchieved(input: {
+  currentValue: number | null;
+  targetValue: number | null;
+  actions: { done: boolean }[];
+}): boolean {
+  if (input.targetValue != null && input.targetValue > 0) {
+    return (input.currentValue ?? 0) >= input.targetValue;
+  }
+  return (
+    input.actions.length > 0 && input.actions.every((action) => action.done)
+  );
+}
+
+export function isObjectiveAchieved(input: {
+  status: WorksmartStatus;
+  keyResults: Array<{
+    currentValue: number | null;
+    targetValue: number | null;
+    actions: { done: boolean }[];
+  }>;
+}): boolean {
+  if (input.status === "concluido") return true;
+  return input.keyResults.length > 0 && input.keyResults.every(isKrAchieved);
+}
+
+export function parse5h2wNotes(
+  notes: string | null | undefined,
+): { label: string; value: string }[] {
+  if (!notes?.trim()) return [];
+  const labels = [
+    "O quê",
+    "Quem",
+    "Quando",
+    "Onde",
+    "Por quê",
+    "Como",
+    "Quanto",
+  ];
+  const rows: { label: string; value: string }[] = [];
+  for (const line of notes.split(/\r?\n/)) {
+    const match = line.match(/^([^:]{2,12}):\s*(.+)$/);
+    if (!match?.[1] || !match[2]) continue;
+    const label = match[1].trim();
+    if (!labels.includes(label)) continue;
+    rows.push({ label, value: match[2].trim() });
+  }
+  return rows;
 }
 
 export function format5h2wNotes(fields: FiveH2W): string {

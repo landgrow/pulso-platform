@@ -35,7 +35,7 @@ export function KanbanBoard({ orgId }: { orgId: string }): JSX.Element {
   }
 
   return (
-    <div className="flex gap-4 items-start">
+    <div className="flex items-stretch">
       <ListSecondaryPanel
         sectionLabel="Plano de Ação"
         items={boards}
@@ -46,7 +46,7 @@ export function KanbanBoard({ orgId }: { orgId: string }): JSX.Element {
         onCreate={() => void handleNewBoard()}
         onDelete={(id) => void handleDeleteBoard(id)}
       />
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 pl-4">
         <BoardContent
           board={board}
           onChanged={() => void refreshCurrentBoard()}

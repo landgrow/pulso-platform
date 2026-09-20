@@ -544,7 +544,7 @@ export function MindMapCanvas({ orgId }: { orgId: string }): JSX.Element {
       )}
 
       <Sheet open={templatesOpen} onOpenChange={setTemplatesOpen}>
-        <SheetContent className="overflow-y-auto w-full max-w-lg">
+        <SheetContent side="center" className="overflow-y-auto p-6">
           <SheetHeader className="p-0">
             <SheetTitle>Escolha um template</SheetTitle>
           </SheetHeader>
@@ -595,7 +595,7 @@ function AiGenerateSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto">
+      <SheetContent side="center" className="overflow-y-auto p-6">
         <SheetHeader className="p-0">
           <SheetTitle>✨ Gerar mapa a partir de um texto</SheetTitle>
         </SheetHeader>

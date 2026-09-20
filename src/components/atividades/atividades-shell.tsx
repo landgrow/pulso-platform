@@ -21,6 +21,7 @@ import { ImportPanel } from "@/components/atividades/import-panel";
 import { AutomationsPanel } from "@/components/atividades/automations-panel";
 import { WorksmartPanel } from "@/components/atividades/worksmart-panel";
 import { cn } from "@/lib/utils";
+import { CollapsibleSubnav } from "@/components/layout/nav-collapse";
 
 type Nav =
   | { kind: "dashboard" }
@@ -60,106 +61,108 @@ export function AtividadesShell({ orgId }: { orgId: string }): JSX.Element {
   }
 
   return (
-    <div className="flex gap-4 items-start">
-      <aside className="w-56 shrink-0 rounded-lg border border-border bg-surface-1 flex flex-col">
-        <div className="flex-1 p-2 overflow-y-auto">
-          <p className="px-2 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-2">
-            WorkSmart
-          </p>
-          <nav className="space-y-0.5">
-            <NavButton
-              icon={<Target className="h-4 w-4" />}
-              label="Objetivos"
-              active={nav.kind === "worksmart"}
-              onClick={() => setNav({ kind: "worksmart" })}
-            />
-            <NavButton
-              icon={<Calendar className="h-4 w-4" />}
-              label="Reuniões"
-              active={nav.kind === "meetings"}
-              onClick={() => setNav({ kind: "meetings" })}
-            />
-          </nav>
+    <div className="flex items-stretch">
+      <CollapsibleSubnav storageKey="pulso-nav-atividades">
+        <aside className="flex h-full min-h-[calc(100vh-9rem)] flex-col border-r border-border bg-surface-1">
+          <div className="flex-1 overflow-y-auto p-2">
+            <p className="px-2 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-2">
+              WorkSmart
+            </p>
+            <nav className="space-y-0.5">
+              <NavButton
+                icon={<Target className="h-4 w-4" />}
+                label="Objetivos"
+                active={nav.kind === "worksmart"}
+                onClick={() => setNav({ kind: "worksmart" })}
+              />
+              <NavButton
+                icon={<Calendar className="h-4 w-4" />}
+                label="Reuniões"
+                active={nav.kind === "meetings"}
+                onClick={() => setNav({ kind: "meetings" })}
+              />
+            </nav>
 
-          <div className="h-px bg-border my-2" />
-          <p className="px-2 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-2">
-            Plano de Ação
-          </p>
-          <nav className="space-y-0.5">
-            {boards.map((b) => (
-              <div key={b.id} className="group flex items-center">
-                <button
-                  onClick={() => selectBoard(b.id)}
-                  className={cn(
-                    "flex-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left min-w-0",
-                    nav.kind === "board" && nav.boardId === b.id
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "text-text-2 hover:bg-surface-2 hover:text-text-1",
-                  )}
-                >
-                  <span
-                    className="shrink-0 h-5 w-5 rounded flex items-center justify-center text-[11px] leading-none"
-                    style={{ background: b.color }}
+            <div className="h-px bg-border my-2" />
+            <p className="px-2 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-2">
+              Plano de Ação
+            </p>
+            <nav className="space-y-0.5">
+              {boards.map((b) => (
+                <div key={b.id} className="group flex items-center">
+                  <button
+                    onClick={() => selectBoard(b.id)}
+                    className={cn(
+                      "flex-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left min-w-0",
+                      nav.kind === "board" && nav.boardId === b.id
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-text-2 hover:bg-surface-2 hover:text-text-1",
+                    )}
                   >
-                    {b.icon}
-                  </span>
-                  <span className="truncate">{b.name}</span>
-                </button>
-                {boards.filter((x) => x.kind !== "admin_only").length > 1 &&
-                  b.kind !== "admin_only" &&
-                  nav.kind === "board" &&
-                  nav.boardId === b.id && (
-                    <button
-                      onClick={() => void handleDeleteBoard(b.id)}
-                      className="shrink-0 p-1 text-text-2 hover:text-error opacity-0 group-hover:opacity-100"
-                      aria-label="Excluir"
+                    <span
+                      className="shrink-0 h-5 w-5 rounded flex items-center justify-center text-[11px] leading-none"
+                      style={{ background: b.color }}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-              </div>
-            ))}
-          </nav>
-          <button
-            onClick={() => void handleNewBoard()}
-            className="w-full mt-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text-1"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Novo kanban
-          </button>
-
-          <div className="h-px bg-border my-2" />
-          <nav className="space-y-0.5">
-            <NavButton
-              icon={<LayoutDashboard className="h-4 w-4" />}
-              label="Dashboard"
-              active={nav.kind === "dashboard"}
-              onClick={() => setNav({ kind: "dashboard" })}
-            />
-            <NavButton
-              icon={<Upload className="h-4 w-4" />}
-              label="Importar Dados"
-              active={nav.kind === "import"}
-              onClick={() => setNav({ kind: "import" })}
-            />
-            <NavButton
-              icon={<Zap className="h-4 w-4" />}
-              label="Automações"
-              active={nav.kind === "automations"}
-              onClick={() => setNav({ kind: "automations" })}
-            />
-            <Link
-              href="/admin/equipe"
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text-1"
+                      {b.icon}
+                    </span>
+                    <span className="truncate">{b.name}</span>
+                  </button>
+                  {boards.filter((x) => x.kind !== "admin_only").length > 1 &&
+                    b.kind !== "admin_only" &&
+                    nav.kind === "board" &&
+                    nav.boardId === b.id && (
+                      <button
+                        onClick={() => void handleDeleteBoard(b.id)}
+                        className="shrink-0 p-1 text-text-2 hover:text-error opacity-0 group-hover:opacity-100"
+                        aria-label="Excluir"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                </div>
+              ))}
+            </nav>
+            <button
+              onClick={() => void handleNewBoard()}
+              className="w-full mt-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text-1"
             >
-              <Lock className="h-4 w-4 shrink-0" />
-              <span>Permissões</span>
-            </Link>
-          </nav>
-        </div>
-      </aside>
+              <Plus className="h-3.5 w-3.5" />
+              Novo kanban
+            </button>
 
-      <div className="flex-1 min-w-0">
+            <div className="h-px bg-border my-2" />
+            <nav className="space-y-0.5">
+              <NavButton
+                icon={<LayoutDashboard className="h-4 w-4" />}
+                label="Dashboard"
+                active={nav.kind === "dashboard"}
+                onClick={() => setNav({ kind: "dashboard" })}
+              />
+              <NavButton
+                icon={<Upload className="h-4 w-4" />}
+                label="Importar Dados"
+                active={nav.kind === "import"}
+                onClick={() => setNav({ kind: "import" })}
+              />
+              <NavButton
+                icon={<Zap className="h-4 w-4" />}
+                label="Automações"
+                active={nav.kind === "automations"}
+                onClick={() => setNav({ kind: "automations" })}
+              />
+              <Link
+                href="/admin/equipe"
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text-1"
+              >
+                <Lock className="h-4 w-4 shrink-0" />
+                <span>Permissões</span>
+              </Link>
+            </nav>
+          </div>
+        </aside>
+      </CollapsibleSubnav>
+
+      <div className="flex-1 min-w-0 pl-4">
         {nav.kind === "dashboard" && <AtividadesDashboard orgId={orgId} />}
         {nav.kind === "worksmart" && (
           <WorksmartPanel orgId={orgId} onOpenBoard={selectBoard} />

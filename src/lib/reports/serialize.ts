@@ -76,6 +76,26 @@ export function metricasToRows(data: MetricasGerais): Record<string, string>[] {
       Indicador: "Contratos",
       Valor: String(data.financeiro.totalContratos),
     },
+    {
+      Bloco: "Financeiro",
+      Indicador: `Entrou ${data.financeiro.mes}`,
+      Valor: String(data.financeiro.livroMes.entradas),
+    },
+    {
+      Bloco: "Financeiro",
+      Indicador: "Imposto das notas",
+      Valor: String(data.financeiro.livroMes.impostosNotas),
+    },
+    {
+      Bloco: "Financeiro",
+      Indicador: "Saiu",
+      Valor: String(data.financeiro.livroMes.saidas),
+    },
+    {
+      Bloco: "Financeiro",
+      Indicador: "Balanço do mês",
+      Valor: String(data.financeiro.livroMes.balanco),
+    },
   ];
   for (const k of data.crm.porKanban) {
     rows.push({

@@ -101,3 +101,18 @@ export async function requireCapability(
   }
   throw new Error("Acesso negado a esta função.");
 }
+
+export async function requireAnyCapability(
+  supabase: ServerSupabaseClient,
+  capabilities: StaffCapabilityId[],
+): Promise<PlatformRole> {
+  const role = await getPlatformRole(supabase);
+  if (role === "platform_admin") return role;
+  if (role === "consultant") {
+    const caps = await getStaffCapabilities(supabase);
+    if (capabilities.some((capability) => caps.includes(capability))) {
+      return role;
+    }
+  }
+  throw new Error("Acesso negado a esta função.");
+}

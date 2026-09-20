@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, ListTodo, CheckCircle2, AlertTriangle } from "lucide-react";
+import { StatusDonut } from "@/components/charts";
+import { CHART } from "@/lib/charts/theme";
 import { getAtividadesDashboard } from "@/app/actions/boards";
 import type { BoardModule } from "@/types/boards";
 
@@ -69,6 +71,24 @@ export function AtividadesDashboard({
   const maxSetor = Math.max(1, ...setorEntries.map(([, v]) => v));
   const maxResponsavel = Math.max(1, ...responsavelEntries.map(([, v]) => v));
 
+  const emAndamento = Math.max(
+    0,
+    data.total_cards - data.concluidos - data.atrasados,
+  );
+  const statusData = [
+    { name: "Em andamento", value: emAndamento, color: CHART.status.andamento },
+    { name: "Atrasados", value: data.atrasados, color: CHART.status.atrasados },
+    {
+      name: "Concluídos",
+      value: data.concluidos,
+      color: CHART.status.concluidos,
+    },
+  ];
+  const donePct =
+    data.total_cards > 0
+      ? Math.round((data.concluidos / data.total_cards) * 100)
+      : 0;
+
   return (
     <div className="space-y-6">
       <div>
@@ -101,6 +121,15 @@ export function AtividadesDashboard({
           <p className="text-2xl font-bold mt-1 text-error">{data.atrasados}</p>
         </div>
       </div>
+
+      {data.total_cards > 0 ? (
+        <StatusDonut
+          title="Situação dos cards"
+          center={`${donePct}%`}
+          centerLabel="concluído"
+          rows={statusData}
+        />
+      ) : null}
 
       <div className="grid grid-cols-2 gap-6">
         <div className="space-y-2">

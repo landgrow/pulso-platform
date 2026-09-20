@@ -1,9 +1,27 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { requireCapability } from "@/lib/supabase/platform-role-server";
+import { requireAnyCapability } from "@/lib/supabase/platform-role-server";
 import { getAtividadesDashboard } from "@/app/actions/boards";
+import { collectOperacaoBridges } from "@/lib/ops/metric-bridge";
+import {
+  cashflowFromLines,
+  composeReceitaAtiva,
+  currentMonth,
+  EMPTY_MONTH_BALANCE,
+  sumEntradasPorOrigem,
+  summarizeMonth,
+} from "@/lib/financeiro/ledger";
+import { toNumber } from "@/lib/worksmart/cascade";
 import type { ContratoStatus, Moeda, Programa } from "@/types/clientes";
+import type { WorksmartStatus } from "@/types/worksmart";
+import type {
+  FinanceCashMonth,
+  FinanceEntryKind,
+  FinanceEntryOrigin,
+  FinanceEntryStatus,
+  MonthBalance,
+} from "@/types/financeiro";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -19,22 +37,31 @@ export interface MetricasGerais {
     totalContratos: number;
     porStatus: Record<ContratoStatus, number>;
     receitaAtivaPorMoeda: Partial<Record<Moeda, number>>;
+    receitaContratosBrl: number;
+    receitaObjetivosBrl: number;
+    receitaCaixaBrl: number;
+    mes: string;
+    livroMes: MonthBalance;
+    cashflow: FinanceCashMonth[];
+    entradasPorOrigem: Partial<Record<FinanceEntryOrigin, number>>;
     receitaPorProgramaEMoeda: Partial<
       Record<Moeda, Partial<Record<Programa, number>>>
     >;
+  };
+  bridges: {
+    clientesObjetivos: number;
   };
 }
 
 /**
  * Métricas gerais do negócio da Land Grow — não é sobre um cliente específico,
  * é o painel interno: funil de CRM (todos os kanbans de leads/parceiros) +
- * financeiro real (contratos ativos/pausados/encerrados por programa e moeda,
- * a mesma tabela `contratos` que já alimenta /admin/clientes).
+ * financeiro do mês (o mesmo livro de /admin/financeiro) + contratos e meta.
  */
 export async function getMetricasGerais(): Promise<Result<MetricasGerais>> {
   const supabase = await createClient();
   try {
-    await requireCapability(supabase, "metricas");
+    await requireAnyCapability(supabase, ["metricas", "financeiro"]);
   } catch (e) {
     return {
       success: false,
@@ -55,7 +82,13 @@ export async function getMetricasGerais(): Promise<Result<MetricasGerais>> {
     };
   }
 
-  const [dashboardResult, boardsResult, contratosResult] = await Promise.all([
+  const [
+    dashboardResult,
+    boardsResult,
+    contratosResult,
+    objetivosResult,
+    caixaResult,
+  ] = await Promise.all([
     getAtividadesDashboard(internalOrg.id, "crm"),
     supabase
       .from("boards")
@@ -63,6 +96,16 @@ export async function getMetricasGerais(): Promise<Result<MetricasGerais>> {
       .eq("org_id", internalOrg.id)
       .eq("module", "crm"),
     supabase.from("contratos").select("programa, valor, moeda, status"),
+    supabase
+      .from("worksmart_objectives")
+      .select(
+        "status, smart_especifica, worksmart_key_results ( current_value, target_value, unit )",
+      ),
+    supabase
+      .from("finance_entries")
+      .select("amount, kind, status, competence_date, tax_amount, origin")
+      .eq("org_id", internalOrg.id)
+      .neq("status", "cancelado"),
   ]);
 
   if (!dashboardResult.success)
@@ -117,13 +160,103 @@ export async function getMetricasGerais(): Promise<Result<MetricasGerais>> {
     }
   }
 
+  const receitaContratosBrl = receitaAtivaPorMoeda.BRL ?? 0;
+  const mes = currentMonth();
+  const livroLinhas = caixaResult.error
+    ? []
+    : (
+        (caixaResult.data ?? []) as Array<{
+          amount: unknown;
+          kind: FinanceEntryKind;
+          status: FinanceEntryStatus;
+          competence_date: string;
+          tax_amount?: unknown;
+          origin?: FinanceEntryOrigin | null;
+        }>
+      ).map((row) => ({
+        kind: row.kind,
+        status: row.status,
+        amount: Number(row.amount ?? 0),
+        taxAmount: Number(row.tax_amount ?? 0),
+        competenceDate: row.competence_date,
+        origin: row.origin ?? null,
+      }));
+  const livroMes = caixaResult.error
+    ? EMPTY_MONTH_BALANCE
+    : summarizeMonth(livroLinhas, mes);
+  const cashflow = cashflowFromLines(livroLinhas, mes);
+  const entradasPorOrigem = sumEntradasPorOrigem(livroLinhas, mes);
+  const receitaCaixaBrl = livroMes.liquido;
+  if (objetivosResult.error) {
+    receitaAtivaPorMoeda.BRL = composeReceitaAtiva({
+      monthBalance: livroMes,
+      receitaContratosBrl,
+      receitaObjetivosBrl: 0,
+    });
+    return {
+      success: true,
+      data: {
+        crm: {
+          totalCards,
+          convertidos,
+          taxaConversao,
+          porSetor: dashboardResult.data.por_setor,
+          porKanban,
+        },
+        financeiro: {
+          totalContratos: contratos.length,
+          porStatus,
+          receitaAtivaPorMoeda,
+          receitaContratosBrl,
+          receitaObjetivosBrl: 0,
+          receitaCaixaBrl,
+          mes,
+          livroMes,
+          cashflow,
+          entradasPorOrigem,
+          receitaPorProgramaEMoeda,
+        },
+        bridges: { clientesObjetivos: 0 },
+      },
+    };
+  }
+  const objectiveRows = (
+    (objetivosResult.data ?? []) as Array<{
+      status: WorksmartStatus;
+      smart_especifica: string | null;
+      worksmart_key_results: Array<{
+        current_value: unknown;
+        target_value: unknown;
+        unit: string | null;
+      }> | null;
+    }>
+  ).map((row) => ({
+    status: row.status,
+    smartEspecifica: row.smart_especifica,
+    keyResults: (row.worksmart_key_results ?? []).map((kr) => ({
+      currentValue: toNumber(kr.current_value),
+      targetValue: toNumber(kr.target_value),
+      unit: kr.unit,
+    })),
+  }));
+  const bridges = collectOperacaoBridges(objectiveRows);
+  receitaAtivaPorMoeda.BRL = composeReceitaAtiva({
+    monthBalance: livroMes,
+    receitaContratosBrl,
+    receitaObjetivosBrl: bridges.receitaObjetivosBrl,
+  });
+
+  const clientesCrm = convertidos + bridges.clientesObjetivos;
+  const baseFunil = Math.max(totalCards, clientesCrm);
+  const taxaComObjetivo = baseFunil > 0 ? (clientesCrm / baseFunil) * 100 : 0;
+
   return {
     success: true,
     data: {
       crm: {
         totalCards,
-        convertidos,
-        taxaConversao,
+        convertidos: clientesCrm,
+        taxaConversao: taxaComObjetivo,
         porSetor: dashboardResult.data.por_setor,
         porKanban,
       },
@@ -131,7 +264,17 @@ export async function getMetricasGerais(): Promise<Result<MetricasGerais>> {
         totalContratos: contratos.length,
         porStatus,
         receitaAtivaPorMoeda,
+        receitaContratosBrl,
+        receitaObjetivosBrl: bridges.receitaObjetivosBrl,
+        receitaCaixaBrl,
+        mes,
+        livroMes,
+        cashflow,
+        entradasPorOrigem,
         receitaPorProgramaEMoeda,
+      },
+      bridges: {
+        clientesObjetivos: bridges.clientesObjetivos,
       },
     },
   };

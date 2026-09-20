@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ComponentType,
   type ReactNode,
 } from "react";
 import {
@@ -17,17 +18,24 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { toast } from "sonner";
-import { MessageSquare, ListChecks, X, Calendar, Link2 } from "lucide-react";
+import {
+  MessageSquare,
+  ListChecks,
+  X,
+  Calendar,
+  Link2,
+  Flag,
+  UserRound,
+  CircleDot,
+  Tag,
+  Send,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { MenuSelect } from "@/components/ui/menu-select";
 import { Badge } from "@/components/ui/badge";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { TaskModal } from "@/components/ui/task-modal";
+import { parse5h2wNotes } from "@/lib/worksmart/cascade";
 import {
   createCard,
   updateCard,
@@ -43,6 +51,7 @@ import {
   PRIORIDADE_LABELS,
   type Board,
   type BoardCard,
+  type BoardColumn,
   type BoardProperty,
   type CustomValue,
 } from "@/types/boards";
@@ -214,7 +223,7 @@ export function BoardContent({
   onChanged: () => void;
   updateBoardOptimistic?: (updater: (b: Board) => Board) => void;
 }): JSX.Element {
-  const [selectedCard, setSelectedCard] = useState<BoardCard | null>(null);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [newCardTitles, setNewCardTitles] = useState<Record<string, string>>(
     {},
   );
@@ -254,6 +263,9 @@ export function BoardContent({
   );
   const groups = groupCards(visibleCards, groupBy, board);
   const tableAndPanelBoard: Board = { ...board, cards: visibleCards };
+  const selectedCard = selectedCardId
+    ? (board.cards.find((c) => c.id === selectedCardId) ?? null)
+    : null;
 
   async function handleAddCard(columnId: string): Promise<void> {
     const titulo = (newCardTitles[columnId] ?? "").trim();
@@ -356,7 +368,7 @@ export function BoardContent({
       {view === "table" && (
         <BoardTableView
           board={tableAndPanelBoard}
-          onOpenCard={setSelectedCard}
+          onOpenCard={(card) => setSelectedCardId(card.id)}
         />
       )}
       {view === "panel" && <BoardPanelView board={tableAndPanelBoard} />}
@@ -392,7 +404,7 @@ export function BoardContent({
                         card,
                         board.view_config.colorRules,
                       )}
-                      onOpen={setSelectedCard}
+                      onOpen={(card) => setSelectedCardId(card.id)}
                     />
                   ))}
                 </DroppableColumn>
@@ -420,40 +432,60 @@ export function BoardContent({
         </DndContext>
       )}
 
-      <Sheet
-        open={!!selectedCard}
-        onOpenChange={(open) => !open && setSelectedCard(null)}
-      >
-        <SheetContent className="overflow-y-auto">
-          {selectedCard && (
-            <CardDetail
-              card={selectedCard}
-              properties={board.properties}
-              module={board.module}
-              onChanged={onChanged}
-              onClose={() => setSelectedCard(null)}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
+      <TaskModal open={!!selectedCard} onClose={() => setSelectedCardId(null)}>
+        {selectedCard && (
+          <CardDetail
+            card={selectedCard}
+            columns={board.columns}
+            properties={board.properties}
+            module={board.module}
+            onChanged={onChanged}
+            onClose={() => setSelectedCardId(null)}
+          />
+        )}
+      </TaskModal>
+    </div>
+  );
+}
+
+const GHOST_FIELD =
+  "h-8 border-0 bg-transparent px-1 text-text-1 shadow-none focus-visible:ring-1";
+
+function PropertyRow({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <div className="flex min-h-9 items-center gap-2.5">
+      <Icon className="h-4 w-4 shrink-0 text-text-2" />
+      <span className="w-[7.25rem] shrink-0 text-sm text-text-2">{label}</span>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }
 
 function CardDetail({
   card,
+  columns,
   properties,
   module,
   onChanged,
   onClose,
 }: {
   card: BoardCard;
+  columns: BoardColumn[];
   properties: BoardProperty[];
   module: Board["module"];
   onChanged: () => void;
   onClose: () => void;
 }): JSX.Element {
   const [titulo, setTitulo] = useState(card.titulo);
+  const [columnId, setColumnId] = useState(card.column_id);
   const [prioridade, setPrioridade] = useState(card.prioridade);
   const [responsavelId, setResponsavelId] = useState(card.responsavel_id ?? "");
   const [setor, setSetor] = useState(card.setor ?? "");
@@ -461,6 +493,8 @@ function CardDetail({
   const [observacoes, setObservacoes] = useState(card.observacoes ?? "");
   const [novaSubtarefa, setNovaSubtarefa] = useState("");
   const [novoComentario, setNovoComentario] = useState("");
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const [commentSending, setCommentSending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [team, setTeam] = useState<
     { userId: string; fullName: string | null; email: string }[]
@@ -508,6 +542,22 @@ function CardDetail({
     onChanged();
   }
 
+  async function handleStatusChange(nextColumnId: string): Promise<void> {
+    if (nextColumnId === columnId) return;
+    setColumnId(nextColumnId);
+    const result = await moveCard({
+      cardId: card.id,
+      columnId: nextColumnId,
+      position: 0,
+    });
+    if (!result.success) {
+      setColumnId(card.column_id);
+      toast.error(result.error);
+      return;
+    }
+    onChanged();
+  }
+
   async function handleToggleSub(id: string): Promise<void> {
     const result = await toggleSubtarefa({ cardId: card.id, subtarefaId: id });
     if (!result.success) toast.error(result.error);
@@ -531,11 +581,18 @@ function CardDetail({
 
   async function handleAddComentario(): Promise<void> {
     const texto = novoComentario.trim();
-    if (!texto) return;
-    setNovoComentario("");
+    if (!texto || commentSending) return;
+    setCommentError(null);
+    setCommentSending(true);
     const result = await addComentario({ cardId: card.id, texto });
-    if (!result.success) toast.error(result.error);
-    else onChanged();
+    setCommentSending(false);
+    if (!result.success) {
+      setCommentError(result.error);
+      toast.error(result.error);
+      return;
+    }
+    setNovoComentario("");
+    onChanged();
   }
 
   async function handleConvert(): Promise<void> {
@@ -562,222 +619,301 @@ function CardDetail({
     onClose();
   }
 
+  const visibleProperties = properties.filter((p) => p.visible);
+  const doneCount = card.subtarefas.filter((s) => s.done).length;
+  const fiveH2W = parse5h2wNotes(observacoes);
+
   return (
-    <div className="space-y-6">
-      <SheetHeader className="p-0">
-        <SheetTitle>
+    <div className="flex h-full min-h-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-y-auto px-7 py-6 pr-8 space-y-6">
+        <div>
+          <h2 className="sr-only">{titulo || "Tarefa"}</h2>
           <Input
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
             onBlur={() => titulo !== card.titulo && void save({ titulo })}
-            className="text-base font-semibold"
+            className="h-auto border-0 bg-transparent px-0 text-[1.65rem] font-semibold leading-tight shadow-none focus-visible:ring-0"
+            placeholder="Título da tarefa"
           />
-        </SheetTitle>
-      </SheetHeader>
+        </div>
 
-      {module === "crm" && (
-        <div className="rounded-lg border border-border bg-surface-1 p-3 space-y-2">
-          {card.related_org_id ? (
-            <p className="text-sm text-success flex items-center gap-1.5">
-              ✅ Convertido em cliente
-              {card.related_org_name ? `: ${card.related_org_name}` : ""}
-            </p>
-          ) : (
-            <>
-              <p className="text-xs text-text-2 font-medium">
-                Converter em cliente
+        {module === "crm" && (
+          <div className="rounded-lg border border-border bg-surface-1 p-3 space-y-2">
+            {card.related_org_id ? (
+              <p className="text-sm text-success flex items-center gap-1.5">
+                Convertido em cliente
+                {card.related_org_name ? `: ${card.related_org_name}` : ""}
               </p>
-              <div className="flex gap-1.5">
-                <Input
-                  type="email"
-                  placeholder="Email do responsável"
-                  className="h-8 text-sm"
-                  value={convertEmail}
-                  onChange={(e) => setConvertEmail(e.target.value)}
-                  disabled={converting}
-                />
-                <Button
-                  size="sm"
-                  onClick={() => void handleConvert()}
-                  disabled={converting || !convertEmail.trim()}
-                >
-                  {converting ? "Criando..." : "Converter"}
-                </Button>
-              </div>
-            </>
+            ) : (
+              <>
+                <p className="text-xs text-text-2 font-medium">
+                  Converter em cliente
+                </p>
+                <div className="flex gap-1.5">
+                  <Input
+                    type="email"
+                    placeholder="Email do responsável"
+                    className="h-8 text-sm"
+                    value={convertEmail}
+                    onChange={(e) => setConvertEmail(e.target.value)}
+                    disabled={converting}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => void handleConvert()}
+                    disabled={converting || !convertEmail.trim()}
+                  >
+                    {converting ? "Criando..." : "Converter"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
+          <PropertyRow icon={CircleDot} label="Status">
+            <MenuSelect
+              value={columnId}
+              onChange={(next) => void handleStatusChange(next)}
+              disabled={saving}
+              aria-label="Status"
+              options={columns.map((col) => ({
+                value: col.id,
+                label: col.label,
+              }))}
+            />
+          </PropertyRow>
+          <PropertyRow icon={UserRound} label="Responsáveis">
+            <MenuSelect
+              value={responsavelId}
+              onChange={(v) => {
+                setResponsavelId(v);
+                void save({ responsavelId: v || null });
+              }}
+              disabled={saving}
+              aria-label="Responsáveis"
+              placeholder="Vazio"
+              options={[
+                { value: "", label: "Vazio" },
+                ...team.map((t) => ({
+                  value: t.userId,
+                  label: t.fullName ?? t.email,
+                })),
+              ]}
+            />
+          </PropertyRow>
+          <PropertyRow icon={Calendar} label="Vencimento">
+            <Input
+              type="date"
+              value={prazo}
+              onChange={(e) => setPrazo(e.target.value)}
+              onBlur={() => void save({ prazo: prazo || null })}
+              disabled={saving}
+              className={GHOST_FIELD}
+            />
+          </PropertyRow>
+          <PropertyRow icon={Flag} label="Prioridade">
+            <MenuSelect
+              value={prioridade}
+              onChange={(v) => {
+                const next = v as typeof prioridade;
+                setPrioridade(next);
+                void save({ prioridade: next });
+              }}
+              disabled={saving}
+              aria-label="Prioridade"
+              options={(
+                Object.keys(
+                  PRIORIDADE_LABELS,
+                ) as (keyof typeof PRIORIDADE_LABELS)[]
+              ).map((p) => ({
+                value: p,
+                label: PRIORIDADE_LABELS[p],
+              }))}
+            />
+          </PropertyRow>
+          <PropertyRow icon={Tag} label="Setor">
+            <MenuSelect
+              value={setor}
+              onChange={(v) => {
+                setSetor(v);
+                void save({ setor: v || null });
+              }}
+              disabled={saving}
+              aria-label="Setor"
+              placeholder="Vazio"
+              options={[
+                { value: "", label: "Vazio" },
+                ...Object.keys(SETOR_COLORS).map((s) => ({
+                  value: s,
+                  label: s,
+                })),
+              ]}
+            />
+          </PropertyRow>
+          {card.related_org_name && (
+            <PropertyRow icon={Link2} label="Cliente">
+              <p className="px-1 text-sm">{card.related_org_name}</p>
+            </PropertyRow>
           )}
         </div>
-      )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <p className="text-xs text-text-2">Prioridade</p>
-          <Select
-            value={prioridade}
-            onChange={(e) => {
-              const v = e.target.value as typeof prioridade;
-              setPrioridade(v);
-              void save({ prioridade: v });
-            }}
-            disabled={saving}
-          >
-            {(
-              Object.keys(
-                PRIORIDADE_LABELS,
-              ) as (keyof typeof PRIORIDADE_LABELS)[]
-            ).map((p) => (
-              <option key={p} value={p}>
-                {PRIORIDADE_LABELS[p]}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <p className="text-xs text-text-2">Prazo</p>
-          <Input
-            type="date"
-            value={prazo}
-            onChange={(e) => setPrazo(e.target.value)}
-            onBlur={() => void save({ prazo })}
+        {fiveH2W.length > 0 ? (
+          <div className="rounded-lg border border-border bg-surface-1 p-4 space-y-3">
+            <p className="text-sm font-medium text-text-1">Percurso 5H2W</p>
+            <dl className="space-y-2">
+              {fiveH2W.map((row) => (
+                <div
+                  key={row.label}
+                  className="grid grid-cols-[6.5rem_1fr] gap-3 text-sm"
+                >
+                  <dt className="text-text-2">{row.label}</dt>
+                  <dd className="text-text-1">{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ) : null}
+
+        <div className="border-t border-border pt-4 space-y-2">
+          <p className="text-xs font-medium text-text-2">Descrição</p>
+          <textarea
+            value={observacoes}
+            onChange={(e) => setObservacoes(e.target.value)}
+            onBlur={() => void save({ observacoes: observacoes || null })}
+            rows={5}
+            className="w-full resize-none rounded-md border border-border bg-surface-1 px-3 py-2 text-sm leading-relaxed text-text-1 outline-none placeholder:text-text-2 focus-visible:ring-1 focus-visible:ring-ring"
+            placeholder="Adicione uma descrição"
             disabled={saving}
           />
         </div>
-        <div className="space-y-1.5">
-          <p className="text-xs text-text-2">Responsável</p>
-          <Select
-            value={responsavelId}
-            onChange={(e) => {
-              const v = e.target.value;
-              setResponsavelId(v);
-              void save({ responsavelId: v || null });
-            }}
-            disabled={saving}
-          >
-            <option value="">Nenhum</option>
-            {team.map((t) => (
-              <option key={t.userId} value={t.userId}>
-                {t.fullName ?? t.email}
-              </option>
-            ))}
-          </Select>
-        </div>
-      </div>
 
-      <div className="space-y-1.5">
-        <p className="text-xs text-text-2">Setor</p>
-        <Input
-          value={setor}
-          onChange={(e) => setSetor(e.target.value)}
-          onBlur={() => void save({ setor })}
-          placeholder="Ex: Estratégico, Financeiro..."
-          disabled={saving}
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <p className="text-xs text-text-2">Observações</p>
-        <textarea
-          value={observacoes}
-          onChange={(e) => setObservacoes(e.target.value)}
-          onBlur={() => void save({ observacoes })}
-          rows={3}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          disabled={saving}
-        />
-      </div>
-
-      {properties.filter((p) => p.visible).length > 0 && (
-        <div className="space-y-3">
-          <p className="text-xs text-text-2 font-medium">Propriedades</p>
-          {properties
-            .filter((p) => p.visible)
-            .map((prop) => (
-              <div key={prop.id} className="space-y-1.5">
-                <p className="text-xs text-text-2">{prop.label}</p>
-                <PropertyField
-                  property={prop}
-                  value={card.custom_values[prop.key] ?? null}
-                  onSave={(value) => void saveCustom(prop.key, value)}
-                />
-              </div>
-            ))}
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <p className="text-xs text-text-2 font-medium">
-          Sub-tarefas ({card.subtarefas.filter((s) => s.done).length}/
-          {card.subtarefas.length})
-        </p>
-        {card.subtarefas.map((s) => (
-          <div key={s.id} className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={s.done}
-              onChange={() => void handleToggleSub(s.id)}
-              className="h-4 w-4"
-            />
-            <span
-              className={s.done ? "line-through text-text-2 flex-1" : "flex-1"}
-            >
-              {s.texto}
-            </span>
-            <button
-              onClick={() => void handleRemoveSub(s.id)}
-              aria-label="Remover"
-            >
-              <X className="h-3.5 w-3.5 text-text-2 hover:text-error" />
-            </button>
+        {visibleProperties.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-text-1">Campos</p>
+            <div className="space-y-2">
+              {visibleProperties.map((prop) => (
+                <PropertyRow key={prop.id} icon={ListChecks} label={prop.label}>
+                  <PropertyField
+                    property={prop}
+                    value={card.custom_values[prop.key] ?? null}
+                    onSave={(value) => void saveCustom(prop.key, value)}
+                  />
+                </PropertyRow>
+              ))}
+            </div>
           </div>
-        ))}
-        <div className="flex gap-1.5">
+        )}
+
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-text-1">
+            Subtarefas{" "}
+            <span className="font-normal text-text-2">
+              ({doneCount}/{card.subtarefas.length})
+            </span>
+          </p>
+          {card.subtarefas.map((s) => (
+            <div key={s.id} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={s.done}
+                onChange={() => void handleToggleSub(s.id)}
+                className="h-4 w-4"
+              />
+              <span
+                className={
+                  s.done ? "line-through text-text-2 flex-1" : "flex-1"
+                }
+              >
+                {s.texto}
+              </span>
+              <button
+                onClick={() => void handleRemoveSub(s.id)}
+                aria-label="Remover"
+              >
+                <X className="h-3.5 w-3.5 text-text-2 hover:text-error" />
+              </button>
+            </div>
+          ))}
           <Input
-            placeholder="+ Sub-tarefa"
-            className="h-8 text-sm"
+            placeholder="Adicionar subtarefa"
+            className="h-8 border-0 bg-transparent px-0 text-sm shadow-none focus-visible:ring-0"
             value={novaSubtarefa}
             onChange={(e) => setNovaSubtarefa(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void handleAddSub()}
           />
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <p className="text-xs text-text-2 font-medium">
-          Comentários ({card.comentarios.length})
-        </p>
-        {card.comentarios.map((c) => (
-          <div
-            key={c.id}
-            className="rounded-lg border border-border bg-surface-1 p-2.5 text-sm"
+        <div className="pt-2">
+          <button
+            onClick={() => void handleDeleteCard()}
+            className="text-sm text-error hover:underline"
           >
-            <p className="text-xs font-medium text-text-2">
-              {c.autor_nome} · {formatDate(c.created_at)}
-            </p>
-            <p>{c.texto}</p>
-          </div>
-        ))}
-        <div className="flex gap-1.5">
-          <Input
-            placeholder="Escrever um comentário..."
-            className="h-8 text-sm"
-            value={novoComentario}
-            onChange={(e) => setNovoComentario(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && void handleAddComentario()}
-          />
+            Excluir tarefa
+          </button>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2">
-        <Button variant="outline" size="sm" onClick={onClose}>
-          Fechar
-        </Button>
-        <button
-          onClick={() => void handleDeleteCard()}
-          className="text-sm text-error hover:underline"
-        >
-          Excluir card
-        </button>
-      </div>
+      <aside className="flex w-[20.5rem] shrink-0 flex-col border-l border-border bg-surface-1/40">
+        <p className="border-b border-border px-4 py-3 pr-12 text-sm font-medium text-text-1">
+          Atividade
+        </p>
+        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+          {card.comentarios.length === 0 && (
+            <p className="text-xs text-text-2">Nenhum comentário ainda.</p>
+          )}
+          {card.comentarios.map((c) => (
+            <div key={c.id} className="flex gap-2.5 text-sm">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-white">
+                {getInitials(c.autor_nome)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-text-2">
+                  <span className="font-medium text-text-1">
+                    {c.autor_nome}
+                  </span>
+                  {" · "}
+                  {formatDate(c.created_at)}
+                </p>
+                <p className="mt-0.5 whitespace-pre-wrap leading-relaxed">
+                  {c.texto}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-border p-3 space-y-2">
+          <textarea
+            value={novoComentario}
+            onChange={(e) => {
+              setNovoComentario(e.target.value);
+              if (commentError) setCommentError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                void handleAddComentario();
+              }
+            }}
+            rows={3}
+            className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+            placeholder="Escreva um comentário..."
+            disabled={commentSending}
+          />
+          {commentError && <p className="text-xs text-error">{commentError}</p>}
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              onClick={() => void handleAddComentario()}
+              disabled={commentSending || !novoComentario.trim()}
+            >
+              <Send className="mr-1.5 h-3.5 w-3.5" />
+              {commentSending ? "Enviando..." : "Enviar"}
+            </Button>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }

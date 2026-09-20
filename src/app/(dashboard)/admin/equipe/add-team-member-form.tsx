@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { addPlatformTeamMember } from "@/app/actions/team";
+import { AccessPlacesField } from "@/components/equipe/access-places-field";
+import {
+  DEFAULT_CONSULTANT_CAPABILITIES,
+  type StaffCapabilityId,
+} from "@/lib/auth/staff-access";
 import { toast } from "sonner";
 import { Loader2, UserPlus } from "lucide-react";
 
@@ -22,28 +27,38 @@ type FormData = z.infer<typeof schema>;
 
 export function AddPlatformTeamMemberForm(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
+  const [places, setPlaces] = useState<StaffCapabilityId[]>([
+    ...DEFAULT_CONSULTANT_CAPABILITIES,
+  ]);
   const router = useRouter();
 
   const {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { role: "consultant" },
   });
 
+  const role = watch("role");
+
   const onSubmit = async (data: FormData): Promise<void> => {
     setIsLoading(true);
     try {
-      const result = await addPlatformTeamMember(data);
+      const result = await addPlatformTeamMember({
+        ...data,
+        capabilities: data.role === "consultant" ? places : undefined,
+      });
       if (!result.success) {
         toast.error(result.error);
         return;
       }
       toast.success(result.data.message);
       reset({ role: "consultant" });
+      setPlaces([...DEFAULT_CONSULTANT_CAPABILITIES]);
       router.refresh();
     } catch {
       toast.error("Erro ao adicionar à equipe. Tente novamente.");
@@ -83,20 +98,36 @@ export function AddPlatformTeamMemberForm(): JSX.Element {
           )}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="team-role">Acesso</Label>
+          <Label htmlFor="team-role">Tipo de acesso</Label>
           <select
             id="team-role"
             className="flex h-9 w-full rounded-md border border-border bg-surface-1 px-3 py-1 text-sm shadow-sm"
             {...register("role")}
             disabled={isLoading}
           >
-            <option value="platform_admin">Admin (acesso total)</option>
-            <option value="consultant">
-              Consultor (tudo, menos financeiro)
-            </option>
+            <option value="platform_admin">Admin (todos os lugares)</option>
+            <option value="consultant">Consultor (só o que marcar)</option>
           </select>
         </div>
       </div>
+
+      {role === "consultant" ? (
+        <AccessPlacesField
+          granted={places}
+          disabled={isLoading}
+          onToggle={(capability, next) => {
+            setPlaces((current) =>
+              next
+                ? [...new Set([...current, capability])]
+                : current.filter((id) => id !== capability),
+            );
+          }}
+        />
+      ) : (
+        <p className="text-sm text-text-2">
+          Admin entra em todas as abas. Não precisa marcar lugar a lugar.
+        </p>
+      )}
 
       <Button type="submit" disabled={isLoading}>
         {isLoading ? (

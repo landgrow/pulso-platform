@@ -13,6 +13,7 @@ import {
   Contact,
   Home,
   BarChart3,
+  Wallet,
 } from "lucide-react";
 import { useSidebar } from "@/components/layout/sidebar-context";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   contact: Contact,
   home: Home,
   "bar-chart-3": BarChart3,
+  wallet: Wallet,
 };
 
 interface NavItem {
@@ -64,6 +66,12 @@ const navItems: NavItem[] = [
     visibility: "mapa_mental",
   },
   {
+    href: "/admin/financeiro",
+    label: "Financeiro",
+    icon: "wallet",
+    visibility: "financeiro",
+  },
+  {
     href: "/admin/metricas",
     label: "Métricas",
     icon: "bar-chart-3",
@@ -91,7 +99,7 @@ export function Sidebar({
   variant?: "rail" | "full";
 }): JSX.Element {
   const pathname = usePathname();
-  const { isMobileOpen, onMobileClose } = useSidebar();
+  const { isCollapsed, isMobileOpen, onMobileClose } = useSidebar();
   const [platformRole, setPlatformRole] = useState<
     "platform_admin" | "consultant" | null
   >(null);
@@ -118,10 +126,11 @@ export function Sidebar({
   });
 
   const isFull = variant === "full";
+  const compact = !isFull && isCollapsed;
 
   const className = cn(
-    "flex flex-col h-full bg-surface-1 border-r border-border",
-    isFull ? "w-full" : "w-20",
+    "flex flex-col h-full bg-surface-1 border-r border-border transition-[width] duration-200",
+    isFull ? "w-full" : compact ? "w-14" : "w-56",
     isMobileOpen ? "block" : "hidden lg:flex",
   );
 
@@ -141,7 +150,7 @@ export function Sidebar({
         <div
           className={cn(
             "flex items-center h-16 border-b border-border shrink-0",
-            isFull ? "gap-2 px-4" : "justify-center",
+            compact ? "justify-center" : "gap-2 px-3",
           )}
         >
           <div className="h-8 w-8 rounded-lg bg-brand-lime flex items-center justify-center shrink-0">
@@ -149,18 +158,17 @@ export function Sidebar({
               LG
             </span>
           </div>
-          {isFull && (
-            <span className="text-lg font-semibold text-text-1 tracking-tight">
+          {!compact && (
+            <span className="text-lg font-semibold text-text-1 tracking-tight truncate">
               {APP_NAME}
             </span>
           )}
         </div>
 
-        {/* Rail compacto (ícone + rótulo pequeno embaixo) no desktop — lista cheia no drawer mobile */}
         <nav
           className={cn(
-            "flex-1 overflow-y-auto space-y-1",
-            isFull ? "py-4 px-2" : "py-3 px-1.5",
+            "flex-1 overflow-y-auto space-y-0.5",
+            compact ? "py-3 px-1.5" : "py-3 px-2",
           )}
           aria-label={APP_NAME}
         >
@@ -174,7 +182,7 @@ export function Sidebar({
                 key={item.href}
                 href={item.href}
                 onClick={onMobileClose}
-                title={isFull ? undefined : item.label}
+                title={compact ? item.label : undefined}
               >
                 <span
                   className={cn(
@@ -182,21 +190,13 @@ export function Sidebar({
                     isActive
                       ? "bg-primary/15 text-primary ring-1 ring-primary/30"
                       : "text-text-2 hover:bg-surface-2 hover:text-text-1",
-                    isFull
-                      ? "flex items-center gap-3 px-3 py-2.5 text-sm font-medium"
-                      : "flex flex-col items-center justify-center gap-1 py-2 px-1 text-center",
+                    compact
+                      ? "flex items-center justify-center py-2.5"
+                      : "flex items-center gap-3 px-3 py-2.5 text-sm font-medium",
                   )}
                 >
                   <Icon className="h-5 w-5 shrink-0" />
-                  <span
-                    className={
-                      isFull
-                        ? undefined
-                        : "text-[10px] leading-[1.15] line-clamp-2 break-words w-full"
-                    }
-                  >
-                    {item.label}
-                  </span>
+                  {!compact && <span className="truncate">{item.label}</span>}
                 </span>
               </Link>
             );

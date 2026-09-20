@@ -14,10 +14,17 @@ export const STAFF_CAPABILITIES = [
   { id: "clientes", label: "Organizações", group: "operacao" },
   { id: "bin", label: "BIN", group: "operacao" },
   { id: "min", label: "MIN", group: "operacao" },
-  { id: "metricas", label: "Métricas / Financeiro", group: "financeiro" },
+  { id: "financeiro", label: "Financeiro", group: "financeiro" },
+  { id: "metricas", label: "Métricas", group: "financeiro" },
   { id: "acessos", label: "Acessos", group: "admin" },
   { id: "equipe", label: "Equipe", group: "admin" },
   { id: "audit_log", label: "Histórico de ações", group: "admin" },
+] as const;
+
+export const STAFF_CAPABILITY_GROUPS = [
+  { id: "operacao", label: "Operação" },
+  { id: "financeiro", label: "Financeiro" },
+  { id: "admin", label: "Administração" },
 ] as const;
 
 export type StaffCapabilityId = (typeof STAFF_CAPABILITIES)[number]["id"];

@@ -10,8 +10,11 @@ import {
   Wallet,
   FileText,
 } from "lucide-react";
+import Link from "next/link";
 import { getMetricasGerais, type MetricasGerais } from "@/app/actions/metricas";
+import { FinanceCharts } from "@/components/charts";
 import { PROGRAMA_LABELS, type Programa } from "@/types/clientes";
+import { monthLabel } from "@/lib/financeiro/ledger";
 import { formatCurrency } from "@/lib/utils";
 
 const STATUS_LABELS = {
@@ -78,7 +81,7 @@ export function MetricasPageContent(): JSX.Element {
     );
   }
 
-  const { crm, financeiro } = data;
+  const { crm, financeiro, bridges } = data;
   const kanbanEntries = [...crm.porKanban].sort((a, b) => b.total - a.total);
   const setorEntries = Object.entries(crm.porSetor).sort((a, b) => b[1] - a[1]);
   const maxKanban = Math.max(1, ...kanbanEntries.map((k) => k.total));
@@ -91,7 +94,78 @@ export function MetricasPageContent(): JSX.Element {
 
   return (
     <div className="space-y-8">
-      {/* CRM */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-text-2" />
+            <h2 className="text-lg font-semibold">
+              Financeiro · {monthLabel(financeiro.mes)}
+            </h2>
+          </div>
+          <Link
+            href="/admin/financeiro"
+            className="text-sm text-primary hover:underline"
+          >
+            Abrir o livro do mês
+          </Link>
+        </div>
+
+        <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
+          <div className="grid grid-cols-2 divide-x divide-y divide-border lg:grid-cols-4 lg:divide-y-0">
+            <div className="px-4 py-4">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-text-3">
+                Entrou
+              </p>
+              <p className="mt-1 text-xl font-semibold tabular-nums text-chart-in">
+                {formatCurrency(financeiro.livroMes.entradas)}
+              </p>
+            </div>
+            <div className="px-4 py-4">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-text-3">
+                Imposto das notas
+              </p>
+              <p className="mt-1 text-xl font-semibold tabular-nums">
+                {formatCurrency(financeiro.livroMes.impostosNotas)}
+              </p>
+            </div>
+            <div className="px-4 py-4">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-text-3">
+                Saiu
+              </p>
+              <p className="mt-1 text-xl font-semibold tabular-nums">
+                {formatCurrency(financeiro.livroMes.saidas)}
+              </p>
+            </div>
+            <div className="px-4 py-4">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-text-3">
+                Balanço
+              </p>
+              <p className="mt-1 text-xl font-semibold tabular-nums text-chart-in">
+                {formatCurrency(financeiro.livroMes.balanco)}
+              </p>
+              <p className="mt-0.5 text-xs text-text-3">
+                líquido {formatCurrency(financeiro.livroMes.liquido)}
+                {financeiro.receitaObjetivosBrl > 0
+                  ? ` · meta ${formatCurrency(financeiro.receitaObjetivosBrl)}`
+                  : ""}
+                {financeiro.receitaContratosBrl > 0
+                  ? ` · contrato ${formatCurrency(financeiro.receitaContratosBrl)}`
+                  : ""}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <FinanceCharts
+          month={financeiro.mes}
+          cashflow={financeiro.cashflow}
+          livroMes={financeiro.livroMes}
+          entradasPorOrigem={financeiro.entradasPorOrigem}
+        />
+      </div>
+
+      <div className="h-px bg-border" />
+
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Contact className="h-4 w-4 text-text-2" />
@@ -114,6 +188,11 @@ export function MetricasPageContent(): JSX.Element {
             <p className="text-2xl font-bold mt-1 text-success">
               {crm.convertidos}
             </p>
+            {bridges.clientesObjetivos > 0 ? (
+              <p className="mt-1 text-xs text-text-3">
+                {bridges.clientesObjetivos} vindos da meta WorkSmart
+              </p>
+            ) : null}
           </div>
           <div className="rounded-lg border border-border bg-surface-1 p-4">
             <div className="flex items-center gap-2 text-text-2 text-xs font-medium uppercase tracking-wide">
@@ -165,42 +244,7 @@ export function MetricasPageContent(): JSX.Element {
 
       <div className="h-px bg-border" />
 
-      {/* Financeiro */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Wallet className="h-4 w-4 text-text-2" />
-          <h2 className="text-lg font-semibold">Financeiro</h2>
-        </div>
-
-        {moedas.length === 0 ? (
-          <p className="text-sm text-text-2">Nenhum contrato ativo ainda.</p>
-        ) : (
-          <div
-            className="grid gap-4"
-            style={{
-              gridTemplateColumns: `repeat(${moedas.length}, minmax(0, 1fr))`,
-            }}
-          >
-            {moedas.map((moeda) => (
-              <div
-                key={moeda}
-                className="rounded-lg border border-border bg-surface-1 p-4"
-              >
-                <div className="flex items-center gap-2 text-text-2 text-xs font-medium uppercase tracking-wide">
-                  <Wallet className="h-3.5 w-3.5" />
-                  Receita ativa ({moeda})
-                </div>
-                <p className="text-2xl font-bold mt-1">
-                  {formatCurrency(
-                    financeiro.receitaAtivaPorMoeda[moeda] ?? 0,
-                    moeda,
-                  )}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">
             <h3 className="text-sm font-semibold flex items-center gap-1.5">

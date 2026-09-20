@@ -7,11 +7,20 @@ import {
   fiveH2WSummary,
   format5h2wNotes,
   horizonChip,
+  isObjectiveAchieved,
   isSmartComplete,
   krProgressLabel,
   krProgressPercent,
+  objectiveProgressPercent,
+  parse5h2wNotes,
+  resolveCascadeOwner,
   toNumber,
 } from "@/lib/worksmart/cascade";
+import {
+  parseMetricFromText,
+  suggestActions,
+  suggestKeyResults,
+} from "@/lib/worksmart/suggest-cascade";
 
 const complete = {
   especifica: "Time qualifica sem o fundador",
@@ -116,5 +125,99 @@ describe("horizon", () => {
   it("coerces numeric strings from postgres", () => {
     expect(toNumber("70.5")).toBe(70.5);
     expect(toNumber("")).toBeNull();
+  });
+});
+
+describe("cascade generation", () => {
+  it("reads money, percent and counted metrics from SMART text", () => {
+    expect(parseMetricFromText("faturar 100k")).toEqual({
+      value: 100000,
+      unit: "R$",
+    });
+    expect(parseMetricFromText("70% das visitas")).toEqual({
+      value: 70,
+      unit: "%",
+    });
+    expect(parseMetricFromText("Conseguir 5 clientes de 3,5k")).toEqual({
+      value: 5,
+      unit: "clientes",
+    });
+  });
+
+  it("builds a key result and 5H2W cards from a complete SMART", () => {
+    const source = {
+      title: "faturar 100k",
+      smartEspecifica: "Conseguir 5 clientes de 3,5k",
+      smartMensuravel: "fazer followup com nossos clientes",
+      smartAtingivel: "no bni",
+      smartRelevante: "network",
+      smartTemporal: "2026-09-23",
+    };
+    expect(suggestKeyResults(source)).toEqual([
+      { title: "faturar 100k", targetValue: 100000, unit: "R$" },
+    ]);
+    const actions = suggestActions(source);
+    expect(actions.map((a) => a.oQue)).toEqual([
+      "Conseguir 5 clientes de 3,5k",
+      "fazer followup com nossos clientes",
+    ]);
+    expect(actions[0]?.quando).toBe("2026-09-23");
+    expect(actions[0]?.quanto).toBe("fazer followup com nossos clientes");
+  });
+
+  it("parses 5H2W notes into readable rows", () => {
+    expect(
+      parse5h2wNotes(
+        "O quê: Conseguir 5 clientes\nQuando: 2026-09-23\nComo: no bni",
+      ),
+    ).toEqual([
+      { label: "O quê", value: "Conseguir 5 clientes" },
+      { label: "Quando", value: "2026-09-23" },
+      { label: "Como", value: "no bni" },
+    ]);
+  });
+
+  it("treats a concluded or fully met objective as a result", () => {
+    expect(
+      isObjectiveAchieved({
+        status: "concluido",
+        keyResults: [],
+      }),
+    ).toBe(true);
+    expect(
+      isObjectiveAchieved({
+        status: "ativo",
+        keyResults: [
+          {
+            currentValue: 100000,
+            targetValue: 100000,
+            actions: [{ done: false }],
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it("never leaves a generated card without an owner", () => {
+    expect(resolveCascadeOwner("abc", "me")).toBe("abc");
+    expect(resolveCascadeOwner(null, "me")).toBe("me");
+    expect(resolveCascadeOwner("  ", "")).toBeNull();
+  });
+
+  it("averages key-result progress at the objective", () => {
+    expect(
+      objectiveProgressPercent([
+        {
+          currentValue: 50,
+          targetValue: 100,
+          actions: [{ done: true }, { done: false }],
+        },
+        {
+          currentValue: null,
+          targetValue: null,
+          actions: [{ done: true }, { done: true }],
+        },
+      ]),
+    ).toBe(75);
   });
 });

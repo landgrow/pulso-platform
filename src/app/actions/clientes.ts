@@ -160,6 +160,17 @@ export async function createContrato(
     return { success: false, error: msg };
   }
 
+  const { syncReceivableFromContrato } =
+    await import("@/app/actions/financeiro");
+  await syncReceivableFromContrato({
+    contratoId: data.id,
+    clienteId,
+    programa,
+    valor,
+    moeda,
+    dataInicio,
+  });
+
   return { success: true, data: { id: data.id } };
 }
 

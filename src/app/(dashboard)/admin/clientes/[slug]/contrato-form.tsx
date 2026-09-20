@@ -49,7 +49,7 @@ export function ContratoForm({
         toast.error(result.error);
         return;
       }
-      toast.success("Contrato registrado");
+      toast.success("Contrato registrado e a receber criado no Financeiro");
       reset({ moeda: "BRL" });
       router.refresh();
     } catch {

@@ -3,6 +3,7 @@
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/layout/sidebar-context";
+import { NavCollapseButton } from "@/components/layout/nav-collapse";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserDropdown } from "@/components/layout/user-dropdown";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
@@ -13,11 +14,10 @@ interface HeaderProps {
 }
 
 export function Header({ user }: HeaderProps): JSX.Element {
-  const { openMobile } = useSidebar();
+  const { openMobile, isCollapsed, toggle } = useSidebar();
 
   return (
     <header className="h-16 px-4 flex items-center gap-4 bg-surface-1 border-b border-border shrink-0">
-      {/* Mobile hamburger */}
       <Button
         variant="ghost"
         size="icon"
@@ -27,6 +27,9 @@ export function Header({ user }: HeaderProps): JSX.Element {
       >
         <Menu className="h-5 w-5" />
       </Button>
+      <div className="hidden lg:flex shrink-0">
+        <NavCollapseButton collapsed={isCollapsed} onToggle={toggle} />
+      </div>
 
       {/* Org switcher (esquerda) */}
       <div className="hidden lg:flex flex-1">

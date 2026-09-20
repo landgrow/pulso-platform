@@ -31,11 +31,19 @@ describe("staffCan", () => {
   it("defaults new consultants to operação, not finance or admin tasks", () => {
     expect(DEFAULT_CONSULTANT_CAPABILITIES).toContain("atividades");
     expect(DEFAULT_CONSULTANT_CAPABILITIES).not.toContain("metricas");
+    expect(DEFAULT_CONSULTANT_CAPABILITIES).not.toContain("financeiro");
     expect(DEFAULT_CONSULTANT_CAPABILITIES).not.toContain("equipe");
     expect(STAFF_CAPABILITY_IDS).toContain("metricas");
+    expect(STAFF_CAPABILITY_IDS).toContain("financeiro");
   });
 
-  it("names the audit trail in Portuguese for Equipe", () => {
+  it("lists Financeiro and Métricas as separate places", () => {
+    expect(STAFF_CAPABILITIES.find((c) => c.id === "financeiro")?.label).toBe(
+      "Financeiro",
+    );
+    expect(STAFF_CAPABILITIES.find((c) => c.id === "metricas")?.label).toBe(
+      "Métricas",
+    );
     expect(STAFF_CAPABILITIES.find((c) => c.id === "audit_log")?.label).toBe(
       "Histórico de ações",
     );

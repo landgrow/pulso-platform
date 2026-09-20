@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
   Settings,
@@ -27,7 +27,6 @@ import {
   VisibilidadeTab,
   OrdenarTab,
   AgruparTab,
-  CorTab,
 } from "@/components/boards/board-settings-tabs";
 import {
   updateProperty,
@@ -40,7 +39,6 @@ import {
   reorderColumns,
   updateBoardAppearance,
 } from "@/app/actions/boards";
-import { listTeamMembers } from "@/app/actions/team";
 import {
   BUILTIN_FIELDS,
   PROPERTY_TYPE_LABELS,
@@ -129,7 +127,6 @@ const CONFIG_TABS = [
   { key: "filtros", label: "Filtros" },
   { key: "ordenar", label: "Ordenar" },
   { key: "agrupar", label: "Agrupar" },
-  { key: "cor", label: "Cor" },
 ] as const;
 type ConfigTab = (typeof CONFIG_TABS)[number]["key"];
 
@@ -144,23 +141,6 @@ export function BoardSettingsPanel({
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<ConfigTab>("layout");
   const [newColumnLabel, setNewColumnLabel] = useState("");
-  const [team, setTeam] = useState<
-    { userId: string; fullName: string | null; email: string }[]
-  >([]);
-
-  useEffect(() => {
-    if (!open) return;
-    void listTeamMembers().then((result) => {
-      if (result.success)
-        setTeam(
-          result.data.map((t) => ({
-            userId: t.userId,
-            fullName: t.fullName,
-            email: t.email,
-          })),
-        );
-    });
-  }, [open]);
 
   const fieldRows = buildFieldRows(board);
   const columns = [...board.columns].sort((a, b) => a.position - b.position);
@@ -315,9 +295,6 @@ export function BoardSettingsPanel({
             )}
             {tab === "agrupar" && (
               <AgruparTab board={board} onChanged={onChanged} />
-            )}
-            {tab === "cor" && (
-              <CorTab board={board} onChanged={onChanged} team={team} />
             )}
             {tab === "layout" && (
               <>

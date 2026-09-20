@@ -46,5 +46,6 @@ export interface WorksmartObjective {
   smartTemporal: string | null;
   status: WorksmartStatus;
   createdAt: string;
+  orgName?: string | null;
   keyResults: WorksmartKeyResult[];
 }

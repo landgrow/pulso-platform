@@ -10,6 +10,7 @@ import {
   ApplyTemplateButton,
   RunNotificationsButton,
 } from "@/components/settings/operacao-actions";
+import { LaunchReadyCard } from "@/components/ops/launch-ready";
 import { PLANO_DE_ACAO_COLUMNS } from "@/lib/boards/plano-de-acao-template";
 
 export default async function OperacaoPage(): Promise<JSX.Element> {
@@ -43,6 +44,8 @@ export default async function OperacaoPage(): Promise<JSX.Element> {
         description="Modelo do Plano de Ação, automações ao mover card e disparo dos e-mails de prazo e reunião."
         actions={<RunNotificationsButton />}
       />
+
+      <LaunchReadyCard />
 
       <section className="rounded-lg border border-border bg-surface-1 p-5 space-y-3">
         <h2 className="text-sm font-semibold">Modelo Plano de Ação</h2>

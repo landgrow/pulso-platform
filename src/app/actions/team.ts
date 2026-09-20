@@ -32,6 +32,7 @@ const addTeamMemberSchema = z.object({
   name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
   email: z.string().email("Email inválido"),
   role: z.enum(["platform_admin", "consultant"]),
+  capabilities: z.array(z.string()).optional(),
 });
 
 /** Lista quem tem acesso administrativo (platform_admin/consultant). */
@@ -119,7 +120,7 @@ export async function addPlatformTeamMember(
       };
     }
 
-    const { name, role } = parsed.data;
+    const { name, role, capabilities } = parsed.data;
     const email = parsed.data.email.trim().toLowerCase();
     const admin = await createAdminClient();
 
@@ -154,13 +155,18 @@ export async function addPlatformTeamMember(
     if (error) return { success: false, error: error.message };
 
     if (role === "consultant") {
-      await admin.from("consultant_capabilities").upsert(
-        DEFAULT_CONSULTANT_CAPABILITIES.map((capability) => ({
-          consultant_id: mailed.userId,
-          capability,
-        })),
-        { onConflict: "consultant_id,capability", ignoreDuplicates: true },
+      const selected = (capabilities ?? DEFAULT_CONSULTANT_CAPABILITIES).filter(
+        isStaffCapabilityId,
       );
+      if (selected.length > 0) {
+        await admin.from("consultant_capabilities").upsert(
+          selected.map((capability) => ({
+            consultant_id: mailed.userId,
+            capability,
+          })),
+          { onConflict: "consultant_id,capability", ignoreDuplicates: true },
+        );
+      }
     }
 
     return {

@@ -6,13 +6,7 @@ import { Loader2, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from "@/components/ui/sheet";
+import { TaskModal } from "@/components/ui/task-modal";
 import {
   listMeetings,
   createMeeting,
@@ -321,11 +315,9 @@ function NewMeetingSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto">
-        <SheetHeader className="p-0">
-          <SheetTitle>Nova reunião</SheetTitle>
-        </SheetHeader>
+    <TaskModal open={open} onClose={() => onOpenChange(false)}>
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto p-6 gap-4">
+        <h2 className="font-semibold text-foreground">Nova reunião</h2>
         <div className="space-y-4">
           <div className="space-y-1.5">
             <p className="text-xs text-text-2">Título</p>
@@ -370,15 +362,15 @@ function NewMeetingSheet({
             />
           </div>
         </div>
-        <SheetFooter className="p-0 mt-auto">
+        <div className="mt-auto">
           <Button
             onClick={() => void handleCreate()}
             disabled={saving || !titulo.trim()}
           >
             Criar reunião
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </div>
+      </div>
+    </TaskModal>
   );
 }

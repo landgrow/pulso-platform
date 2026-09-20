@@ -27,7 +27,7 @@ export default async function AdminMetricasPage(): Promise<JSX.Element> {
     <div className="space-y-6">
       <PageHeader
         title="Métricas"
-        description="Indicadores gerais do negócio — funil de CRM e financeiro (contratos ativos)."
+        description="Funil de CRM e o mesmo livro do mês do Financeiro: o que entrou, o imposto da nota e o que saiu."
         actions={
           <>
             <Badge variant="outline" className="text-text-2">

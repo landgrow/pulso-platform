@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useState, type ReactNode } from "react";
 
+const STORAGE_KEY = "pulso-sidebar-collapsed";
+
 interface SidebarContextValue {
   isCollapsed: boolean;
   toggle: () => void;
@@ -24,7 +26,17 @@ export function SidebarProvider({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  const toggle = (): void => setIsCollapsed((prev) => !prev);
+  const toggle = (): void => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore quota / private mode */
+      }
+      return next;
+    });
+  };
   const openMobile = (): void => setIsMobileOpen(true);
   const onMobileClose = (): void => setIsMobileOpen(false);
 
