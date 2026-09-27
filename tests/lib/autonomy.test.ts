@@ -30,6 +30,7 @@ const staff: NotifyUser = {
     arquivo: true,
     cardCliente: true,
     clienteAtraso: true,
+    binCliente: true,
   },
 };
 

@@ -141,6 +141,10 @@ const updateEntryStatusSchema = z.object({
   paidAt: z.string().nullable().optional(),
 });
 
+const updateEntrySchema = createEntrySchema.extend({
+  entryId: z.string().uuid(),
+});
+
 const createInvoiceSchema = z.object({
   number: z.string().trim().min(1, "Número da nota é obrigatório"),
   series: z.string().nullable().optional(),
@@ -232,6 +236,7 @@ export async function getReceitaCaixaBrl(): Promise<number> {
 
 export async function getFinanceWorkspace(
   month?: string,
+  year?: number,
 ): Promise<Result<FinanceWorkspace>> {
   const gated = await gate();
   if (!gated.success) return gated;
@@ -243,6 +248,10 @@ export async function getFinanceWorkspace(
   const today = todayIso();
   const selectedMonth =
     month && /^\d{4}-\d{2}$/.test(month) ? month : currentMonth();
+  const selectedYear =
+    year && year >= 2000 && year <= new Date().getFullYear() + 1
+      ? year
+      : Number(selectedMonth.slice(0, 4));
 
   const [
     accountsRes,
@@ -274,8 +283,10 @@ export async function getFinanceWorkspace(
       )
       .eq("org_id", orgId)
       .neq("status", "cancelado")
+      .gte("competence_date", `${selectedYear - 1}-01-01`)
+      .lte("competence_date", `${selectedYear}-12-31`)
       .order("competence_date", { ascending: false })
-      .limit(400),
+      .limit(2000),
     supabase
       .from("finance_invoices")
       .select(
@@ -655,6 +666,61 @@ export async function createFinanceEntry(
       related_org_id: parsed.data.relatedOrgId,
       created_by: userId,
     })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    return { success: false, error: missingOr(error) };
+  }
+  revalidateFinance();
+  return { success: true, data: { id: data.id as string } };
+}
+
+export async function updateFinanceEntry(
+  raw: unknown,
+): Promise<Result<{ id: string }>> {
+  const gated = await gate();
+  if (!gated.success) return gated;
+  const parsed = updateEntrySchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.errors[0]?.message ?? "Dados inválidos",
+    };
+  }
+  const origin =
+    parsed.data.origin ?? (parsed.data.kind === "saida" ? "despesa" : "outros");
+  const taxRate =
+    parsed.data.kind === "entrada" ? (parsed.data.taxRate ?? 0) : 0;
+  const taxAmount =
+    parsed.data.kind === "entrada"
+      ? taxOnInvoice(parsed.data.amount, taxRate, parsed.data.taxAmount ?? null)
+      : 0;
+  const paidAt =
+    parsed.data.status === "realizado"
+      ? parsed.data.paidAt || parsed.data.competenceDate
+      : parsed.data.paidAt || null;
+
+  const { data, error } = await gated.data
+    .from("finance_entries")
+    .update({
+      account_id: parsed.data.accountId,
+      category_id: parsed.data.categoryId,
+      kind: parsed.data.kind,
+      origin,
+      status: parsed.data.status,
+      amount: parsed.data.amount,
+      tax_rate: taxRate,
+      tax_amount: taxAmount,
+      invoice_ref: parsed.data.invoiceRef || null,
+      competence_date: parsed.data.competenceDate,
+      due_date: parsed.data.dueDate || parsed.data.competenceDate,
+      paid_at: paidAt,
+      description: parsed.data.description,
+      notes: parsed.data.notes || null,
+      related_org_id: parsed.data.relatedOrgId,
+    })
+    .eq("id", parsed.data.entryId)
     .select("id")
     .single();
 

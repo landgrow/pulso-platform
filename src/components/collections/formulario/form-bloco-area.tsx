@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import { specifyKey } from "@/lib/bin-v2/answers";
 import type { FormularioBloco } from "@/lib/formulario-questions";
 import { FormField } from "./form-field";
 
@@ -13,6 +14,8 @@ interface FormBlocoAreaProps {
   errors: Record<string, string | undefined>;
   onChange: (id: string, value: unknown) => void;
   readOnly?: boolean;
+  defaultOpen?: boolean;
+  isVisible?: (id: string) => boolean;
 }
 
 export function FormBlocoArea({
@@ -21,14 +24,20 @@ export function FormBlocoArea({
   errors,
   onChange,
   readOnly = false,
+  defaultOpen = true,
+  isVisible,
 }: FormBlocoAreaProps) {
-  const [open, setOpen] = useState(true);
-  const filled = bloco.perguntas.filter((p) => {
+  const [open, setOpen] = useState(defaultOpen);
+  const perguntas = bloco.perguntas.filter((p) =>
+    isVisible ? isVisible(p.id) : true,
+  );
+  const filled = perguntas.filter((p) => {
     const v = values[p.id];
+    if (Array.isArray(v)) return v.length > 0;
     return v !== undefined && v !== null && v !== "";
   }).length;
-  const total = bloco.perguntas.length;
-  const isComplete = filled === total;
+  const total = perguntas.length;
+  const isComplete = total > 0 && filled === total;
 
   return (
     <Collapsible
@@ -36,14 +45,13 @@ export function FormBlocoArea({
       onOpenChange={setOpen}
       className="rounded-lg border"
     >
-      {/* Header do bloco — sempre visível */}
       <div
         className={cn(
           "flex items-center justify-between px-4 py-3 border-l-4 cursor-pointer select-none",
           bloco.cor,
           open ? "border-b" : "",
         )}
-        onClick={() => !readOnly && setOpen((o) => !o)}
+        onClick={() => setOpen((o) => !o)}
       >
         <div className="flex items-center gap-3">
           <span className="font-medium text-sm">{bloco.area}</span>
@@ -51,31 +59,29 @@ export function FormBlocoArea({
             {filled}/{total} campos
           </span>
           {isComplete && (
-            <span className="text-xs text-green-600 font-medium">
-              ✓ Completo
-            </span>
+            <span className="text-xs text-green-600 font-medium">Completo</span>
           )}
         </div>
-        {!readOnly && (
-          <ChevronDown
-            className={cn(
-              "size-4 text-muted-foreground transition-transform",
-              open && "rotate-180",
-            )}
-          />
-        )}
+        <ChevronDown
+          className={cn(
+            "size-4 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
       </div>
 
-      {/* Conteúdo do bloco */}
       <CollapsibleContent>
-        <div className="p-4 space-y-4">
-          {bloco.perguntas.map((campo) => (
+        <div className="p-4 space-y-6">
+          {perguntas.map((campo) => (
             <FormField
               key={campo.id}
               campo={campo}
               value={values[campo.id]}
               error={errors[campo.id] ?? undefined}
+              specifyValue={values[specifyKey(campo.id)]}
+              specifyError={errors[specifyKey(campo.id)] ?? undefined}
               onChange={(val) => onChange(campo.id, val)}
+              onSpecifyChange={(val) => onChange(specifyKey(campo.id), val)}
               readOnly={readOnly}
             />
           ))}

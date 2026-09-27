@@ -7,6 +7,7 @@ export interface NotificationPrefs {
   arquivo: boolean;
   cardCliente: boolean;
   clienteAtraso: boolean;
+  binCliente: boolean;
 }
 
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
@@ -18,6 +19,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   arquivo: true,
   cardCliente: true,
   clienteAtraso: true,
+  binCliente: true,
 };
 
 function bool(
@@ -58,5 +60,6 @@ export function parseNotificationPrefs(raw: unknown): NotificationPrefs {
       "clienteAtraso",
       DEFAULT_NOTIFICATION_PREFS.clienteAtraso,
     ),
+    binCliente: bool(data, "binCliente", DEFAULT_NOTIFICATION_PREFS.binCliente),
   };
 }

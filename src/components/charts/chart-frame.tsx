@@ -10,7 +10,7 @@ export function ChartFrame({
   className,
 }: {
   eyebrow?: string | undefined;
-  title: string;
+  title?: string;
   hint?: string | undefined;
   action?: ReactNode;
   children: ReactNode;
@@ -30,7 +30,9 @@ export function ChartFrame({
               {eyebrow}
             </p>
           ) : null}
-          <h2 className="text-sm font-semibold text-text-1">{title}</h2>
+          {title ? (
+            <h2 className="text-sm font-semibold text-text-1">{title}</h2>
+          ) : null}
           {hint ? <p className="mt-0.5 text-xs text-text-3">{hint}</p> : null}
         </div>
         {action}
@@ -43,7 +45,11 @@ export function ChartFrame({
 export function ChartLegend({
   items,
 }: {
-  items: Array<{ label: string; color: string }>;
+  items: Array<{
+    label: string;
+    color: string;
+    swatch?: "dot" | "bar" | "line";
+  }>;
 }): JSX.Element {
   return (
     <ul className="flex flex-wrap gap-x-4 gap-y-1">
@@ -53,7 +59,13 @@ export function ChartLegend({
           className="flex items-center gap-1.5 text-[11px] text-text-2"
         >
           <span
-            className="h-1.5 w-1.5 rounded-full"
+            className={
+              item.swatch === "bar"
+                ? "h-2 w-1.5 rounded-[1px]"
+                : item.swatch === "line"
+                  ? "h-px w-3"
+                  : "h-1.5 w-1.5 rounded-full"
+            }
             style={{ background: item.color }}
           />
           {item.label}

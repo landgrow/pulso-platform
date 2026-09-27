@@ -4,6 +4,7 @@ import {
   HASH_FORWARD_HTML,
   hasAuthHash,
   inviteRedirectTo,
+  passwordResetRedirectTo,
   isPasswordSetupType,
   parseAuthCallbackParams,
   resolveAppUrl,
@@ -22,6 +23,28 @@ describe("inviteRedirectTo", () => {
     expect(inviteRedirectTo("https://pulso.example.com/")).toBe(
       "https://pulso.example.com/auth/callback?next=/reset-password",
     );
+  });
+});
+
+describe("passwordResetRedirectTo", () => {
+  it("volta para o localhost que pediu a troca, mesmo com app publicado configurado", () => {
+    expect(
+      passwordResetRedirectTo(
+        "http://localhost:3000",
+        "localhost:3000",
+        "https://pulso.example.com",
+      ),
+    ).toBe("http://localhost:3000/auth/callback?next=/reset-password");
+  });
+
+  it("ignora uma origem que não é o host do pedido", () => {
+    expect(
+      passwordResetRedirectTo(
+        "https://evil.example",
+        "pulso.example.com",
+        "https://pulso.example.com",
+      ),
+    ).toBe("https://pulso.example.com/auth/callback?next=/reset-password");
   });
 });
 

@@ -127,9 +127,6 @@ export function suggestKeyResults(source: CascadeSource): SuggestedKeyResult[] {
 
 export function suggestActions(source: CascadeSource): SuggestedAction[] {
   const quando = trimText(source.smartTemporal);
-  const porQue = trimText(source.smartRelevante);
-  const como = trimText(source.smartAtingivel);
-  const quanto = trimText(source.smartMensuravel);
   const seeds = uniqueTexts([
     source.smartEspecifica,
     source.smartMensuravel,
@@ -144,8 +141,8 @@ export function suggestActions(source: CascadeSource): SuggestedAction[] {
     quem: null,
     quando,
     onde: null,
-    porQue,
-    como,
-    quanto,
+    porQue: null,
+    como: null,
+    quanto: null,
   }));
 }

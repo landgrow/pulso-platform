@@ -15,9 +15,11 @@ import { ChartTooltip, CountTooltip } from "./chart-tooltip";
 export function OriginMixChart({
   month,
   values,
+  periodLabel,
 }: {
   month: string;
   values: Partial<Record<FinanceEntryOrigin, number>>;
+  periodLabel?: string | undefined;
 }): JSX.Element {
   const rows = INCOME_ORIGINS.map((origin) => ({
     name: ENTRY_ORIGIN_LABELS[origin],
@@ -30,25 +32,25 @@ export function OriginMixChart({
   return (
     <ChartFrame
       eyebrow="Origem"
-      title={`De onde entrou · ${monthLabel(month)}`}
-      hint="Fee, projeto, edital e outros do mês aberto."
+      title={`De onde entrou · ${periodLabel ?? monthLabel(month)}`}
+      hint="Fee, projeto, edital e outros do recorte aberto."
     >
       {total === 0 ? (
-        <ChartEmpty>Nenhuma entrada neste mês.</ChartEmpty>
+        <ChartEmpty>Nenhuma entrada neste recorte.</ChartEmpty>
       ) : (
-        <div className="grid items-center gap-6 sm:grid-cols-[180px_1fr]">
-          <div className="relative mx-auto h-44 w-44">
+        <div className="grid items-center gap-6 sm:grid-cols-[160px_1fr]">
+          <div className="relative mx-auto h-40 w-40">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={rows}
                   dataKey="value"
                   nameKey="name"
-                  innerRadius={58}
-                  outerRadius={80}
+                  innerRadius={54}
+                  outerRadius={72}
                   stroke="var(--surface-1)"
-                  strokeWidth={3}
-                  paddingAngle={2}
+                  strokeWidth={4}
+                  paddingAngle={3}
                 >
                   {rows.map((row) => (
                     <Cell key={row.origin} fill={row.color} />
@@ -110,19 +112,19 @@ export function StatusDonut({
       {visible.length === 0 ? (
         <ChartEmpty>Sem distribuição ainda.</ChartEmpty>
       ) : (
-        <div className="grid items-center gap-6 sm:grid-cols-[180px_1fr]">
-          <div className="relative mx-auto h-40 w-40">
+        <div className="grid items-center gap-6 sm:grid-cols-[160px_1fr]">
+          <div className="relative mx-auto h-36 w-36">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={visible}
                   dataKey="value"
                   nameKey="name"
-                  innerRadius={52}
-                  outerRadius={72}
+                  innerRadius={48}
+                  outerRadius={64}
                   stroke="var(--surface-1)"
-                  strokeWidth={3}
-                  paddingAngle={2}
+                  strokeWidth={4}
+                  paddingAngle={3}
                 >
                   {visible.map((row) => (
                     <Cell key={row.name} fill={row.color} />

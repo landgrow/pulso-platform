@@ -53,18 +53,12 @@ export default async function AdminAtividadesPage(): Promise<JSX.Element> {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <h1 className="text-3xl font-bold tracking-tight">Atividades</h1>
-          <Badge variant="outline" className="text-text-2">
-            operação
-          </Badge>
-        </div>
-        <p className="text-text-2">
-          WorkSmart: objetivo na mão, SMART, key results e cards 5H2W no Plano
-          de Ação. O kanban continua na coluna à esquerda.
-        </p>
+    <div className="w-full min-w-0 space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">Atividades</h1>
+        <Badge variant="outline" className="text-text-2">
+          operação
+        </Badge>
       </div>
 
       <AtividadesShell orgId={internalOrg.id} />

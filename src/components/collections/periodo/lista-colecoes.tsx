@@ -1,10 +1,7 @@
 import Link from "next/link";
 import { FileText, NotebookPen, Mic } from "lucide-react";
 import type { Colecao, ColecaoTipo } from "@/types/collections";
-import {
-  calcProgresso,
-  type FormularioPayload,
-} from "@/lib/validations/formulario";
+import { binProgressFromPayload } from "@/lib/bin-v2";
 import { Badge } from "@/components/ui/badge";
 
 const TIPO_ICON: Record<ColecaoTipo, typeof FileText> = {
@@ -95,10 +92,7 @@ export function ListaColecoes({ colecoes, slug }: ListaColecoesProps) {
                 {area && <Badge variant="outline">{area}</Badge>}
                 {colecao.tipo === "formulario" && (
                   <span className="text-xs text-muted-foreground">
-                    {calcProgresso(
-                      colecao.payload as Partial<FormularioPayload>,
-                    )}
-                    % preenchido
+                    {binProgressFromPayload(colecao.payload)}% preenchido
                   </span>
                 )}
               </div>

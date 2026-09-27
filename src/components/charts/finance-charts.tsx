@@ -14,18 +14,34 @@ export function FinanceCharts({
   cashflow,
   livroMes,
   entradasPorOrigem,
+  periodLabel,
 }: {
   month: string;
   cashflow: FinanceCashMonth[];
   livroMes: MonthBalance | null;
   entradasPorOrigem: Partial<Record<FinanceEntryOrigin, number>>;
+  periodLabel?: string | undefined;
 }): JSX.Element {
+  const caption = periodLabel ?? month;
   return (
-    <div className="space-y-4">
-      <CashflowChart data={cashflow} />
+    <div className="space-y-4" key={caption}>
+      <CashflowChart
+        data={cashflow}
+        title={`Balanço · ${caption}`}
+        hint={`Competência no recorte ${caption}.`}
+        summary={livroMes}
+      />
       <div className="grid gap-4 xl:grid-cols-2">
-        <OriginMixChart month={month} values={entradasPorOrigem} />
-        <MonthSplitChart month={month} balance={livroMes} />
+        <OriginMixChart
+          month={month}
+          values={entradasPorOrigem}
+          periodLabel={periodLabel}
+        />
+        <MonthSplitChart
+          month={month}
+          balance={livroMes}
+          periodLabel={periodLabel}
+        />
       </div>
     </div>
   );

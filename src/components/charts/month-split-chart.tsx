@@ -1,27 +1,19 @@
 "use client";
 
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { CHART, CHART_AXIS, formatAxisMoney } from "@/lib/charts/theme";
+import { CHART } from "@/lib/charts/theme";
 import { monthLabel } from "@/lib/financeiro/ledger";
+import { formatCurrency } from "@/lib/utils";
 import type { MonthBalance } from "@/types/financeiro";
 import { ChartEmpty, ChartFrame } from "./chart-frame";
-import { ChartTooltip } from "./chart-tooltip";
 
 export function MonthSplitChart({
   month,
   balance,
+  periodLabel,
 }: {
   month: string;
   balance: MonthBalance | null;
+  periodLabel?: string | undefined;
 }): JSX.Element {
   const rows = balance
     ? [
@@ -32,48 +24,36 @@ export function MonthSplitChart({
       ]
     : [];
   const hasData = rows.some((row) => row.value !== 0);
+  const max = Math.max(1, ...rows.map((row) => Math.abs(row.value)));
 
   return (
     <ChartFrame
-      eyebrow="Mês"
-      title={`Composição · ${monthLabel(month)}`}
+      eyebrow="Recorte"
+      title={`Composição · ${periodLabel ?? monthLabel(month)}`}
       hint="Entrou − imposto da nota − saiu = balanço."
     >
       {hasData ? (
-        <div className="h-[240px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={rows}
-              margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-            >
-              <CartesianGrid
-                stroke={CHART.grid}
-                strokeDasharray="3 6"
-                vertical={false}
-              />
-              <XAxis dataKey="name" {...CHART_AXIS} />
-              <YAxis
-                {...CHART_AXIS}
-                tickFormatter={formatAxisMoney}
-                width={52}
-              />
-              <Tooltip
-                cursor={{ fill: "var(--surface-2)", opacity: 0.55 }}
-                content={<ChartTooltip />}
-              />
-              <Bar
-                dataKey="value"
-                name="Valor"
-                radius={[6, 6, 0, 0]}
-                maxBarSize={48}
-              >
-                {rows.map((row) => (
-                  <Cell key={row.name} fill={row.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <ul className="space-y-4 pt-1">
+          {rows.map((row) => (
+            <li key={row.name} className="space-y-1.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm text-text-2">{row.name}</span>
+                <span className="text-sm font-medium tabular-nums text-text-1">
+                  {formatCurrency(row.value)}
+                </span>
+              </div>
+              <div className="h-1 overflow-hidden rounded-full bg-surface-2">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${(Math.abs(row.value) / max) * 100}%`,
+                    background: row.color,
+                  }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
       ) : (
         <ChartEmpty>Sem lançamentos neste mês.</ChartEmpty>
       )}

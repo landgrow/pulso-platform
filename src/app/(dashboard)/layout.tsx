@@ -14,6 +14,9 @@ import { SidebarProvider } from "@/components/layout/sidebar-context";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileSidebar } from "@/components/layout/mobile-sidebar";
 import { Header } from "@/components/layout/header";
+import { ClientWorkspaceBanner } from "@/components/layout/client-workspace-banner";
+import { CommandPalette } from "@/components/layout/command-palette";
+import { MainCanvas } from "@/components/layout/main-canvas";
 
 export default async function DashboardLayout({
   children,
@@ -30,18 +33,20 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
+      <CommandPalette />
       <div className="flex h-screen overflow-hidden bg-background">
         {/* Sidebar — visível em desktop */}
-        <Sidebar />
+        <Sidebar user={user} />
 
         {/* Mobile drawer (Sheet) */}
-        <MobileSidebar />
+        <MobileSidebar user={user} />
 
         {/* Main content area */}
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          <Header user={user} />
+          <Header />
+          <ClientWorkspaceBanner />
 
-          <main className="flex-1 overflow-y-auto p-6 lg:p-8">{children}</main>
+          <MainCanvas>{children}</MainCanvas>
         </div>
       </div>
     </SidebarProvider>

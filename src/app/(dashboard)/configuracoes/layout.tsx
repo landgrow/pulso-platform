@@ -6,9 +6,9 @@ export default function ConfiguracoesLayout({
   children: React.ReactNode;
 }): JSX.Element {
   return (
-    <div className="flex items-stretch">
+    <div className="flex w-full min-w-0 items-stretch">
       <SettingsNav />
-      <div className="min-w-0 flex-1 pl-4">{children}</div>
+      <div className="min-w-0 w-full flex-1 pl-3 sm:pl-4">{children}</div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,7 @@ export function DriveConnect({
 
   return (
     <Button type="button" asChild>
-      <a href="/api/integrations/google/start">Ligar Google Drive</a>
+      <Link href="/api/integrations/google/start">Ligar Google Drive</Link>
     </Button>
   );
 }

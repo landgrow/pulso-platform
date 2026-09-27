@@ -1,10 +1,17 @@
 import Link from "next/link";
-import { getActiveOrganization } from "@/lib/supabase/organization-server";
+import {
+  getActiveOrganization,
+  isActiveOrgInternal,
+} from "@/lib/supabase/organization-server";
 import { getSession } from "@/lib/supabase/get-session";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffCapabilities } from "@/lib/supabase/platform-role-server";
 import { getAtividadesDashboard } from "@/app/actions/boards";
+import { listRecentBinEvents } from "@/app/actions/bin";
+import { listClientDirectory } from "@/app/actions/clientes";
 import { getMetricasGerais } from "@/app/actions/metricas";
+import { listMindMaps } from "@/app/actions/mindmaps";
+import { listTeamMembers } from "@/app/actions/team";
 import { StaffBiDashboard } from "@/components/ops/staff-bi-dashboard";
 import { EmptyState, PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -22,7 +29,7 @@ export default async function DashboardPage(): Promise<JSX.Element> {
     session?.user.email?.split("@")[0] ??
     "Usuário";
 
-  if (caps.length > 0) {
+  if (caps.length > 0 && (await isActiveOrgInternal())) {
     return <StaffHome userName={userName} caps={caps} />;
   }
 
@@ -41,7 +48,7 @@ export default async function DashboardPage(): Promise<JSX.Element> {
   }
 
   return (
-    <div className="space-y-8 max-w-6xl">
+    <div className="w-full space-y-8">
       <PageHeader
         title={userName}
         description={`${active.org.name} — o que está aberto hoje.`}
@@ -51,7 +58,7 @@ export default async function DashboardPage(): Promise<JSX.Element> {
         className="block rounded-lg border border-border bg-surface-1 p-5 hover:border-primary/40 transition-colors"
       >
         <p className="text-sm font-semibold">Configurações</p>
-        <p className="text-sm text-text-2 mt-1">
+        <p className="mt-1 text-sm text-text-2">
           Conta, notificações e dados da sua organização.
         </p>
       </Link>
@@ -74,17 +81,36 @@ async function StaffHome({
     .maybeSingle();
 
   const canAtividades = caps.includes("atividades");
-  const canNegocio = caps.includes("metricas") || caps.includes("financeiro");
+  const canMetricas = caps.includes("metricas") || caps.includes("financeiro");
+  const canClientes = caps.includes("clientes");
+  const canMapa = caps.includes("mapa_mental");
+  const canBin = caps.includes("bin");
+  const canEquipe = caps.includes("equipe");
 
-  const [dash, metricas] = await Promise.all([
+  const [dash, metricas, clientes, mapas, bin, equipe] = await Promise.all([
     canAtividades && internalOrg
       ? getAtividadesDashboard(internalOrg.id, "atividades")
       : Promise.resolve(null),
-    canNegocio ? getMetricasGerais() : Promise.resolve(null),
+    canMetricas ? getMetricasGerais() : Promise.resolve(null),
+    canClientes ? listClientDirectory() : Promise.resolve(null),
+    canMapa && internalOrg
+      ? listMindMaps(internalOrg.id)
+      : Promise.resolve(null),
+    canBin ? listRecentBinEvents() : Promise.resolve(null),
+    canEquipe ? listTeamMembers() : Promise.resolve(null),
   ]);
 
   const stats = dash?.success ? dash.data : null;
   const negocio = metricas?.success ? metricas.data : null;
+  const orgs = clientes?.success ? clientes.data : [];
+  const contratosAtivos =
+    negocio?.financeiro.porStatus.ativo ??
+    orgs.reduce(
+      (sum, org) =>
+        sum +
+        org.contratos.filter((contrato) => contrato.status === "ativo").length,
+      0,
+    );
 
   return (
     <StaffBiDashboard
@@ -105,17 +131,22 @@ async function StaffHome({
       crmConversion={negocio ? negocio.crm.taxaConversao : null}
       receitaBrl={negocio?.financeiro.receitaAtivaPorMoeda.BRL ?? 0}
       receitaContratosBrl={negocio?.financeiro.receitaContratosBrl ?? 0}
-      receitaObjetivosBrl={negocio?.financeiro.receitaObjetivosBrl ?? 0}
       finance={
         negocio
           ? {
               mes: negocio.financeiro.mes,
               livroMes: negocio.financeiro.livroMes,
               cashflow: negocio.financeiro.cashflow,
-              entradasPorOrigem: negocio.financeiro.entradasPorOrigem,
             }
           : null
       }
+      house={{
+        clientes: orgs.length,
+        contratosAtivos,
+        mapas: mapas?.success ? mapas.data.length : 0,
+        binInbox: bin?.success ? bin.data.length : 0,
+        equipe: equipe?.success ? equipe.data.length : 0,
+      }}
     />
   );
 }

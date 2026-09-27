@@ -180,14 +180,43 @@ export function format5h2wNotes(fields: FiveH2W): string {
 }
 
 export function fiveH2WSummary(fields: FiveH2W): string {
+  const title = fields.oQue?.trim().toLowerCase() ?? "";
   const parts: string[] = [];
   if (filled(fields.quem)) parts.push(`Quem ${fields.quem?.trim()}`);
   if (filled(fields.quando)) parts.push(`Quando ${fields.quando?.trim()}`);
   if (filled(fields.onde)) parts.push(`Onde ${fields.onde?.trim()}`);
-  if (filled(fields.como)) parts.push(`Como ${fields.como?.trim()}`);
-  if (filled(fields.quanto)) parts.push(`Quanto ${fields.quanto?.trim()}`);
-  if (filled(fields.porQue)) parts.push(`Por quê ${fields.porQue?.trim()}`);
+  if (filled(fields.como) && fields.como!.trim().toLowerCase() !== title) {
+    parts.push(`Como ${fields.como!.trim()}`);
+  }
+  if (filled(fields.quanto) && fields.quanto!.trim().toLowerCase() !== title) {
+    parts.push(`Quanto ${fields.quanto!.trim()}`);
+  }
+  if (filled(fields.porQue) && fields.porQue!.trim().toLowerCase() !== title) {
+    parts.push(`Por quê ${fields.porQue!.trim()}`);
+  }
   return parts.join(" · ");
+}
+
+/** Linha do card na lista: prazo, responsável e status — sem repetir o SMART. */
+export function actionListCaption(fields: {
+  quem?: string | null;
+  quando?: string | null;
+  columnLabel?: string | null;
+}): string {
+  const parts: string[] = [];
+  const quando = fields.quando?.trim();
+  const quem = fields.quem?.trim();
+  const column = fields.columnLabel?.trim();
+  if (quando) parts.push(formatIsoDay(quando));
+  if (quem) parts.push(quem);
+  if (column) parts.push(column);
+  return parts.join(" · ");
+}
+
+function formatIsoDay(iso: string): string {
+  const [year, month, day] = iso.slice(0, 10).split("-");
+  if (!year || !month || !day) return iso;
+  return `${day}/${month}/${year}`;
 }
 
 export function parseIsoDateUtc(iso: string): number {

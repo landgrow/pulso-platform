@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, BarChart3, Lock, Target, Zap } from "lucide-react";
 
@@ -8,9 +9,7 @@ export default function HomePage(): JSX.Element {
       {/* Header */}
       <header className="container mx-auto px-4 py-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-lg bg-brand-lime flex items-center justify-center">
-            <span className="text-brand-lime-foreground font-bold">LG</span>
-          </div>
+          <BrandMark size="md" />
           <span className="text-xl font-semibold">PULSO</span>
         </div>
         <nav>

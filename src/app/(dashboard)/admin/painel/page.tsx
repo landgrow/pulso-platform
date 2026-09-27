@@ -3,7 +3,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { requireCapability } from "@/lib/supabase/platform-role-server";
 import { AccessDenied } from "@/components/admin/access-denied";
+import { listRecentBinEvents } from "@/app/actions/bin";
+import { listRecentMinBlocks } from "@/app/actions/min";
 import { listClientDirectory } from "@/app/actions/clientes";
+import { BinInbox } from "@/components/bin/bin-inbox";
+import { MinResults } from "@/components/admin/min-results";
 import { PageHeader } from "@/components/ui/page-header";
 import { PainelLive } from "@/components/ops/painel-live";
 
@@ -24,7 +28,11 @@ export default async function AdminPainelPage(): Promise<JSX.Element> {
     );
   }
 
-  const result = await listClientDirectory();
+  const [result, binEvents, minBlocks] = await Promise.all([
+    listClientDirectory(),
+    listRecentBinEvents(),
+    listRecentMinBlocks(),
+  ]);
   if (!result.success) {
     return (
       <div className="max-w-2xl mx-auto py-12">
@@ -48,7 +56,25 @@ export default async function AdminPainelPage(): Promise<JSX.Element> {
     <div className="space-y-6">
       <PageHeader
         title="Painel"
-        description="Prazos da carteira, ao vivo. Atividades da Land Grow ficam no Dashboard. BIN e MIN na ficha de cada cliente."
+        description="Prazos da carteira e o que o cliente enviou no BIN e no MIN. O diagnóstico sai da ficha de cada empresa."
+      />
+
+      <BinInbox
+        items={binEvents.success ? binEvents.data : []}
+        empty={
+          binEvents.success
+            ? "Nenhum envio ainda. Quando o cliente mandar o diagnóstico geral ou um setor, aparece aqui e no e-mail da equipe."
+            : `Não deu para ler os envios: ${binEvents.error}`
+        }
+      />
+
+      <MinResults
+        items={minBlocks.success ? minBlocks.data : []}
+        empty={
+          minBlocks.success
+            ? "Nenhum bloco do MIN ainda. Quando o cliente concluir um bloco, as respostas aparecem aqui."
+            : `Não deu para ler o MIN: ${minBlocks.error}`
+        }
       />
 
       <div className="grid sm:grid-cols-2 gap-3">

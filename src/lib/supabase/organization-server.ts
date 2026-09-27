@@ -52,12 +52,21 @@ export async function getActiveOrganization(): Promise<ActiveOrganizationContext
     }
   }
 
-  // Fallback: primeira org (alfabética)
-  const first = orgsList[0];
-  if (!first) return null;
+  // Fallback: na equipe, a org interna da Land Grow — não o primeiro cliente
+  // da lista (isso escondia o HQ depois de “Entrar como membro”).
+  const { data: internal } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("is_internal", true)
+    .maybeSingle();
+  const preferred =
+    (internal?.id
+      ? orgsList.find((org) => org.id === internal.id)
+      : undefined) ?? orgsList[0];
+  if (!preferred) return null;
   return {
-    org: accessibleToOrganization(first),
-    role: first.my_role,
+    org: accessibleToOrganization(preferred),
+    role: preferred.my_role,
   };
 }
 
@@ -71,6 +80,24 @@ export async function requireOrganization(): Promise<ActiveOrganizationContext> 
     redirect("/configuracoes/organizacoes?reason=no_org");
   }
   return ctx;
+}
+
+/**
+ * Org interna da Land Grow (HQ). Cliente — e staff em “Entrar como membro” —
+ * está numa org com is_internal = false.
+ */
+export async function isActiveOrgInternal(): Promise<boolean> {
+  const ctx = await getActiveOrganization();
+  if (!ctx) return true;
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("organizations")
+    .select("is_internal")
+    .eq("id", ctx.org.id)
+    .maybeSingle();
+
+  return data?.is_internal !== false;
 }
 
 /**

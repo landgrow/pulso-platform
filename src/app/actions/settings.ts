@@ -35,6 +35,7 @@ const prefsSchema = z.object({
   arquivo: z.boolean(),
   cardCliente: z.boolean(),
   clienteAtraso: z.boolean(),
+  binCliente: z.boolean(),
 });
 
 export type SettingsActionResult =

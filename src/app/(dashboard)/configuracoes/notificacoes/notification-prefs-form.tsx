@@ -47,6 +47,12 @@ const ROWS: {
     staffOnly: true,
   },
   {
+    key: "binCliente",
+    label: "Cliente enviou o BIN",
+    hint: "Equipe Land Grow: diagnóstico geral ou um setor concluído.",
+    staffOnly: true,
+  },
+  {
     key: "conviteEquipe",
     label: "Convite de acesso",
     hint: "O Supabase manda o e-mail de convite e senha.",
@@ -106,9 +112,9 @@ export function NotificationPrefsForm({
         ))}
       </ul>
       <p className="text-xs text-text-2">
-        Comentário, arquivo e card do cliente saem na hora. Prazo e atraso do
-        cliente saem no cron diário às 8h (Brasília). Convite continua vindo do
-        Supabase.
+        Comentário, arquivo, card do cliente e envio do BIN saem na hora. Prazo
+        e atraso do cliente saem no cron diário às 8h (Brasília). Convite
+        continua vindo do Supabase.
       </p>
       <Button type="submit" disabled={saving}>
         Salvar preferências

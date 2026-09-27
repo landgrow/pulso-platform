@@ -5,11 +5,12 @@
  */
 
 export type FormularioFieldTipo =
-  "number" | "text" | "radio" | "select" | "textarea";
+  "number" | "text" | "radio" | "select" | "textarea" | "checkbox";
 
 export interface FormularioOpcao {
   value: string;
   label: string;
+  needsSpecify?: boolean;
 }
 
 export interface FormularioCampo {
@@ -17,6 +18,7 @@ export interface FormularioCampo {
   tipo: FormularioFieldTipo;
   label: string;
   placeholder?: string;
+  help?: string;
   required: boolean;
   opcoes?: FormularioOpcao[]; // para radio/select
   sufixo?: string; // ex: "R$", "%"

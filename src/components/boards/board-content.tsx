@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { MenuSelect } from "@/components/ui/menu-select";
 import { Badge } from "@/components/ui/badge";
 import { TaskModal } from "@/components/ui/task-modal";
+import { FadeSwap } from "@/components/ui/fade-swap";
 import { parse5h2wNotes } from "@/lib/worksmart/cascade";
 import {
   createCard,
@@ -372,72 +373,74 @@ export function BoardContent({
         <BoardFilterBar board={board} onChanged={onChanged} />
       </div>
 
-      {view === "table" && (
-        <BoardTableView
-          board={tableAndPanelBoard}
-          onOpenCard={(card) => setSelectedCardId(card.id)}
-        />
-      )}
-      {view === "panel" && <BoardPanelView board={tableAndPanelBoard} />}
+      <FadeSwap swapKey={view}>
+        {view === "table" && (
+          <BoardTableView
+            board={tableAndPanelBoard}
+            onOpenCard={(card) => setSelectedCardId(card.id)}
+          />
+        )}
+        {view === "panel" && <BoardPanelView board={tableAndPanelBoard} />}
 
-      {view === "board" && (
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-          <div className="flex gap-4 overflow-x-auto pb-2">
-            {groups.map((group) => (
-              <div
-                key={group.key}
-                ref={(el) => {
-                  columnRefs.current[group.key] = el;
-                }}
-                className="w-72 shrink-0"
-              >
-                <div className="flex items-center gap-2 mb-2 px-1">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full shrink-0"
-                    style={{ background: group.color }}
-                  />
-                  <span className="text-sm font-semibold">{group.label}</span>
-                  <span className="text-xs text-text-2">
-                    {group.cards.length}
-                  </span>
-                </div>
-                <DroppableColumn columnId={group.key}>
-                  {group.cards.map((card) => (
-                    <DraggableCard
-                      key={card.id}
-                      card={card}
-                      boardCards={board.cards}
-                      colorOverride={getCardColorOverride(
-                        card,
-                        board.view_config.colorRules,
-                      )}
-                      onOpen={(card) => setSelectedCardId(card.id)}
+        {view === "board" && (
+          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {groups.map((group) => (
+                <div
+                  key={group.key}
+                  ref={(el) => {
+                    columnRefs.current[group.key] = el;
+                  }}
+                  className="w-72 shrink-0"
+                >
+                  <div className="flex items-center gap-2 mb-2 px-1">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ background: group.color }}
                     />
-                  ))}
-                </DroppableColumn>
-                {groupBy === "status" && (
-                  <div className="mt-2 flex gap-1.5">
-                    <Input
-                      placeholder="+ Adicionar card"
-                      className="h-8 text-sm"
-                      value={newCardTitles[group.key] ?? ""}
-                      onChange={(e) =>
-                        setNewCardTitles((prev) => ({
-                          ...prev,
-                          [group.key]: e.target.value,
-                        }))
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") void handleAddCard(group.key);
-                      }}
-                    />
+                    <span className="text-sm font-semibold">{group.label}</span>
+                    <span className="text-xs text-text-2">
+                      {group.cards.length}
+                    </span>
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </DndContext>
-      )}
+                  <DroppableColumn columnId={group.key}>
+                    {group.cards.map((card) => (
+                      <DraggableCard
+                        key={card.id}
+                        card={card}
+                        boardCards={board.cards}
+                        colorOverride={getCardColorOverride(
+                          card,
+                          board.view_config.colorRules,
+                        )}
+                        onOpen={(card) => setSelectedCardId(card.id)}
+                      />
+                    ))}
+                  </DroppableColumn>
+                  {groupBy === "status" && (
+                    <div className="mt-2 flex gap-1.5">
+                      <Input
+                        placeholder="+ Adicionar card"
+                        className="h-8 text-sm"
+                        value={newCardTitles[group.key] ?? ""}
+                        onChange={(e) =>
+                          setNewCardTitles((prev) => ({
+                            ...prev,
+                            [group.key]: e.target.value,
+                          }))
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void handleAddCard(group.key);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </DndContext>
+        )}
+      </FadeSwap>
 
       <TaskModal open={!!selectedCard} onClose={() => setSelectedCardId(null)}>
         {selectedCard && (

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
@@ -12,11 +13,7 @@ export default function TermsPage(): JSX.Element {
       {/* Header */}
       <header className="border-b border-border">
         <div className="container mx-auto max-w-3xl px-4 py-4 flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-brand-lime flex items-center justify-center">
-            <span className="text-brand-lime-foreground font-bold text-sm">
-              LG
-            </span>
-          </div>
+          <BrandMark />
           <span className="font-semibold">PULSO — Land Grow</span>
         </div>
       </header>

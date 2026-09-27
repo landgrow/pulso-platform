@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { forgotPassword } from "@/app/actions/auth";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Loader2, CheckCircle } from "lucide-react";
 
@@ -26,9 +29,15 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-export default function ForgotPasswordPage(): JSX.Element {
+function ForgotPasswordForm(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam) toast.error(decodeURIComponent(errorParam));
+  }, [searchParams]);
 
   const {
     register,
@@ -41,9 +50,15 @@ export default function ForgotPasswordPage(): JSX.Element {
   const onSubmit = async (data: FormData): Promise<void> => {
     setIsLoading(true);
     try {
-      const result = await forgotPassword(data);
-      if (!result.success) {
-        toast.error(result.error);
+      const supabase = createClient();
+      const redirectTo = `${window.location.origin}/auth/callback?next=/reset-password`;
+      const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
+        redirectTo,
+      });
+      if (error) {
+        toast.error(
+          "Não consegui enviar o email. Tente de novo em alguns minutos.",
+        );
         return;
       }
       setSent(true);
@@ -65,7 +80,8 @@ export default function ForgotPasswordPage(): JSX.Element {
             <CardTitle className="text-2xl">Email enviado!</CardTitle>
             <CardDescription>
               Se o email estiver cadastrado, você receberá um link para
-              redefinir sua senha. O link expira em 1 hora.
+              redefinir sua senha. Abra esse link neste mesmo navegador. O
+              e-mail anterior, que cai no site publicado, não vale.
             </CardDescription>
           </CardHeader>
           <CardFooter className="justify-center">
@@ -83,11 +99,7 @@ export default function ForgotPasswordPage(): JSX.Element {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex items-center gap-2 mb-2">
-            <div className="h-8 w-8 rounded-lg bg-brand-lime flex items-center justify-center">
-              <span className="text-brand-lime-foreground font-bold text-sm">
-                LG
-              </span>
-            </div>
+            <BrandMark />
             <span className="text-xl font-semibold text-text-1">PULSO</span>
           </div>
           <CardTitle className="text-2xl">Esqueceu a senha?</CardTitle>
@@ -127,5 +139,13 @@ export default function ForgotPasswordPage(): JSX.Element {
         </form>
       </Card>
     </div>
+  );
+}
+
+export default function ForgotPasswordPage(): JSX.Element {
+  return (
+    <Suspense fallback={null}>
+      <ForgotPasswordForm />
+    </Suspense>
   );
 }

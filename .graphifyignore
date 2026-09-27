@@ -1,0 +1,8 @@
+aiox-core/
+.aiox-core/
+.next/
+coverage/
+test-results/
+playwright-report/
+.vercel/
+graphify-out/cost.json

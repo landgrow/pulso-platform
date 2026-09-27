@@ -2,28 +2,37 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import {
   listWorksmartObjectives,
   updateWorksmartKeyResult,
 } from "@/app/actions/worksmart";
-import { FinanceCharts, StatusDonut } from "@/components/charts";
-import { PdfExportButton } from "@/components/reports/pdf-export-button";
-import { exportWorksmartPdf } from "@/app/actions/reports";
 import { useDueFeed } from "@/hooks/use-due-feed";
-import { CHART } from "@/lib/charts/theme";
 import { splitDueCards } from "@/lib/ops/due";
 import {
   isObjectiveAchieved,
   krProgressLabel,
   objectiveProgressPercent,
 } from "@/lib/worksmart/cascade";
+import { CashflowChart } from "@/components/charts";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import type { WorksmartObjective } from "@/types/worksmart";
-import type {
-  FinanceCashMonth,
-  FinanceEntryOrigin,
-  MonthBalance,
-} from "@/types/financeiro";
+import type { FinanceCashMonth, MonthBalance } from "@/types/financeiro";
+
+const TOOLTIP = {
+  background: "var(--surface-1)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  color: "var(--text-1)",
+  fontSize: 12,
+};
+
+const COLORS = {
+  andamento: "#6366f1",
+  atrasados: "#ef4444",
+  concluidos: "#22c55e",
+  lime: "#b8f000",
+};
 
 export interface StaffBiStats {
   totalCards: number;
@@ -41,8 +50,8 @@ export function StaffBiDashboard({
   crmConversion,
   receitaBrl,
   receitaContratosBrl,
-  receitaObjetivosBrl,
   finance,
+  house,
 }: {
   userName: string;
   stats: StaffBiStats | null;
@@ -51,13 +60,18 @@ export function StaffBiDashboard({
   crmConversion: number | null;
   receitaBrl: number;
   receitaContratosBrl: number;
-  receitaObjetivosBrl: number;
   finance: {
     mes: string;
     livroMes: MonthBalance;
     cashflow: FinanceCashMonth[];
-    entradasPorOrigem: Partial<Record<FinanceEntryOrigin, number>>;
   } | null;
+  house: {
+    clientes: number;
+    contratosAtivos: number;
+    mapas: number;
+    binInbox: number;
+    equipe: number;
+  };
 }): JSX.Element {
   const today = new Date().toLocaleDateString("pt-BR", {
     day: "numeric",
@@ -70,38 +84,37 @@ export function StaffBiDashboard({
   const donePct = total > 0 ? Math.round((done / total) * 100) : 0;
 
   const statusData = [
-    { name: "Em execução", value: running, color: CHART.status.andamento },
-    { name: "Atrasados", value: late, color: CHART.status.atrasados },
-    { name: "Concluídos", value: done, color: CHART.status.concluidos },
-  ];
-  const livroMes = finance?.livroMes ?? null;
-  const hasBook = Boolean(
-    livroMes && (livroMes.entradas > 0 || livroMes.saidas > 0),
-  );
+    { name: "Em execução", value: running, color: COLORS.andamento },
+    { name: "Atrasados", value: late, color: COLORS.atrasados },
+    { name: "Concluídos", value: done, color: COLORS.concluidos },
+  ].filter((row) => row.value > 0);
 
   return (
-    <div className="max-w-[1280px] space-y-6">
+    <div className="w-full space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-text-3">
-            Negócio · {today}
+            Operação · {today}
           </p>
           <h1 className="mt-1 text-[1.75rem] font-semibold tracking-tight text-text-1">
             {userName}
           </h1>
         </div>
-        <nav className="flex gap-4 text-sm text-text-2">
-          <Link href="/admin/financeiro" className="hover:text-text-1">
-            Financeiro
-          </Link>
-          <Link href="/admin/metricas" className="hover:text-text-1">
-            Métricas
+        <nav className="flex flex-wrap gap-4 text-sm text-text-2">
+          <Link href="/admin/atividades" className="hover:text-text-1">
+            Atividades
           </Link>
           <Link href="/admin/crm" className="hover:text-text-1">
             CRM
           </Link>
-          <Link href="/admin/atividades" className="hover:text-text-1">
-            Atividades
+          <Link href="/admin/financeiro" className="hover:text-text-1">
+            Financeiro
+          </Link>
+          <Link href="/admin/clientes" className="hover:text-text-1">
+            Clientes
+          </Link>
+          <Link href="/admin/bin" className="hover:text-text-1">
+            BIN
           </Link>
           <Link href="/admin/painel" className="hover:text-text-1">
             Painel
@@ -110,80 +123,149 @@ export function StaffBiDashboard({
       </header>
 
       <section className="overflow-hidden rounded-xl border border-border bg-surface-1">
-        <div className="grid grid-cols-2 divide-x divide-y divide-border lg:grid-cols-4 lg:divide-y-0">
+        <div className="grid grid-cols-2 lg:grid-cols-4">
           <Kpi
-            label="Entrou"
-            value={formatCurrency(livroMes?.entradas ?? 0)}
-            hint={hasBook ? "livro do mês" : "ainda sem entrada neste mês"}
+            href="/admin/atividades"
+            label="Em aberto"
+            value={String(total)}
+            hint={`${running} em execução`}
+          />
+          <Kpi
+            href="/admin/atividades"
+            label="Atrasados"
+            value={String(late)}
+            hint="prazo vencido"
+            tone={late > 0 ? "danger" : "muted"}
+          />
+          <Kpi
+            href="/admin/crm"
+            label="Conversão CRM"
+            value={
+              crmConversion == null ? "—" : `${Math.round(crmConversion)}%`
+            }
+            hint={`${crmConvertidos} convertidos · ${crmLeads} lead${crmLeads === 1 ? "" : "s"}`}
+          />
+          <Kpi
+            href="/admin/financeiro"
+            label="Caixa do mês"
+            value={formatCurrency(finance?.livroMes.balanco ?? receitaBrl)}
+            hint={
+              finance
+                ? `entrou ${formatCurrency(finance.livroMes.entradas)}`
+                : "contratos em BRL"
+            }
             tone="lime"
+            last
+          />
+        </div>
+        <div className="grid grid-cols-2 border-t border-border lg:grid-cols-4">
+          <Kpi
+            href="/admin/clientes"
+            label="Clientes"
+            value={String(house.clientes)}
+            hint={`${house.contratosAtivos} contrato${house.contratosAtivos === 1 ? "" : "s"} ativo${house.contratosAtivos === 1 ? "" : "s"}`}
           />
           <Kpi
-            label="Saiu"
-            value={formatCurrency(livroMes?.saidas ?? 0)}
-            hint={
-              livroMes
-                ? `imposto ${formatCurrency(livroMes.impostosNotas)}`
-                : "despesas do mês"
-            }
-            tone={livroMes && livroMes.saidas > 0 ? "danger" : "muted"}
+            href="/admin/financeiro"
+            label="Contratos"
+            value={formatCurrency(receitaContratosBrl)}
+            hint="receita ativa em BRL"
           />
           <Kpi
-            label={hasBook ? "Balanço do mês" : "Receita ativa"}
-            value={formatCurrency(hasBook ? livroMes!.balanco : receitaBrl)}
-            hint={
-              hasBook
-                ? `líquido ${formatCurrency(livroMes!.liquido)}`
-                : [
-                    receitaObjetivosBrl > 0
-                      ? `${formatCurrency(receitaObjetivosBrl)} da meta`
-                      : null,
-                    `${formatCurrency(receitaContratosBrl)} em contrato`,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")
-            }
-            tone="lime"
+            href="/admin/bin"
+            label="BIN"
+            value={String(house.binInbox)}
+            hint="eventos na fila"
           />
           <Kpi
-            label="CRM"
-            value={String(crmConvertidos)}
-            hint={
-              crmConversion == null
-                ? `${crmLeads} no funil`
-                : `${Math.round(crmConversion)}% · ${crmLeads} no funil`
-            }
+            href="/admin/equipe"
+            label="Casa"
+            value={String(house.equipe)}
+            hint={`${house.mapas} mapa${house.mapas === 1 ? "" : "s"} · equipe`}
+            last
           />
         </div>
       </section>
 
       {finance ? (
-        <FinanceCharts
-          month={finance.mes}
-          cashflow={finance.cashflow}
-          livroMes={finance.livroMes}
-          entradasPorOrigem={finance.entradasPorOrigem}
+        <CashflowChart
+          data={finance.cashflow}
+          title="Balanço dos últimos meses"
         />
       ) : null}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)]">
-        <div className="space-y-4">
-          <StatusDonut
-            title="Execução interna"
-            hint={`${total} cards · ${donePct}% concluído`}
-            center={`${donePct}%`}
-            centerLabel="feito"
-            rows={statusData}
-          />
-          <section className="rounded-xl border border-border bg-surface-1 p-5">
-            <div className="grid gap-8 sm:grid-cols-2">
-              <BarList title="Setor" values={stats?.porSetor ?? {}} />
-              <BarList
-                title="Responsável"
-                values={stats?.porResponsavel ?? {}}
-              />
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
+        <section className="rounded-xl border border-border bg-surface-1 p-5">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-sm font-semibold text-text-1">Execução</h2>
+            <p className="text-xs tabular-nums text-text-2">
+              {donePct}% concluído
+            </p>
+          </div>
+
+          {total === 0 ? (
+            <p className="mt-8 text-sm text-text-2">
+              Sem cards internos ainda. O Plano de Ação alimenta este recorte.
+            </p>
+          ) : (
+            <div className="mt-4 grid gap-6 lg:grid-cols-[200px_1fr] lg:items-center">
+              <div className="relative mx-auto h-44 w-44">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={statusData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={58}
+                      outerRadius={80}
+                      stroke="none"
+                      paddingAngle={2}
+                    >
+                      {statusData.map((row) => (
+                        <Cell key={row.name} fill={row.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={TOOLTIP}
+                      itemStyle={{ color: "var(--text-1)" }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-2xl font-semibold tabular-nums text-text-1">
+                    {donePct}%
+                  </span>
+                  <span className="text-[11px] text-text-3">feito</span>
+                </div>
+              </div>
+              <ul className="space-y-3">
+                {statusData.map((row) => (
+                  <li
+                    key={row.name}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="flex items-center gap-2 text-text-2">
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ background: row.color }}
+                      />
+                      {row.name}
+                    </span>
+                    <span className="tabular-nums text-text-1">
+                      {row.value}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
-          </section>
-        </div>
+          )}
+
+          <div className="mt-6 grid gap-8 border-t border-border pt-5 sm:grid-cols-2">
+            <BarList title="Setor" values={stats?.porSetor ?? {}} />
+            <BarList title="Responsável" values={stats?.porResponsavel ?? {}} />
+          </div>
+        </section>
+
         <div className="space-y-4">
           <DuePulse />
           <ResultsPulse />
@@ -198,14 +280,24 @@ function Kpi({
   value,
   hint,
   tone = "default",
+  last = false,
+  href,
 }: {
   label: string;
   value: string;
   hint: string;
   tone?: "default" | "danger" | "lime" | "muted";
+  last?: boolean;
+  href?: string;
 }): JSX.Element {
-  return (
-    <div className="px-5 py-4">
+  const body = (
+    <div
+      className={cn(
+        "px-5 py-4",
+        href && "transition-colors hover:bg-surface-2",
+        !last && "border-b border-border lg:border-b-0 lg:border-r",
+      )}
+    >
       <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-3">
         {label}
       </p>
@@ -221,6 +313,13 @@ function Kpi({
       </p>
       <p className="mt-1 text-xs text-text-3">{hint}</p>
     </div>
+  );
+
+  if (!href) return body;
+  return (
+    <Link href={href} className="block min-w-0">
+      {body}
+    </Link>
   );
 }
 
@@ -278,9 +377,7 @@ function DuePulse(): JSX.Element {
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-text-1">Fila</h2>
         <p className="text-[11px] tabular-nums text-text-3">
-          {split.atrasadas.length} atrasada
-          {split.atrasadas.length === 1 ? "" : "s"} · {split.hoje.length} hoje ·{" "}
-          {split.aVencer.length} à frente
+          {`${split.atrasadas.length} atrasada${split.atrasadas.length === 1 ? "" : "s"} · ${split.hoje.length} hoje · ${split.aVencer.length} à frente`}
         </p>
       </div>
       {feed.loading ? (
@@ -335,7 +432,7 @@ function ResultsPulse(): JSX.Element {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- carrega OKRs ao abrir o dashboard
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh() sets loading state, needed once on mount
     void refresh();
   }, []);
 
@@ -343,15 +440,12 @@ function ResultsPulse(): JSX.Element {
     <section className="rounded-xl border border-border bg-surface-1 p-5">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-text-1">Objetivos</h2>
-        <div className="flex items-center gap-2">
-          <PdfExportButton label="PDF" run={() => exportWorksmartPdf()} />
-          <Link
-            href="/admin/atividades"
-            className="text-[11px] text-text-3 hover:text-text-1"
-          >
-            WorkSmart
-          </Link>
-        </div>
+        <Link
+          href="/admin/atividades"
+          className="text-[11px] text-text-3 hover:text-text-1"
+        >
+          WorkSmart
+        </Link>
       </div>
 
       {open.length === 0 && wins.length === 0 ? (

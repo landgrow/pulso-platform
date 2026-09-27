@@ -22,6 +22,44 @@ export function inviteRedirectTo(appUrl: string | undefined): string {
   return `${resolveAppUrl(appUrl)}/auth/callback?next=/reset-password`;
 }
 
+/**
+ * O link do e-mail tem que abrir no mesmo host que pediu a troca.
+ * O verificador da sessão fica no cookie desse host; se o e-mail abrir
+ * noutro (ex.: o site publicado), o callback falha e cai no login.
+ */
+export function passwordResetRedirectTo(
+  requestOrigin: string | null,
+  requestHost: string | null,
+  appUrl: string | undefined,
+): string {
+  const fallback = inviteRedirectTo(appUrl);
+  if (!requestOrigin) return fallback;
+
+  let originUrl: URL;
+  try {
+    originUrl = new URL(requestOrigin);
+  } catch {
+    return fallback;
+  }
+
+  const host = (requestHost ?? "").split(",")[0]?.trim() ?? "";
+  const sameHost = host.length > 0 && originUrl.host === host;
+  const local =
+    originUrl.hostname === "localhost" || originUrl.hostname === "127.0.0.1";
+  const app = resolveAppUrl(appUrl);
+  let appOrigin = "";
+  try {
+    if (app) appOrigin = new URL(app).origin;
+  } catch {
+    appOrigin = "";
+  }
+
+  if (local || sameHost || (appOrigin && originUrl.origin === appOrigin)) {
+    return `${originUrl.origin}/auth/callback?next=/reset-password`;
+  }
+  return fallback;
+}
+
 export function safeCallbackNext(next: string | null): string {
   if (!next || !next.startsWith("/") || next.startsWith("//")) {
     return "/dashboard";

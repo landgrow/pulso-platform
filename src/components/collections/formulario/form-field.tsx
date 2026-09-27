@@ -4,26 +4,45 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { specifyKey } from "@/lib/bin-v2/answers";
 import type { FormularioCampo } from "@/lib/formulario-questions";
 
 interface FormFieldProps {
   campo: FormularioCampo;
   value: unknown;
   error?: string | undefined;
+  specifyValue?: unknown;
+  specifyError?: string | undefined;
   onChange: (value: unknown) => void;
+  onSpecifyChange?: (value: unknown) => void;
   readOnly?: boolean;
+}
+
+function selectedList(value: unknown): string[] {
+  if (Array.isArray(value))
+    return value.filter((v): v is string => typeof v === "string");
+  if (typeof value === "string" && value.length > 0) return [value];
+  return [];
 }
 
 export function FormField({
   campo,
   value,
   error,
+  specifyValue,
+  specifyError,
   onChange,
+  onSpecifyChange,
   readOnly = false,
 }: FormFieldProps) {
   const id = `campo-${campo.id}`;
   const hasError = Boolean(error);
+  const picked = selectedList(value);
+  const showSpecify = Boolean(
+    campo.opcoes?.some((op) => op.needsSpecify && picked.includes(op.value)),
+  );
 
   return (
     <div className="space-y-1.5">
@@ -38,6 +57,10 @@ export function FormField({
         {campo.label}
         {campo.required && <span className="text-destructive ml-0.5">*</span>}
       </Label>
+
+      {campo.help ? (
+        <p className="text-xs text-muted-foreground">{campo.help}</p>
+      ) : null}
 
       {campo.tipo === "number" && (
         <div className="relative">
@@ -91,7 +114,7 @@ export function FormField({
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value || undefined)}
           disabled={readOnly}
-          rows={3}
+          rows={4}
           maxLength={campo.maxLength}
           className={cn(
             hasError && "border-destructive focus-visible:ring-destructive",
@@ -147,11 +170,60 @@ export function FormField({
         </div>
       )}
 
+      {campo.tipo === "checkbox" && (
+        <div className="flex flex-col gap-2 pt-1">
+          {campo.opcoes?.map((op) => {
+            const checked = picked.includes(op.value);
+            return (
+              <div key={op.value} className="flex items-center gap-2">
+                <Checkbox
+                  id={`${id}-${op.value}`}
+                  checked={checked}
+                  disabled={readOnly}
+                  onCheckedChange={(state) => {
+                    const on = state === true;
+                    const next = on
+                      ? [...picked, op.value]
+                      : picked.filter((v) => v !== op.value);
+                    onChange(next);
+                  }}
+                />
+                <Label
+                  htmlFor={`${id}-${op.value}`}
+                  className="font-normal text-sm cursor-pointer"
+                >
+                  {op.label}
+                </Label>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showSpecify && onSpecifyChange ? (
+        <Input
+          id={`campo-${specifyKey(campo.id)}`}
+          type="text"
+          placeholder="Qual?"
+          value={typeof specifyValue === "string" ? specifyValue : ""}
+          onChange={(e) => onSpecifyChange(e.target.value || undefined)}
+          disabled={readOnly}
+          className={cn(
+            specifyError && "border-destructive focus-visible:ring-destructive",
+          )}
+        />
+      ) : null}
+
       {hasError && (
         <p id={`${id}-error`} className="text-xs text-destructive" role="alert">
           {error}
         </p>
       )}
+      {specifyError ? (
+        <p className="text-xs text-destructive" role="alert">
+          {specifyError}
+        </p>
+      ) : null}
     </div>
   );
 }

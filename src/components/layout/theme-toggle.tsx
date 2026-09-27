@@ -1,6 +1,6 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react";
+import { Moon, Monitor, Sun } from "lucide-react";
 import { useTheme } from "@/components/layout/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,20 +9,35 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
-export function ThemeToggle(): JSX.Element {
+export function ThemeToggle({
+  placement = "header",
+}: {
+  placement?: "header" | "rail";
+}): JSX.Element {
   const { setTheme } = useTheme();
+  const rail = placement === "rail";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="h-9 w-9">
+        <Button
+          variant={rail ? "ghost" : "outline"}
+          size="icon"
+          className={cn("relative", rail ? "h-8 w-8 text-text-2" : "h-9 w-9")}
+          title="Alternar tema"
+        >
           <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
           <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           <span className="sr-only">Alternar tema</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent
+        align={rail ? "start" : "end"}
+        side={rail ? "top" : "bottom"}
+        sideOffset={8}
+      >
         <DropdownMenuItem onClick={() => setTheme("light")}>
           <Sun className="mr-2 h-4 w-4" />
           Claro
@@ -32,7 +47,7 @@ export function ThemeToggle(): JSX.Element {
           Escuro
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("system")}>
-          <span className="mr-2">💻</span>
+          <Monitor className="mr-2 h-4 w-4" />
           Sistema
         </DropdownMenuItem>
       </DropdownMenuContent>

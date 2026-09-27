@@ -20,7 +20,7 @@ const CONFIG: Record<
   },
   saving: {
     label: "Salvando...",
-    className: "text-muted-foreground animate-pulse",
+    className: "text-muted-foreground",
     Icon: Loader2,
   },
   saved: {

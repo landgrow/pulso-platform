@@ -6,6 +6,7 @@ import {
   getStaffCapabilities,
   type PlatformRole,
 } from "@/lib/supabase/platform-role-server";
+import { isActiveOrgInternal } from "@/lib/supabase/organization-server";
 import type { StaffCapabilityId } from "@/lib/auth/staff-access";
 
 /**
@@ -16,9 +17,11 @@ import type { StaffCapabilityId } from "@/lib/auth/staff-access";
 export async function getMyPlatformRole(): Promise<{
   role: PlatformRole | null;
   capabilities: StaffCapabilityId[];
+  inClientWorkspace: boolean;
 }> {
   const supabase = await createClient();
   const role = await getPlatformRole(supabase);
   const capabilities = await getStaffCapabilities(supabase);
-  return { role, capabilities };
+  const inClientWorkspace = role === null || !(await isActiveOrgInternal());
+  return { role, capabilities, inClientWorkspace };
 }

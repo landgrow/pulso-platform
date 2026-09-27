@@ -3,7 +3,8 @@
 
 /* ============================================
    PULSO Design System — Land Grow
-   Tokens: Notion + Linear, indigo de ação, lima de dado.
+   Lima (#b8f000) é marca: só sobre navy. Dado positivo/negativo
+   muda com o tema — lima neon não é texto nem barra no modo claro.
    ============================================ */
 
 @custom-variant dark (&:is(.dark *));
@@ -38,20 +39,23 @@
   --brand-navy: #111827;
   --brand-navy-deep: #0a0f1e;
 
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  --danger: #ef4444;
-  --info: #38bdf8;
+  --positive: #3d6b1f;
+  --negative: #b42318;
 
-  --chart-in: #65a30d;
-  --chart-out: #ef4444;
-  --chart-net: #6366f1;
-  --chart-tax: #d97706;
-  --chart-fee: #65a30d;
-  --chart-projeto: #6366f1;
-  --chart-edital: #0284c7;
-  --chart-outros: #64748b;
+  --success: #198754;
+  --warning: #b45309;
+  --error: #b42318;
+  --danger: #b42318;
+  --info: #0369a1;
+
+  --chart-in: #3d6b1f;
+  --chart-out: #b42318;
+  --chart-net: #4338ca;
+  --chart-tax: #b45309;
+  --chart-fee: #3d6b1f;
+  --chart-projeto: #4338ca;
+  --chart-edital: #0369a1;
+  --chart-outros: #5b6788;
   --chart-grid: var(--border);
   --chart-tick: var(--text-3);
 
@@ -90,20 +94,27 @@
 
   --brand-lime: #b8f000;
   --brand-lime-foreground: #0a0f1e;
-  --brand-teal: #1e8a9e;
-  --brand-teal-foreground: #ffffff;
+  --brand-teal: #2dd4bf;
+  --brand-teal-foreground: #0a0f1e;
   --brand-navy: #111827;
   --brand-navy-deep: #0a0f1e;
 
-  --info: #38bdf8;
+  --positive: #d4ee57;
+  --negative: #fb7185;
 
-  --chart-in: #b8f000;
-  --chart-out: #f87171;
-  --chart-net: #818cf8;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --error: #fb7185;
+  --danger: #fb7185;
+  --info: #7dd3fc;
+
+  --chart-in: #d4ee57;
+  --chart-out: #fb7185;
+  --chart-net: #a5b4fc;
   --chart-tax: #fbbf24;
-  --chart-fee: #b8f000;
-  --chart-projeto: #818cf8;
-  --chart-edital: #38bdf8;
+  --chart-fee: #d4ee57;
+  --chart-projeto: #a5b4fc;
+  --chart-edital: #7dd3fc;
   --chart-outros: #6b7699;
   --chart-grid: var(--border);
   --chart-tick: var(--text-3);
@@ -131,6 +142,8 @@
   --color-brand-teal-foreground: var(--brand-teal-foreground);
   --color-brand-navy: var(--brand-navy);
   --color-brand-navy-deep: var(--brand-navy-deep);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-error: var(--error);
@@ -163,6 +176,23 @@ body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   font-variant-numeric: tabular-nums;
   min-height: 100vh;
+}
+
+@keyframes ws-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.ws-panel-in {
+  animation: ws-panel-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

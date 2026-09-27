@@ -1,11 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { upsertColecao } from "@/app/actions/colecoes";
 import { useAutoSave } from "@/hooks/use-auto-save";
-import { FORMULARIO_BLOCOS } from "@/lib/formulario-questions";
-import { calcProgresso } from "@/lib/validations/formulario";
-import type { FormularioPayload } from "@/lib/validations/formulario";
+import {
+  BIN_V2_INSTRUMENT,
+  binInstrument,
+  binSectionToBloco,
+  calcBinProgress,
+  getBinQuestion,
+  isQuestionVisible,
+  parseBinAnswers,
+  pruneHiddenAnswers,
+} from "@/lib/bin-v2";
+import type { BinAnswers } from "@/lib/bin-v2";
 import { ProgressBar } from "./progress-bar";
 import { AutoSaveIndicator } from "./auto-save-indicator";
 import { FormBlocoArea } from "./form-bloco-area";
@@ -14,8 +22,7 @@ import { toast } from "sonner";
 
 interface FormularioClientProps {
   periodoId: string;
-  /** Payload inicial carregado do banco (se já existir) */
-  initialPayload?: Partial<FormularioPayload>;
+  initialPayload?: Partial<BinAnswers>;
   readOnly?: boolean;
 }
 
@@ -24,59 +31,68 @@ export function FormularioClient({
   initialPayload = {},
   readOnly = false,
 }: FormularioClientProps) {
-  const [values, setValues] =
-    useState<Partial<FormularioPayload>>(initialPayload);
+  const [values, setValues] = useState<BinAnswers>(
+    () => initialPayload as BinAnswers,
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Auto-save
+  const blocos = useMemo(
+    () => binInstrument.sections.map(binSectionToBloco),
+    [],
+  );
+
   const handleSave = useCallback(
-    async (payload: Partial<FormularioPayload>) => {
+    async (payload: BinAnswers) => {
+      const pruned = pruneHiddenAnswers(payload);
       const result = await upsertColecao({
         periodoId,
         tipo: "formulario",
-        payload,
-        metadata: { area: "formulario" },
+        payload: pruned,
+        metadata: {
+          area: "formulario",
+          instrument: BIN_V2_INSTRUMENT,
+        },
       });
       if (!result.success) {
         toast.error("Erro ao salvar", { description: result.error });
-        throw new Error(result.error); // causa o status → "error" no hook
+        throw new Error(result.error);
       }
     },
     [periodoId],
   );
 
-  const { save, status } = useAutoSave<Partial<FormularioPayload>>({
+  const { save, status } = useAutoSave<BinAnswers>({
     onSave: handleSave,
     debounceMs: 1500,
   });
 
-  // Trigger auto-save quando values mudam
   useEffect(() => {
     if (!readOnly) {
       save(values);
     }
   }, [values, readOnly, save]);
 
-  // Handler por campo
   const handleFieldChange = useCallback((id: string, value: unknown) => {
-    setValues((prev) => ({ ...prev, [id]: value }));
-    // Limpa erro do campo quando o usuário começa a digitar
+    setValues((prev) => {
+      const next: BinAnswers = {
+        ...prev,
+        [id]: value as BinAnswers[string],
+      };
+      return pruneHiddenAnswers(next);
+    });
     setErrors((prev) => {
-      if (prev[id]) {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      }
-      return prev;
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
     });
   }, []);
 
-  const progresso = calcProgresso(values);
+  const progresso = calcBinProgress(values);
   const canMarkReady = progresso === 100 && !readOnly;
 
   return (
     <div className="space-y-6">
-      {/* Header: progresso + indicador de save */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1">
           <ProgressBar percent={progresso} />
@@ -91,9 +107,8 @@ export function FormularioClient({
         </div>
       )}
 
-      {/* Blocos por área */}
       <div className="space-y-4">
-        {FORMULARIO_BLOCOS.map((bloco) => (
+        {blocos.map((bloco, index) => (
           <FormBlocoArea
             key={bloco.area}
             bloco={bloco}
@@ -101,19 +116,28 @@ export function FormularioClient({
             errors={errors}
             onChange={handleFieldChange}
             readOnly={readOnly}
+            defaultOpen={index === 0}
+            isVisible={(questionId) => {
+              const q = getBinQuestion(questionId);
+              return q ? isQuestionVisible(q, values) : true;
+            }}
           />
         ))}
       </div>
 
-      {/* Botão "Marcar como pronto para análise" */}
       {canMarkReady && !readOnly && (
         <div className="flex justify-end pt-2">
           <Button
-            onClick={async () => {
-              // TODO: chamar markReadyForAnalysis
+            onClick={() => {
+              const parsed = parseBinAnswers(values);
+              if (!parsed.success) {
+                setErrors(parsed.errors);
+                toast.error("Ainda falta responder alguma pergunta visível.");
+                return;
+              }
               toast.success("Formulário completo!", {
                 description:
-                  "O formulário está 100% preenchido. Use o botão no painel do período para marcar como pronto para análise.",
+                  "Use o botão no painel do período para marcar como pronto para análise.",
               });
             }}
           >

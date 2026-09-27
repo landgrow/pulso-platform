@@ -3,10 +3,7 @@ import Link from "next/link";
 import { getPeriod } from "@/app/actions/periods";
 import { requireOrganization } from "@/lib/supabase/organization-server";
 import { createClient } from "@/lib/supabase/server";
-import {
-  calcProgresso,
-  type FormularioPayload,
-} from "@/lib/validations/formulario";
+import { binProgressFromPayload } from "@/lib/bin-v2";
 import { StatusBadge } from "@/components/collections/periodo/status-badge";
 import { CardColetaTipo } from "@/components/collections/periodo/card-coleta-tipo";
 import { BotaoMarcarPronto } from "@/components/collections/periodo/botao-marcar-pronto";
@@ -59,7 +56,7 @@ export default async function PeriodoPage({
     (c) => c.tipo === "formulario" && c.status !== "descartado",
   );
   const formularioProgresso = formularioColecao
-    ? calcProgresso(formularioColecao.payload as Partial<FormularioPayload>)
+    ? binProgressFromPayload(formularioColecao.payload)
     : 0;
 
   const textosAtivos = colecoes.filter(

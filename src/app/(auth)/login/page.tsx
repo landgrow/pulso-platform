@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,7 +93,14 @@ function LoginFormContent(): JSX.Element {
       }
 
       toast.success("Login realizado com sucesso!");
-      router.push("/dashboard");
+      const next = searchParams.get("redirectTo");
+      const dest =
+        result.redirectTo !== "/dashboard"
+          ? result.redirectTo
+          : next && next.startsWith("/") && !next.startsWith("//")
+            ? next
+            : "/dashboard";
+      router.push(dest);
       router.refresh();
     } catch {
       toast.error("Erro ao fazer login. Tente novamente.");
@@ -126,11 +134,7 @@ function LoginFormContent(): JSX.Element {
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
         <div className="flex items-center gap-2 mb-2">
-          <div className="h-8 w-8 rounded-lg bg-brand-lime flex items-center justify-center">
-            <span className="text-brand-lime-foreground font-bold text-sm">
-              LG
-            </span>
-          </div>
+          <BrandMark />
           <span className="text-xl font-semibold text-text-1">PULSO</span>
         </div>
         <CardTitle className="text-2xl">Entrar</CardTitle>
@@ -231,11 +235,7 @@ function LoginFormFallback(): JSX.Element {
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
         <div className="flex items-center gap-2 mb-2">
-          <div className="h-8 w-8 rounded-lg bg-brand-lime flex items-center justify-center">
-            <span className="text-brand-lime-foreground font-bold text-sm">
-              LG
-            </span>
-          </div>
+          <BrandMark />
           <span className="text-xl font-semibold text-text-1">PULSO</span>
         </div>
         <CardTitle className="text-2xl">Entrar</CardTitle>

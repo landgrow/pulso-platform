@@ -39,7 +39,7 @@ export function CrmShell({ orgId }: { orgId: string }): JSX.Element {
   }
 
   return (
-    <div className="flex items-stretch">
+    <div className="flex w-full min-w-0 items-stretch">
       <CollapsibleSubnav storageKey="pulso-nav-crm">
         <aside className="flex h-full min-h-[calc(100vh-9rem)] flex-col border-r border-border bg-surface-1">
           <div className="flex-1 overflow-y-auto p-2">
@@ -105,7 +105,7 @@ export function CrmShell({ orgId }: { orgId: string }): JSX.Element {
         </aside>
       </CollapsibleSubnav>
 
-      <div className="flex-1 min-w-0 pl-4">
+      <div className="min-w-0 w-full flex-1 pl-3 sm:pl-4">
         {nav.kind === "metricas" && (
           <AtividadesDashboard
             orgId={orgId}

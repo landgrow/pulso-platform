@@ -4,3 +4,4 @@ export { CashflowChart } from "./cashflow-chart";
 export { FinanceCharts } from "./finance-charts";
 export { MonthSplitChart } from "./month-split-chart";
 export { OriginMixChart, StatusDonut } from "./origin-mix-chart";
+export { SparkBars } from "./spark-bars";

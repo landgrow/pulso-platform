@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { ACTIVE_ORG_COOKIE, resolveHomePath } from "@/lib/auth/client-portal";
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   // `res` precisa ser reatribuível (let, não const) — o setAll abaixo troca a
@@ -109,6 +110,25 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(url);
   }
 
+  // Cliente não usa o painel interno. A empresa dele abre em /{slug}.
+  if (
+    user &&
+    (pathname === "/dashboard" || pathname === "/login") &&
+    !isManualLogin
+  ) {
+    const home = await resolveHomePath(
+      supabase,
+      user.id,
+      request.cookies.get(ACTIVE_ORG_COOKIE)?.value ?? null,
+    );
+    if (home !== "/dashboard" && home !== pathname) {
+      const url = request.nextUrl.clone();
+      url.pathname = home;
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Autenticado em rota pública — vai para dashboard. Exceto home e /preview:
   // o protótipo estático é só uma referência visual, não uma tela de auth —
   // não faz sentido expulsar quem está logado de lá pro dashboard.
@@ -116,6 +136,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     isPublicRoute &&
     user &&
     pathname !== "/" &&
+    pathname !== "/login" &&
     pathname !== "/privacy" &&
     pathname !== "/terms" &&
     !pathname.startsWith("/preview") &&

@@ -1,0 +1,149 @@
+{
+  "source": "http://localhost:3000",
+  "pages_analyzed": 4,
+  "pages": [
+    "http://localhost:3000/login",
+    "http://localhost:3000/dashboard",
+    "http://localhost:3000/admin/atividades",
+    "http://localhost:3000/admin/financeiro"
+  ],
+  "tokens": {
+    "spacing": {
+      "scale": [4, 8, 12, 16, 24, 32],
+      "base_unit": 4,
+      "notes": "8px and 12px dominate counts. 6px and 10px appear in the sidebar rail — off-grid."
+    },
+    "typography": {
+      "families": ["Inter"],
+      "scale": [
+        {
+          "role": "hero-kpi",
+          "size": "32px",
+          "weight": "600",
+          "family": "Inter",
+          "features": "tabular-nums"
+        },
+        {
+          "role": "h1",
+          "size": "24px–28px",
+          "weight": "600",
+          "family": "Inter",
+          "letterSpacing": "-0.6px to -0.7px"
+        },
+        {
+          "role": "h3-section",
+          "size": "20px",
+          "weight": "600",
+          "family": "Inter",
+          "letterSpacing": "-0.5px"
+        },
+        {
+          "role": "nav-brand",
+          "size": "18px",
+          "weight": "600",
+          "family": "Inter"
+        },
+        {
+          "role": "body",
+          "size": "14px",
+          "weight": "400–500",
+          "family": "Inter"
+        },
+        {
+          "role": "ui-label",
+          "size": "12px",
+          "weight": "500",
+          "family": "Inter"
+        },
+        {
+          "role": "micro",
+          "size": "11px",
+          "weight": "500–600",
+          "family": "Inter"
+        }
+      ]
+    },
+    "colors": [
+      { "role": "canvas-dark", "value": "#0a0f1e" },
+      { "role": "surface-dark", "value": "#111827" },
+      { "role": "surface-2-dark", "value": "#1a2340" },
+      { "role": "border-dark", "value": "#26304d" },
+      { "role": "text-1-dark", "value": "#e8ecf5" },
+      { "role": "text-2-dark", "value": "#9aa5c0" },
+      { "role": "text-3-dark", "value": "#6b7699" },
+      { "role": "canvas-light", "value": "#f7f8fb" },
+      { "role": "surface-light", "value": "#ffffff" },
+      { "role": "text-1-light", "value": "#1a2340" },
+      { "role": "text-2-light", "value": "#5b6788" },
+      { "role": "interactive", "value": "#6366f1" },
+      { "role": "brand-lime", "value": "#b8f000" },
+      { "role": "brand-navy", "value": "#111827" },
+      { "role": "positive-dark", "value": "#d4ee57" },
+      { "role": "negative-dark", "value": "#fb7185" },
+      { "role": "positive-light", "value": "#3d6b1f" },
+      { "role": "negative-light", "value": "#b42318" }
+    ],
+    "radius": ["4px", "8px", "12px", "16px", "9999px"],
+    "shadows": [
+      "cards: none — grouping is 1px border + surface step",
+      "selected nav: 0 0 0 1px indigo/lime at ~0.3–0.4 alpha (ring, not drop)",
+      "task-modal: shadow-2xl (local overlay exception)"
+    ],
+    "image_ratios": [],
+    "grid": {
+      "max_width": "none",
+      "sidebar": "224px",
+      "main": "1216px at 1440 viewport (32px padding)",
+      "columns": 2,
+      "gutter": "16px (HQ charts) / 24px (WorkSmart SMART|KR)"
+    }
+  },
+  "taste": [
+    {
+      "name": "Lime is the mark, indigo is the control",
+      "trigger": "When placing brand color on a button, KPI, chart, or nav item",
+      "decision": "Keep #b8f000 on the LG glyph sitting on navy. Route interaction through #6366f1. On light surfaces, money-in is olive #3d6b1f — never lime text.",
+      "reason": "A consultant staring at cash all day cannot have a highlighter as body type. The mark needs to stay a mark.",
+      "evidence": [
+        "Across Atividades + Financeiro + Dashboard, lime text count = 1 (the wordmark)",
+        "lime/yellow fills occupy ~0.1% area; indigo fills ~0.1–0.5%",
+        "canvas+surface navy/gray occupy 95%+ of areaPct",
+        "globals.css comment: lima só sobre navy"
+      ]
+    },
+    {
+      "name": "Planes, not drop shadows",
+      "trigger": "When grouping a card, chart, or SMART block",
+      "decision": "Stack #0a0f1e → #111827 → #1a2340 with 1px #26304d borders and 12–16px radii. Do not lift cards with blur shadows.",
+      "reason": "Ops HQ is a desk, not a storefront. Elevation theater reads as a template the moment the data is the product.",
+      "evidence": [
+        "extractor cards.shadow = null on Atividades dl and Financeiro sections",
+        "surface-1 #111827 is 56–61% of painted area on HQ/Financeiro",
+        "perceivable depth is the 1px oklab ring on the selected nav item, not a drop"
+      ]
+    },
+    {
+      "name": "Inter at 11–14px is the working size",
+      "trigger": "When setting type for tables, KR lists, nav, and chart ticks",
+      "decision": "One family (Inter). Body 14px/400–500. Labels 11–12px. Page titles 24–28px/600 with -0.6px tracking. Skip a display face and skip 16px-as-default.",
+      "reason": "The user is comparing numbers and statuses, not reading an essay. 16px body would push two KR cards off the 900px viewport.",
+      "evidence": [
+        "Inter count 268–377 per page, zero second family",
+        "sizeDistribution peak 14px then 12px then 11px",
+        "weightDistribution 400 and 500 carry the page; 700 appears once (wordmark)",
+        "h1 letter-spacing -0.6px / -0.7px"
+      ]
+    },
+    {
+      "name": "Login is a split; the product is a rail",
+      "trigger": "When designing an unauthenticated vs authenticated surface",
+      "decision": "Login: 50/50 navy brand panel + white form, no chrome. App: 224px rail, no top header, Administração inside the PULSO block.",
+      "reason": "The first screen sells Land Grow. Every screen after that is work. Putting a marketing header over the dashboard would steal height from the cash row.",
+      "evidence": [
+        "login screenshot: navy left (LG + PULSO + line + Land Grow), white right form",
+        "authenticated layout: sidebar 224px, main 1216px, no desktop header",
+        "nav labels 14px/500, selected state indigo/10 fill + 1px ring"
+      ]
+    }
+  ]
+}

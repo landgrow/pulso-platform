@@ -8,6 +8,8 @@ import {
   Radar,
   Briefcase,
   ClipboardList,
+  UserPlus,
+  FileText,
 } from "lucide-react";
 import {
   Card,
@@ -18,7 +20,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import { FORMULARIO_BLOCOS } from "@/lib/formulario-questions";
 import {
   PROGRAMA_LABELS,
   TEAM_ROLE_LABELS,
@@ -26,15 +27,26 @@ import {
 } from "@/types/clientes";
 import type { BinSummary } from "@/app/actions/bin";
 import type { MinSummary } from "@/app/actions/min";
+import { BinHqReview } from "@/components/bin/bin-hq-review";
+import { MinResults } from "@/components/admin/min-results";
 import { AtividadesShell } from "@/components/atividades/atividades-shell";
 import { MindMapCanvas } from "@/components/mindmaps/mind-map-canvas";
 import { CrmShell } from "@/components/crm/crm-shell";
+import { FadeSwap } from "@/components/ui/fade-swap";
 import { AddTeamMemberForm } from "./add-team-member-form";
 import { RemoveTeamMemberButton } from "./remove-team-member-button";
 import { ContratoForm } from "./contrato-form";
 import { EncerrarContratoButton } from "./encerrar-contrato-button";
 
-type Tab = "visao-geral" | "atividades" | "mapa-mental" | "crm";
+type Tab =
+  | "visao-geral"
+  | "usuarios"
+  | "contratos"
+  | "bin"
+  | "min"
+  | "atividades"
+  | "mapa-mental"
+  | "crm";
 
 interface Props {
   orgId: string;
@@ -60,13 +72,37 @@ export function AdminClienteTabs({
   const [tab, setTab] = useState<Tab>("visao-geral");
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <div className="flex items-center gap-1 border-b border-border overflow-x-auto">
         <TabButton
           icon={<LayoutGrid className="h-4 w-4" />}
           label="Visão Geral"
           active={tab === "visao-geral"}
           onClick={() => setTab("visao-geral")}
+        />
+        <TabButton
+          icon={<UserPlus className="h-4 w-4" />}
+          label="Usuários"
+          active={tab === "usuarios"}
+          onClick={() => setTab("usuarios")}
+        />
+        <TabButton
+          icon={<FileText className="h-4 w-4" />}
+          label="Contratos"
+          active={tab === "contratos"}
+          onClick={() => setTab("contratos")}
+        />
+        <TabButton
+          icon={<Radar className="h-4 w-4" />}
+          label="BIN"
+          active={tab === "bin"}
+          onClick={() => setTab("bin")}
+        />
+        <TabButton
+          icon={<Briefcase className="h-4 w-4" />}
+          label="MIN"
+          active={tab === "min"}
+          onClick={() => setTab("min")}
         />
         <TabButton
           icon={<ClipboardList className="h-4 w-4" />}
@@ -88,236 +124,258 @@ export function AdminClienteTabs({
         />
       </div>
 
-      {tab === "visao-geral" && (
-        <VisaoGeralTab
-          orgId={orgId}
-          entry={entry}
-          bin={bin}
-          min={min}
-          viewerRole={viewerRole}
-          isEncerrado={isEncerrado}
-        />
-      )}
-      {tab === "atividades" && <AtividadesShell orgId={orgId} />}
-      {tab === "mapa-mental" && <MindMapCanvas orgId={orgId} />}
-      {tab === "crm" &&
-        (internalOrgId ? (
-          <CrmShell orgId={internalOrgId} />
-        ) : (
-          <p className="text-sm text-text-2">
-            Organização interna não encontrada. Rode a migration
-            0012_operacao_interna.sql no Supabase.
-          </p>
-        ))}
+      <FadeSwap swapKey={tab}>
+        {tab === "visao-geral" && <VisaoGeralTab entry={entry} />}
+        {tab === "usuarios" && (
+          <UsuariosTab
+            orgId={orgId}
+            entry={entry}
+            viewerRole={viewerRole}
+            isEncerrado={isEncerrado}
+          />
+        )}
+        {tab === "contratos" && (
+          <ContratosTab
+            entry={entry}
+            viewerRole={viewerRole}
+            isEncerrado={isEncerrado}
+          />
+        )}
+        {tab === "bin" && <BinTab bin={bin} />}
+        {tab === "min" && <MinTab min={min} />}
+        {tab === "atividades" && <AtividadesShell orgId={orgId} />}
+        {tab === "mapa-mental" && <MindMapCanvas orgId={orgId} />}
+        {tab === "crm" &&
+          (internalOrgId ? (
+            <CrmShell orgId={internalOrgId} />
+          ) : (
+            <p className="text-sm text-text-2">
+              Organização interna não encontrada. Rode a migration
+              0012_operacao_interna.sql no Supabase.
+            </p>
+          ))}
+      </FadeSwap>
     </div>
   );
 }
 
 function VisaoGeralTab({
+  entry,
+}: {
+  entry: ClientDirectoryEntry | null;
+}): JSX.Element {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Dados gerais</CardTitle>
+        <CardDescription>
+          Quem é o dono. Usuários, contratos, BIN e MIN ficam nas abas ao lado.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p className="text-xs text-text-2 mb-1">Dono</p>
+        <p className="text-sm">
+          {entry?.owner_name ?? entry?.owner_email ?? "—"}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function UsuariosTab({
   orgId,
   entry,
-  bin,
-  min,
   viewerRole,
   isEncerrado,
-}: Omit<Props, "internalOrgId">): JSX.Element {
+}: Pick<Props, "orgId" | "entry" | "viewerRole" | "isEncerrado">): JSX.Element {
   return (
-    <div className="space-y-6">
-      {/* Dados gerais */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Dados gerais</CardTitle>
-          <CardDescription>
-            Dono, time e contratos deste cliente.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <p className="text-xs text-text-2 mb-1">Dono</p>
-            <p className="text-sm">
-              {entry?.owner_name ?? entry?.owner_email ?? "—"}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs text-text-2 mb-2">
-              Time ({entry?.members.length ?? 0})
-            </p>
-            {!entry || entry.members.length === 0 ? (
-              <p className="text-sm text-text-2">—</p>
-            ) : (
-              <div className="space-y-2">
-                {entry.members.map((m) => (
-                  <div
-                    key={m.user_id}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-1 px-4 py-2.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm truncate">{m.email}</p>
-                      <p className="text-xs text-text-2">
-                        {TEAM_ROLE_LABELS[m.role]}
-                      </p>
-                    </div>
-                    {viewerRole === "platform_admin" &&
-                      m.role !== "client_owner" && (
-                        <RemoveTeamMemberButton
-                          orgId={orgId}
-                          userId={m.user_id}
-                          email={m.email}
-                        />
-                      )}
-                  </div>
-                ))}
-              </div>
-            )}
-            {viewerRole === "platform_admin" && !isEncerrado && (
-              <div className="mt-4 pt-4 border-t border-border">
-                <p className="text-sm font-medium mb-3">Adicionar ao time</p>
-                <AddTeamMemberForm orgId={orgId} />
-              </div>
-            )}
-          </div>
-
-          <div className="pt-2 border-t border-border">
-            <p className="text-xs text-text-2 mb-2">Contratos</p>
-            {!entry || entry.contratos.length === 0 ? (
-              <p className="text-sm text-text-2">
-                Nenhum contrato registrado ainda.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {entry.contratos.map((c) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-1 px-4 py-3"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">
-                        {PROGRAMA_LABELS[c.programa]}
-                      </p>
-                      <p className="text-xs text-text-2">
-                        {formatCurrency(c.valor, c.moeda)} ·{" "}
-                        {formatDate(c.data_inicio)}
-                        {c.data_fim
-                          ? ` → ${formatDate(c.data_fim)}`
-                          : " → em andamento"}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={
-                          c.status === "ativo"
-                            ? "success"
-                            : c.status === "pausado"
-                              ? "warning"
-                              : "outline"
-                        }
-                      >
-                        {c.status}
-                      </Badge>
-                      {c.status === "ativo" &&
-                        viewerRole === "platform_admin" && (
-                          <EncerrarContratoButton contratoId={c.id} />
-                        )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {viewerRole === "platform_admin" &&
-            entry?.cliente_id &&
-            !isEncerrado && (
-              <div className="pt-2 border-t border-border">
-                <p className="text-sm font-medium mb-3">Novo contrato</p>
-                <ContratoForm clienteId={entry.cliente_id} />
-              </div>
-            )}
-        </CardContent>
-      </Card>
-
-      {/* BIN — dado real, vem do Motor de Coleções */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Radar className="h-5 w-5 text-text-2" />
-            <CardTitle className="text-lg">BIN</CardTitle>
-            {bin?.periodoLabel && (
-              <Badge variant="outline" className="text-text-2">
-                {bin.periodoLabel}
-              </Badge>
-            )}
-          </div>
-          <CardDescription>
-            Business Insights Navigator — diagnóstico dos 6 setores.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!bin?.payload ? (
-            <p className="text-sm text-text-2">
-              Este cliente ainda não respondeu o formulário de diagnóstico.
-            </p>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {FORMULARIO_BLOCOS.map((bloco) => (
-                <div
-                  key={bloco.area}
-                  className="rounded-lg border border-border bg-surface-1 p-4"
-                >
-                  <p className="text-sm font-medium mb-2">{bloco.area}</p>
-                  <div className="space-y-2">
-                    {bloco.perguntas.map((campo) => {
-                      const raw =
-                        bin.payload?.[campo.id as keyof typeof bin.payload];
-                      const opt = campo.opcoes?.find((o) => o.value === raw);
-                      const display =
-                        raw === undefined || raw === null || raw === ""
-                          ? "—"
-                          : (opt?.label ??
-                            (campo.sufixo
-                              ? `${raw} ${campo.sufixo}`
-                              : String(raw)));
-                      return (
-                        <div key={campo.id}>
-                          <p className="text-xs text-text-2">{campo.label}</p>
-                          <p className="text-sm">{display}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Usuários</CardTitle>
+        <CardDescription>
+          Quem entra no PULSO desta empresa. {entry?.members.length ?? 0} no
+          time.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!entry || entry.members.length === 0 ? (
+          <p className="text-sm text-text-2">Nenhum usuário ainda.</p>
+        ) : (
+          <div className="space-y-2">
+            {entry.members.map((m) => (
+              <div
+                key={m.user_id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-1 px-4 py-2.5"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm truncate">{m.email}</p>
+                  <p className="text-xs text-text-2">
+                    {TEAM_ROLE_LABELS[m.role]}
+                  </p>
                 </div>
-              ))}
+                {viewerRole === "platform_admin" &&
+                  m.role !== "client_owner" && (
+                    <RemoveTeamMemberButton
+                      orgId={orgId}
+                      userId={m.user_id}
+                      email={m.email}
+                    />
+                  )}
+              </div>
+            ))}
+          </div>
+        )}
+        {viewerRole === "platform_admin" && !isEncerrado && (
+          <div className="pt-4 border-t border-border">
+            <p className="text-sm font-medium mb-3">Cadastrar usuário</p>
+            <AddTeamMemberForm orgId={orgId} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ContratosTab({
+  entry,
+  viewerRole,
+  isEncerrado,
+}: Pick<Props, "entry" | "viewerRole" | "isEncerrado">): JSX.Element {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Contratos</CardTitle>
+        <CardDescription>Programa e valor deste cliente.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!entry || entry.contratos.length === 0 ? (
+          <p className="text-sm text-text-2">
+            Nenhum contrato registrado ainda.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {entry.contratos.map((c) => (
+              <div
+                key={c.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-1 px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium">
+                    {PROGRAMA_LABELS[c.programa]}
+                  </p>
+                  <p className="text-xs text-text-2">
+                    {formatCurrency(c.valor, c.moeda)} ·{" "}
+                    {formatDate(c.data_inicio)}
+                    {c.data_fim
+                      ? ` → ${formatDate(c.data_fim)}`
+                      : " → em andamento"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant={
+                      c.status === "ativo"
+                        ? "success"
+                        : c.status === "pausado"
+                          ? "warning"
+                          : "outline"
+                    }
+                  >
+                    {c.status}
+                  </Badge>
+                  {c.status === "ativo" && viewerRole === "platform_admin" && (
+                    <EncerrarContratoButton contratoId={c.id} />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {viewerRole === "platform_admin" &&
+          entry?.cliente_id &&
+          !isEncerrado && (
+            <div className="pt-4 border-t border-border">
+              <p className="text-sm font-medium mb-3">Novo contrato</p>
+              <ContratoForm clienteId={entry.cliente_id} />
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardContent>
+    </Card>
+  );
+}
 
-      {/* MIN — schema existe, mas ainda sem formulário de entrada */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Briefcase className="h-5 w-5 text-text-2" />
-            <CardTitle className="text-lg">MIN</CardTitle>
-          </div>
-          <CardDescription>
-            Modelo Integrado de Negócios — {min?.blocosPreenchidos ?? 0} de 13
-            blocos preenchidos
-            {min?.ultimaAtualizacao
-              ? ` · atualizado em ${formatDate(min.ultimaAtualizacao)}`
-              : ""}
-            .
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+function BinTab({ bin }: { bin: BinSummary | null }): JSX.Element {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Radar className="h-5 w-5 text-text-2" />
+          <CardTitle className="text-lg">BIN</CardTitle>
+        </div>
+        <CardDescription>
+          Cada bloco enviado pelo cliente chega aqui, com as respostas.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!bin?.payload && (bin?.flow.events.length ?? 0) === 0 ? (
           <p className="text-sm text-text-2">
-            {min && min.blocosPreenchidos > 0
-              ? "Conteúdo preenchido — a tela de detalhe por bloco chega no Épico 3."
-              : "Ainda não existe formulário pra preencher os blocos do MIN — próxima parte do Épico 3."}
+            Ainda sem respostas. Quando o cliente enviar o diagnóstico geral ou
+            um setor, o texto aparece nesta aba.
           </p>
-        </CardContent>
-      </Card>
-    </div>
+        ) : (
+          <BinHqReview
+            payload={bin?.payload ?? {}}
+            route={bin?.route ?? null}
+            flow={
+              bin?.flow ?? {
+                geralEnviadoEm: null,
+                diagnosticoEnviadoEm: null,
+                setoresEnviados: {},
+                events: [],
+              }
+            }
+            periodoLabel={bin?.periodoLabel ?? null}
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MinTab({ min }: { min: MinSummary | null }): JSX.Element {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Briefcase className="h-5 w-5 text-text-2" />
+          <CardTitle className="text-lg">MIN</CardTitle>
+        </div>
+        <CardDescription>
+          {min?.blocosPreenchidos ?? 0} de 13 blocos recebidos
+          {min?.ultimaAtualizacao
+            ? ` · atualizado em ${formatDate(min.ultimaAtualizacao)}`
+            : ""}
+          .
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <MinResults
+          title={null}
+          lead={null}
+          showOrg={false}
+          items={(min?.blocos ?? []).map((bloco) => ({
+            id: bloco.bloco,
+            orgName: "",
+            orgSlug: "",
+            href: "",
+            nome: bloco.nome,
+            updatedAt: bloco.updatedAt,
+            perguntas: bloco.perguntas,
+          }))}
+          empty="Ainda sem bloco concluído. Quando o cliente terminar um bloco, as respostas aparecem nesta aba."
+        />
+      </CardContent>
+    </Card>
   );
 }
 

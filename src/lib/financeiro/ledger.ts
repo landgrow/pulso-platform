@@ -66,6 +66,80 @@ export function monthLabel(month: string): string {
   return `${label.replace(".", "")} ${year}`;
 }
 
+export type FinanceRange = "7d" | "30d" | "90d" | "12m" | "year";
+
+export const FINANCE_RANGE_OPTIONS: { value: FinanceRange; label: string }[] = [
+  { value: "7d", label: "Últimos 7 dias" },
+  { value: "30d", label: "Últimos 30 dias" },
+  { value: "90d", label: "Últimos 90 dias" },
+  { value: "12m", label: "Últimos 12 meses" },
+  { value: "year", label: "Ano inteiro" },
+];
+
+export function rangeLabel(range: FinanceRange, year?: number): string {
+  if (range === "year" && year != null) return `Ano ${year}`;
+  return (
+    FINANCE_RANGE_OPTIONS.find((option) => option.value === range)?.label ??
+    range
+  );
+}
+
+export function periodCaption(
+  range: FinanceRange,
+  year: number,
+  now = new Date(),
+): string {
+  if (range === "year") return `Ano ${year}`;
+  const base = rangeLabel(range);
+  return year === now.getFullYear() ? base : `${base} · ${year}`;
+}
+
+export function financeYears(
+  dates: Array<{ competenceDate: string }>,
+  now = new Date(),
+): number[] {
+  const current = now.getFullYear();
+  const years = new Set<number>();
+  for (let year = current; year >= current - 5; year -= 1) {
+    years.add(year);
+  }
+  for (const row of dates) {
+    const year = Number(row.competenceDate.slice(0, 4));
+    if (Number.isFinite(year) && year >= 2000 && year <= current + 1) {
+      years.add(year);
+    }
+  }
+  return [...years].sort((a, b) => b - a);
+}
+
+export function inDateRange(iso: string, from: string, to: string): boolean {
+  const day = iso.slice(0, 10);
+  return day >= from && day <= to;
+}
+
+export function rangeBounds(
+  range: FinanceRange,
+  now = new Date(),
+  year?: number,
+): { from: string; to: string } {
+  const selectedYear = year ?? now.getFullYear();
+  const end =
+    selectedYear === now.getFullYear() ? now : new Date(selectedYear, 11, 31);
+  const to = todayIso(end);
+
+  if (range === "year") {
+    return { from: `${selectedYear}-01-01`, to };
+  }
+  if (range === "12m") {
+    const start = new Date(end.getFullYear(), end.getMonth() - 11, 1);
+    return { from: todayIso(start), to };
+  }
+  const start = new Date(end);
+  const days = range === "7d" ? 6 : range === "30d" ? 29 : 89;
+  start.setDate(start.getDate() - days);
+  return { from: todayIso(start), to };
+}
+
 export function lastMonths(month: string, count: number): string[] {
   const parts = month.split("-");
   const year = Number(parts[0]);
@@ -149,6 +223,42 @@ export function summarizeMonth(
   };
 }
 
+export function summarizeRange(
+  lines: Array<{
+    kind: FinanceEntryKind;
+    status: FinanceEntryStatus;
+    amount: number;
+    taxAmount: number;
+    competenceDate: string;
+  }>,
+  from: string,
+  to: string,
+): MonthBalance {
+  let entradas = 0;
+  let impostosNotas = 0;
+  let saidas = 0;
+
+  for (const line of lines) {
+    if (line.status === "cancelado") continue;
+    if (!inDateRange(line.competenceDate, from, to)) continue;
+    if (line.kind === "entrada") {
+      entradas += line.amount;
+      impostosNotas += line.taxAmount;
+    } else {
+      saidas += line.amount;
+    }
+  }
+
+  const liquido = entradas - impostosNotas;
+  return {
+    entradas,
+    impostosNotas,
+    saidas,
+    liquido,
+    balanco: liquido - saidas,
+  };
+}
+
 export const EMPTY_MONTH_BALANCE: MonthBalance = {
   entradas: 0,
   impostosNotas: 0,
@@ -170,11 +280,28 @@ export function sumEntradasPorOrigem(
   const totals: Partial<Record<FinanceEntryOrigin, number>> = {};
   for (const line of lines) {
     if (line.status === "cancelado" || line.kind !== "entrada") continue;
-    if (monthKey(line.competenceDate) !== month) continue;
+    if (month && monthKey(line.competenceDate) !== month) continue;
     const origin = line.origin ?? "outros";
     totals[origin] = (totals[origin] ?? 0) + line.amount;
   }
   return totals;
+}
+
+export function sumEntradasPorOrigemInRange(
+  lines: Array<{
+    kind: FinanceEntryKind;
+    status: FinanceEntryStatus;
+    amount: number;
+    competenceDate: string;
+    origin?: FinanceEntryOrigin | null;
+  }>,
+  from: string,
+  to: string,
+): Partial<Record<FinanceEntryOrigin, number>> {
+  return sumEntradasPorOrigem(
+    lines.filter((line) => inDateRange(line.competenceDate, from, to)),
+    "",
+  );
 }
 
 export function cashflowFromLines(
@@ -208,6 +335,88 @@ export function cashflowFromLines(
       net: row.inflows - row.outflows,
     };
   });
+}
+
+function shiftDays(iso: string, days: number): string {
+  const date = new Date(`${iso}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return todayIso(date);
+}
+
+function eachDay(from: string, to: string): string[] {
+  const days: string[] = [];
+  let cursor = from;
+  while (cursor <= to) {
+    days.push(cursor);
+    cursor = shiftDays(cursor, 1);
+  }
+  return days;
+}
+
+export function cashflowFromRange(
+  lines: Array<{
+    kind: FinanceEntryKind;
+    status: FinanceEntryStatus;
+    amount: number;
+    competenceDate: string;
+  }>,
+  range: FinanceRange,
+  from: string,
+  to: string,
+): FinanceCashMonth[] {
+  if (range === "year") {
+    return cashflowFromLines(lines, `${from.slice(0, 4)}-12`, 12);
+  }
+  if (range === "12m") {
+    return cashflowFromLines(lines, to.slice(0, 7), 12);
+  }
+
+  const keys = range === "90d" ? weeklyKeys(from, to) : eachDay(from, to);
+  const map = new Map(keys.map((key) => [key, { inflows: 0, outflows: 0 }]));
+
+  for (const line of lines) {
+    if (line.status === "cancelado") continue;
+    if (!inDateRange(line.competenceDate, from, to)) continue;
+    const key =
+      range === "90d"
+        ? weekKey(line.competenceDate.slice(0, 10), keys)
+        : line.competenceDate.slice(0, 10);
+    const bucket = map.get(key);
+    if (!bucket) continue;
+    if (line.kind === "entrada") bucket.inflows += line.amount;
+    else bucket.outflows += line.amount;
+  }
+
+  return keys.map((key) => {
+    const row = map.get(key) ?? { inflows: 0, outflows: 0 };
+    const [, mm, dd] = key.split("-");
+    return {
+      month: key,
+      label: dd && mm ? `${dd}/${mm}` : key,
+      inflows: row.inflows,
+      outflows: row.outflows,
+      net: row.inflows - row.outflows,
+    };
+  });
+}
+
+function weeklyKeys(from: string, to: string): string[] {
+  const keys: string[] = [];
+  let cursor = from;
+  while (cursor <= to) {
+    keys.push(cursor);
+    cursor = shiftDays(cursor, 7);
+  }
+  return keys;
+}
+
+function weekKey(day: string, keys: string[]): string {
+  let match = keys[0] ?? day;
+  for (const key of keys) {
+    if (key <= day) match = key;
+    else break;
+  }
+  return match;
 }
 
 export function composeReceitaAtiva(input: {

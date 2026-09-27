@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   accountBalance,
   cashflowFromLines,
+  cashflowFromRange,
   composeReceitaAtiva,
   lastMonths,
   parseMoney,
+  periodCaption,
   summarizeLedger,
+  rangeBounds,
   summarizeMonth,
+  summarizeRange,
   taxOnInvoice,
 } from "@/lib/financeiro/ledger";
 
@@ -267,5 +271,113 @@ describe("financeiro ledger", () => {
         },
       ]),
     ).toBe(150);
+  });
+
+  it("opens a 7-day window ending today and sums only that range", () => {
+    const now = new Date("2026-09-22T12:00:00");
+    expect(rangeBounds("7d", now)).toEqual({
+      from: "2026-09-16",
+      to: "2026-09-22",
+    });
+    expect(rangeBounds("12m", now)).toEqual({
+      from: "2025-10-01",
+      to: "2026-09-22",
+    });
+
+    expect(
+      summarizeRange(
+        [
+          {
+            kind: "entrada",
+            status: "realizado",
+            amount: 1000,
+            taxAmount: 150,
+            competenceDate: "2026-09-20",
+          },
+          {
+            kind: "saida",
+            status: "realizado",
+            amount: 200,
+            taxAmount: 0,
+            competenceDate: "2026-09-21",
+          },
+          {
+            kind: "entrada",
+            status: "realizado",
+            amount: 9999,
+            taxAmount: 0,
+            competenceDate: "2026-08-01",
+          },
+        ],
+        "2026-09-16",
+        "2026-09-22",
+      ),
+    ).toEqual({
+      entradas: 1000,
+      impostosNotas: 150,
+      saidas: 200,
+      liquido: 850,
+      balanco: 650,
+    });
+  });
+
+  it("anchors rolling windows to another year and opens the full year", () => {
+    const now = new Date("2026-09-22T12:00:00");
+    expect(rangeBounds("7d", now, 2025)).toEqual({
+      from: "2025-12-25",
+      to: "2025-12-31",
+    });
+    expect(rangeBounds("year", now, 2025)).toEqual({
+      from: "2025-01-01",
+      to: "2025-12-31",
+    });
+    expect(rangeBounds("year", now, 2026)).toEqual({
+      from: "2026-01-01",
+      to: "2026-09-22",
+    });
+    expect(rangeBounds("12m", now, 2025)).toEqual({
+      from: "2025-01-01",
+      to: "2025-12-31",
+    });
+    expect(periodCaption("30d", 2025, now)).toBe("Últimos 30 dias · 2025");
+    expect(periodCaption("year", 2025, now)).toBe("Ano 2025");
+  });
+
+  it("builds monthly cashflow for a selected year, not the current month", () => {
+    const rows = cashflowFromRange(
+      [
+        {
+          kind: "entrada",
+          status: "realizado",
+          amount: 400,
+          competenceDate: "2025-03-10",
+        },
+        {
+          kind: "saida",
+          status: "realizado",
+          amount: 50,
+          competenceDate: "2025-03-12",
+        },
+        {
+          kind: "entrada",
+          status: "realizado",
+          amount: 9000,
+          competenceDate: "2026-09-01",
+        },
+      ],
+      "year",
+      "2025-01-01",
+      "2025-12-31",
+    );
+    expect(rows).toHaveLength(12);
+    expect(rows[0]?.month).toBe("2025-01");
+    expect(rows[11]?.month).toBe("2025-12");
+    expect(rows[2]).toMatchObject({
+      month: "2025-03",
+      inflows: 400,
+      outflows: 50,
+      net: 350,
+    });
+    expect(rows.every((row) => row.month.startsWith("2025-"))).toBe(true);
   });
 });

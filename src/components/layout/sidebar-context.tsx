@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 
 const STORAGE_KEY = "pulso-sidebar-collapsed";
 
@@ -25,6 +31,17 @@ export function SidebarProvider({
 }: SidebarProviderProps): JSX.Element {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(STORAGE_KEY) === "1") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrates from localStorage, unavailable during SSR
+        setIsCollapsed(true);
+      }
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, []);
 
   const toggle = (): void => {
     setIsCollapsed((prev) => {

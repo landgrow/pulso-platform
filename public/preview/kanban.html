@@ -31,8 +31,11 @@
     button:focus{outline:none}
     button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
     /* Rail primário — sempre só ícone, fixo (é o "app switcher" dos módulos) */
-    .sidebar-primary{width:64px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;flex-shrink:0;height:100vh;overflow-y:auto;padding:12px 0;gap:4px}
-    .primary-avatar{width:32px;height:32px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:700;flex-shrink:0;margin-bottom:10px}
+    .sidebar-primary{width:64px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;flex-shrink:0;height:100vh;overflow:hidden;padding:12px 0 8px;gap:4px}
+    .rail-scroll{flex:1;min-height:0;width:100%;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:4px}
+    .primary-avatar{width:32px;height:32px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:700;flex-shrink:0;margin-bottom:10px;border:none;cursor:pointer}
+    .primary-avatar:hover{filter:brightness(1.08)}
+    .rail-dock{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:8px;margin-top:4px;border-top:1px solid var(--border);width:100%;flex-shrink:0}
     .primary-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:56px;padding:7px 2px;border-radius:var(--radius-sm);border:none;background:none;cursor:pointer;color:var(--text-muted);transition:background 0.12s,color 0.12s}
     .primary-item:hover{background:var(--surface-hover);color:var(--text)}
     .primary-item.active{background:var(--accent-dim);color:var(--accent-dim-text)}
@@ -53,7 +56,14 @@
     body.nav-collapsed .sidebar-primary{width:52px}
     body.nav-collapsed .primary-label{display:none}
     body.nav-collapsed .primary-item{width:44px;padding:8px 0;gap:0}
-    .secondary-header{padding:16px 14px 8px;font-family:var(--font-heading);font-size:15px;font-weight:700}
+    body.nav-collapsed #navCollapseLabel{display:block;font-size:8.5px}
+    .expand-nav-fab{display:none;position:fixed;left:64px;bottom:16px;z-index:220;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:8px 12px;box-shadow:var(--shadow-lg);font-size:12px;font-weight:600;color:var(--text)}
+    body.nav-collapsed .expand-nav-fab{display:flex}
+    .expand-nav-fab svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .secondary-header{padding:16px 14px 8px;font-family:var(--font-heading);font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .secondary-collapse{flex-shrink:0;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-muted)}
+    .secondary-collapse:hover{background:var(--surface-hover);color:var(--text)}
+    .secondary-collapse svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
     .sidebar-nav{flex:1;overflow-y:auto;padding:6px 8px}
     .sidebar-section-label{font-size:11px;font-weight:600;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.06em;padding:10px 8px 4px}
     .sidebar-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--radius-sm);cursor:pointer;color:var(--text-muted);font-size:13.5px;transition:background 0.12s,color 0.12s;border:none;background:none;width:100%;text-align:left;min-height:32px}
@@ -174,10 +184,48 @@
     .dash-trend-badge.up{color:#4ade80;background:rgba(74,222,128,0.12)}
     .dash-trend-badge.down{color:#f87171;background:rgba(248,113,113,0.12)}
     .dash-trend-badge svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.5}
-    @media(max-width:900px){.dash-stats{grid-template-columns:repeat(2,1fr)}.dash-charts{grid-template-columns:1fr}}
+    .ws-wrap{width:min(1400px,94%);margin:0 auto;padding:24px 0}
+    .ws-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+    .ws-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+    .ws-chip{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:8px 12px;text-align:left;max-width:280px;cursor:pointer;font-family:inherit}
+    .ws-chip strong{display:block;font-size:13px;font-weight:600}
+    .ws-chip span{display:block;font-size:11px;color:var(--text-muted);margin-top:2px}
+    .ws-chip.active{border-color:var(--primary);background:rgba(59,130,246,0.1);color:var(--primary)}
+    .ws-chip.won{border-color:rgba(74,222,128,0.4);background:rgba(74,222,128,0.08)}
+    .ws-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px}
+    .ws-card h3{font-family:var(--font-heading);font-size:20px;font-weight:700;margin:0 0 4px}
+    .ws-meta{font-size:12px;color:var(--text-muted)}
+    .ws-progress{height:6px;border-radius:99px;background:var(--surface-hover);overflow:hidden;margin:14px 0 18px}
+    .ws-progress>span{display:block;height:100%;background:var(--primary);border-radius:99px}
+    .ws-grid{display:grid;grid-template-columns:minmax(18rem,2fr) minmax(0,3fr);gap:22px}
+    .ws-col-title{font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px}
+    .ws-smart{border:1px solid var(--border);border-radius:10px;overflow:hidden}
+    .ws-smart-row{display:grid;grid-template-columns:7rem minmax(0,1fr);gap:12px;padding:10px 12px;border-bottom:1px solid var(--border)}
+    .ws-smart-row:last-child{border-bottom:none}
+    .ws-smart-row dt{font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-faint);padding-top:8px}
+    .ws-smart-row textarea,.ws-smart-row input,.ws-draft input,.ws-kr-num{width:100%;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font:inherit;font-size:13px;padding:7px 9px}
+    .ws-smart-row textarea{min-height:58px;resize:vertical}
+    .ws-kr{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--bg)}
+    .ws-kr h4{font-size:13px;font-weight:700;margin:0 0 10px}
+    .ws-kr-vals{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .ws-kr-vals label{font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);display:block;margin-bottom:4px}
+    .ws-draft{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+    .ws-draft input{max-width:280px}
+    .metric-bar{display:flex;align-items:center;gap:10px;margin:8px 0}
+    .metric-bar span:first-child{width:140px;flex-shrink:0;font-size:13px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .metric-bar-track{flex:1;height:8px;border-radius:99px;background:var(--surface-hover);overflow:hidden}
+    .metric-bar-track>i{display:block;height:100%;background:var(--primary);border-radius:99px}
+    .metric-bar em{width:42px;text-align:right;font-size:12px;font-style:normal;color:var(--text-muted);font-variant-numeric:tabular-nums}
+    @media(max-width:900px){.dash-stats{grid-template-columns:repeat(2,1fr)}.dash-charts{grid-template-columns:1fr}.ws-grid{grid-template-columns:1fr}}
     .painel-wrap{width:min(1400px,94%);margin:0 auto;padding:24px 0}
+    .painel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}
     .painel-greeting{font-family:var(--font-heading);font-size:24px;font-weight:700;margin-bottom:2px}
-    .painel-subtitle{font-size:13px;color:var(--text-muted);margin-bottom:20px}
+    .painel-subtitle{font-size:13px;color:var(--text-muted)}
+    .dash-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+    .dash-head .dash-title,.dash-head .dash-subtitle{margin-bottom:0}
+    .dash-head .dash-subtitle{margin-top:2px}
+    .period-filters{display:flex;align-items:center;gap:8px;flex-shrink:0}
+    .period-select{height:36px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;padding:0 10px;font-family:inherit}
     .painel-section-title{font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin:26px 0 10px;display:flex;align-items:center;gap:8px}
     .insight-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
     .insight-card{display:flex;flex-direction:column;gap:14px;width:100%;font-family:inherit;text-align:left;cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;transition:border-color 0.15s,transform 0.12s,box-shadow 0.15s}
@@ -230,6 +278,33 @@
     .diag-card-status svg{width:13px;height:13px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
     .diag-card-count{font-size:11px;color:var(--text-faint);flex-shrink:0}
     .diag-progress-track.small{height:5px}
+    .diag-page-lead{font-size:13px;color:var(--text-muted);margin:0 0 16px;line-height:1.5;max-width:40rem}
+    .bin-back{font-size:13px;color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0}
+    .bin-back:hover{color:var(--text)}
+    .qstep{max-width:46rem;margin:0 auto;padding:4px 0 56px;min-height:calc(100vh - 48px)}
+    .qstep-bar{position:sticky;top:0;z-index:6;background:var(--bg);padding:4px 0 16px}
+    .qstep-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:var(--text-muted);margin:10px 0 8px}
+    .qstep-prompt{font-family:var(--font-heading);font-size:26px;font-weight:700;line-height:1.28;margin:20px 0 8px}
+    .qstep-help{font-size:13px;color:var(--text-muted);margin:0 0 16px;line-height:1.5}
+    .qstep-opts{display:flex;flex-direction:column;gap:8px}
+    .qstep-opt{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);padding:12px 14px;cursor:pointer;font:inherit;font-size:15px;line-height:1.4}
+    .qstep-opt:hover{border-color:var(--border-strong)}
+    .qstep-opt.on{border-color:var(--primary);background:rgba(59,130,246,0.08)}
+    .qstep-letter{width:26px;height:26px;border-radius:8px;border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:1px}
+    .qstep-opt.on .qstep-letter{border-color:var(--primary);color:var(--primary)}
+    .qstep-text{width:100%;border:none;border-bottom:1px solid var(--border);border-radius:0;background:transparent;color:var(--text);font:inherit;font-size:18px;line-height:1.45;padding:8px 0 10px;resize:none;min-height:3.4em}
+    .qstep-text:focus{outline:none;border-bottom-color:var(--primary)}
+    .qstep-hint{font-size:12px;color:var(--text-faint);margin-top:8px}
+    .qstep-nav{display:flex;align-items:center;gap:10px;margin-top:22px}
+    .bin-q-req{color:var(--danger);margin-left:3px}
+    .bin-q-specify{width:100%;margin-top:12px;padding:10px 0;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--text);font-family:inherit;font-size:15px}
+    .bin-q-invalid .qstep-prompt{color:var(--danger)}
+    .bin-q-error{font-size:12px;color:var(--danger);margin:0 0 10px}
+    .bin-submit-row{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;flex-wrap:wrap}
+    .bin-deliverable{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--border)}
+    .bin-deliverable-name{font-size:13.5px;font-weight:700}
+    .bin-deliverable-desc{font-size:12px;color:var(--text-muted);margin-top:2px}
+    .bin-deliverable-status{font-size:12px;color:var(--text-faint);flex-shrink:0}
     /* Uploader reutilizável (BIN, MIN, Kanban, Mapa Mental) */
     .uploader{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
     .uploader-drop{margin:14px;padding:28px 16px;border:1.5px dashed var(--border-strong);border-radius:12px;cursor:pointer;text-align:center;transition:border-color 0.15s,background 0.15s}
@@ -265,13 +340,7 @@
     .week-task-row:hover{background:var(--surface-hover)}
     .week-task-title{flex:1;font-size:13px;font-weight:500}
     .week-task-date{font-size:11px;color:var(--text-faint);white-space:nowrap}
-    .quicklinks-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    .quicklink-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;transition:border-color 0.12s,background 0.12s;text-align:left}
-    .quicklink-card:hover{border-color:var(--accent);background:var(--surface-hover)}
-    .quicklink-icon{font-size:20px;margin-bottom:6px}
-    .quicklink-title{font-size:12.5px;font-weight:700;margin-bottom:3px}
-    .quicklink-desc{font-size:11px;color:var(--text-faint);line-height:1.4}
-    @media(max-width:800px){.insight-cards{grid-template-columns:1fr}.quicklinks-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:800px){.insight-cards{grid-template-columns:1fr}}
 
     /* ============ MAPA MENTAL / PROJETO ============ */
     .mm-page{display:flex;flex-direction:column;height:100%;width:100%;min-width:0}
@@ -490,9 +559,27 @@
     .color-rule-swatch{width:24px;height:24px;border-radius:6px;cursor:pointer;border:2px solid transparent}
     .color-rule-swatch.selected{border-color:var(--text)}
     .color-rule-remove{color:var(--danger);cursor:pointer;background:none;border:none;font-size:14px;padding:2px 4px}
-    .theme-toggle{position:fixed;bottom:16px;right:16px;z-index:200;display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:6px 12px 6px 10px;box-shadow:var(--shadow);font-size:12px;color:var(--text-muted);cursor:pointer;transition:box-shadow 0.15s}
-    .theme-toggle:hover{box-shadow:var(--shadow-lg)}
-    .theme-icon{font-size:14px}
+    .account-pop{position:fixed;z-index:240;width:240px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:8px;display:none}
+    .account-pop.open{display:block}
+    .account-pop-head{display:flex;align-items:center;gap:10px;padding:8px 8px 10px;border-bottom:1px solid var(--border);margin-bottom:6px}
+    .account-pop-head .primary-avatar{margin:0}
+    .account-pop-name{font-size:13px;font-weight:700;line-height:1.3}
+    .account-pop-meta{font-size:11px;color:var(--text-faint);margin-top:1px}
+    .account-pop-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:8px 10px;border-radius:8px;font-size:13px;color:var(--text)}
+    .account-pop-item:hover{background:var(--surface-hover)}
+    .account-pop-item svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+    .settings-wrap{width:min(720px,94%);margin:0 auto;padding:24px 0 40px}
+    .settings-tabs{display:flex;gap:6px;margin:16px 0 20px;flex-wrap:wrap}
+    .settings-tab{padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-size:13px;font-weight:600;color:var(--text-muted)}
+    .settings-tab.active{border-color:var(--primary);background:var(--accent-dim);color:var(--accent-dim-text)}
+    .settings-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px}
+    .settings-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+    .settings-field label{font-size:12px;font-weight:600;color:var(--text-muted)}
+    .settings-field input,.settings-field select{height:38px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);padding:0 12px;font-family:inherit;font-size:13.5px}
+    .theme-choice{display:flex;flex-direction:column;gap:8px;width:100%;text-align:left;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+    .theme-choice.active{border-color:var(--primary);background:var(--accent-dim)}
+    .theme-choice strong{font-size:13.5px}
+    .theme-choice span{font-size:12px;color:var(--text-muted);margin-top:2px}
     ::-webkit-scrollbar{width:6px;height:6px}
     ::-webkit-scrollbar-track{background:transparent}
     ::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}
@@ -507,19 +594,56 @@
 <!-- SIDEBAR — duas trilhas: rail estreito (sempre só ícone) + painel
      secundário largo com o submenu do módulo selecionado no rail -->
 <aside class="sidebar-primary" id="sidebarPrimary">
-  <div class="primary-avatar" title="Land Grow">LG</div>
-  <button class="primary-item" data-module="painel"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/><path d="M9 22V12h6v10"/></svg></span><span class="primary-label">Painel</span></button>
-  <button class="primary-item active" data-module="gestor-tarefas"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg></span><span class="primary-label">Atividades</span></button>
-  <button class="primary-item" data-module="mapa-mental"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span><span class="primary-label">Projeto</span></button>
-  <button class="primary-item" data-module="bin"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span><span class="primary-label">BIN</span></button>
-  <button class="primary-item" data-module="min"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span><span class="primary-label">MIN</span></button>
-  <button class="primary-item" data-module="metricas"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><span class="primary-label">Métricas</span></button>
-  <button class="primary-item" data-module="inteligencia"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></span><span class="primary-label">Central IA</span></button>
-  <div class="sidebar-primary-spacer"></div>
-  <button class="primary-item" id="navCollapseBtn" title="Recolher menu"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><polyline points="16 15 13 12 16 9"/></svg></span><span class="primary-label">Recolher</span></button>
+  <div class="rail-scroll">
+    <button class="primary-avatar" id="accountBtn" type="button" title="Perfil do negócio">EC</button>
+    <button class="primary-item" data-module="painel"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/><path d="M9 22V12h6v10"/></svg></span><span class="primary-label">Painel</span></button>
+    <button class="primary-item active" data-module="gestor-tarefas"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg></span><span class="primary-label">Atividades</span></button>
+    <button class="primary-item" data-module="mapa-mental"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span><span class="primary-label">Projeto</span></button>
+    <button class="primary-item" data-module="bin"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span><span class="primary-label">BIN</span></button>
+    <button class="primary-item" data-module="min"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span><span class="primary-label">MIN</span></button>
+    <button class="primary-item" data-module="metricas"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><span class="primary-label">Métricas</span></button>
+    <button class="primary-item" data-module="inteligencia"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></span><span class="primary-label">Central IA</span></button>
+    <div class="sidebar-primary-spacer"></div>
+  </div>
+  <div class="rail-dock">
+    <button class="primary-item" id="themeToggle" type="button" title="Tema claro ou escuro">
+      <span class="nav-icon-badge" id="themeIconSvg"><svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+      <span class="primary-label" id="themeLabel">Escuro</span>
+    </button>
+    <button class="primary-item" id="settingsBtn" type="button" title="Configurações">
+      <span class="nav-icon-badge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+      <span class="primary-label">Ajustes</span>
+    </button>
+    <button class="primary-item" id="navCollapseBtn" title="Recolher menu"><span class="nav-icon-badge"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><polyline points="16 15 13 12 16 9"/></svg></span><span class="primary-label" id="navCollapseLabel">Recolher</span></button>
+  </div>
 </aside>
+<div class="account-pop" id="accountPop" role="menu">
+  <div class="account-pop-head">
+    <span class="primary-avatar" id="accountPopAvatar">EC</span>
+    <div>
+      <div class="account-pop-name" id="accountPopName">Empresa Cliente</div>
+      <div class="account-pop-meta" id="accountPopMeta">Perfil do negócio</div>
+    </div>
+  </div>
+  <button class="account-pop-item" type="button" data-settings-tab="negocio">
+    <svg viewBox="0 0 24 24"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>
+    Perfil do negócio
+  </button>
+  <button class="account-pop-item" type="button" data-settings-tab="conta">
+    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    Conta
+  </button>
+  <button class="account-pop-item" type="button" data-settings-tab="aparencia">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    Aparência
+  </button>
+</div>
 
 <aside class="sidebar-secondary" id="sidebarSecondary"></aside>
+<button class="expand-nav-fab" id="expandNavFab" type="button" data-nav-collapse>
+  <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/><polyline points="10 15 13 12 10 9"/></svg>
+  Expandir menu
+</button>
 
 <!-- MAIN -->
 <main class="main">
@@ -692,9 +816,6 @@
         <label class="prop-label">Cliente</label>
         <select class="prop-select" id="cardCliente">
           <option value="">Nenhum</option>
-          <option>JS Construtora (Jefferson)</option>
-          <option>RS Company (Lavínia + Ederson)</option>
-          <option>Ontech TI (Renato)</option>
         </select>
       </div>
       <div id="customFieldsSection" style="margin-bottom:4px"></div>
@@ -794,7 +915,7 @@
     <div class="modal-body">
       <div style="margin-bottom:14px">
         <label class="prop-label" style="display:block;margin-bottom:6px">Título *</label>
-        <input type="text" class="prop-input" id="meetingTitulo" placeholder="Ex: Kick-off Ontech TI">
+        <input type="text" class="prop-input" id="meetingTitulo" placeholder="Título da reunião">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
         <div>
@@ -808,15 +929,12 @@
       </div>
       <div style="margin-bottom:14px">
         <label class="prop-label" style="display:block;margin-bottom:6px">Participantes</label>
-        <input type="text" class="prop-input" id="meetingParticipantes" placeholder="Ex: Nayara, Jefferson">
+        <input type="text" class="prop-input" id="meetingParticipantes" placeholder="Quem participou">
       </div>
       <div style="margin-bottom:14px">
         <label class="prop-label" style="display:block;margin-bottom:6px">Cliente</label>
         <select class="prop-select" id="meetingCliente">
           <option value="">Nenhum</option>
-          <option>JS Construtora (Jefferson)</option>
-          <option>RS Company (Lavínia + Ederson)</option>
-          <option>Ontech TI (Renato)</option>
         </select>
       </div>
       <div style="margin-bottom:14px">
@@ -1006,20 +1124,18 @@ Opcao 3"></textarea>
   </div>
 </div>
 
-<!-- Theme toggle -->
-<button class="theme-toggle" id="themeToggle">
-  <span class="theme-icon" id="themeIcon">&#127769;</span>
-  <span id="themeLabel">Escuro</span>
-</button>
-
 <script>
+// Cada empresa tem o próprio armazenamento. Sem isso, o painel de um cliente
+// novo reabria as tarefas de demonstração de outras empresas.
+const previewParams = new URLSearchParams(window.location.search);
+const CURRENT_CLIENT_NAME = previewParams.get('name') || 'Empresa Cliente';
+const CURRENT_CLIENT_SLUG = previewParams.get('org') || 'techflow';
+window.PULSO_PREVIEW_ORG_SLUG = CURRENT_CLIENT_SLUG;
+
 // ====================================================================
 // DATA MODEL
 // ====================================================================
-// v3: mudança de schema de status (removido "; " + emoji embutido dos valores
-// de status — ver Change Log) — bump força quem tinha dado antigo em cache
-// (localStorage) a recarregar os defaults limpos em vez de reusar o lixo antigo.
-const STORAGE_KEY = 'pulso-kanban-v3';
+const STORAGE_KEY = 'pulso-kanban-v4-' + CURRENT_CLIENT_SLUG;
 const COLORS = ['#3B82F6','#3B82F6','#F472B6','#FB923C','#A78BFA','#FBBF24','#EF4444','#27272a'];
 const COL_COLORS = ['#94A3B8','#3B82F6','#EAB308','#22C55E','#DC2626','#A855F7','#F97316','#EC4899'];
 const ICONS = ['&#128203;','&#128202;','&#127919;','&#128188;','&#128197;','&#128196;','&#128464;','&#128200;','&#9881;','&#128279;','&#128161;','&#128293;','&#11088;','&#128204;','&#9989;','&#128269;'];
@@ -1033,16 +1149,7 @@ const DEFAULT_COLUMNS = [
   {id:'Concluído',    label:'Concluído',    color:'#22C55E'}
 ];
 
-const DEFAULT_CARDS = [
-  {id:'card-1', titulo:'Criar apresentacao RADAR pro Jefferson', status:'A Fazer', prioridade:'Alta', responsavel:'NAYARA', setor:'Estrategico', prazo:'2026-09-15', cliente:'JS Construtora (Jefferson)', observacoes:'Deck consolidando scores do BIN.', subtarefas:[{id:'s1',texto:'Coletar scores',done:true},{id:'s2',texto:'Estruturar narrativa',done:true},{id:'s3',texto:'Slide causa raiz',done:false},{id:'s4',texto:'Slide de acao',done:false},{id:'s5',texto:'Revisao Nayara',done:false}], comentarios:[], bloqueadaPor:''},
-  {id:'card-2', titulo:'Exportar dados RS Company pro Drive', status:'A Fazer', prioridade:'Media', responsavel:'NAYARA', setor:'Administrativo', prazo:'2026-09-18', cliente:'RS Company (Lavinia + Ederson)', observacoes:'', subtarefas:[], comentarios:[], bloqueadaPor:''},
-  {id:'card-3', titulo:'Revisar contrato Ontech TI', status:'A Fazer', prioridade:'Media', responsavel:'NAYARA', setor:'Juridico', prazo:'2026-09-20', cliente:'Ontech TI (Renato)', observacoes:'', subtarefas:[], comentarios:[], bloqueadaPor:''},
-  {id:'card-4', titulo:'Validar BIN RADAR - JS Construtora', status:'Em Andamento', prioridade:'Alta', responsavel:'NAYARA', setor:'Estrategico', prazo:'2026-09-12', cliente:'JS Construtora (Jefferson)', observacoes:'Validacao final dos 10 setores.', subtarefas:[{id:'s1',texto:'Coletar evidencias',done:true},{id:'s2',texto:'Cruzar setores',done:true},{id:'s3',texto:'Sintese executiva',done:true}], comentarios:[], bloqueadaPor:'Proposta RS Company'},
-  {id:'card-5', titulo:'Implementar motor de colecoes', status:'Em Andamento', prioridade:'Alta', responsavel:'NAYARA', setor:'Operacional', prazo:'2026-09-10', cliente:'', observacoes:'Story 1.6.', subtarefas:[{id:'s1',texto:'Schema RLS',done:true},{id:'s2',texto:'CRUD basico',done:true},{id:'s3',texto:'Hooks listagem',done:true},{id:'s4',texto:'Filtros avancados',done:false},{id:'s5',texto:'Drag and drop',done:false},{id:'s6',texto:'Testes e2e',done:false},{id:'s7',texto:'QA Gate',done:false},{id:'s8',texto:'Deploy',done:false}], comentarios:[], bloqueadaPor:''},
-  {id:'card-6', titulo:'Proposta Land Grow Scale - RS Company', status:'Revisão', prioridade:'Alta', responsavel:'NAYARA', setor:'Vendas', prazo:'2026-09-08', cliente:'RS Company (Lavinia + Ederson)', observacoes:'Aguardando aprovacao da Nayara.', subtarefas:[], comentarios:[], bloqueadaPor:''},
-  {id:'card-7', titulo:'Dashboard COMPASS - JS Construtora', status:'Revisão', prioridade:'Media', responsavel:'NAYARA', setor:'Financeiro', prazo:'2026-09-09', cliente:'JS Construtora (Jefferson)', observacoes:'', subtarefas:[], comentarios:[], bloqueadaPor:''},
-  {id:'card-8', titulo:'Kick-off Ontech TI', status:'Concluído', prioridade:'Baixa', responsavel:'NAYARA', setor:'Lideranca', prazo:'2026-09-05', cliente:'Ontech TI (Renato)', observacoes:'Reuniao inicial realizada.', subtarefas:[], comentarios:[{id:'c1',autor:'NC',texto:'Onboarding concluido. Renato confirmou agenda semanal.',data:'05/09/2026'}], bloqueadaPor:''}
-];
+const DEFAULT_CARDS = [];
 
 // ===== STATE =====
 let state = {
@@ -1078,11 +1185,17 @@ let state = {
   draggingColId: null,
   collapsedGroups: {},
   activeNav: 'clientes',
-  teamMembers: ['NAYARA', 'CANDIDO'],
+  teamMembers: [],
   boards: [],
   activeBoardId: null,
   meetings: [],
-  editingMeetingId: null
+  editingMeetingId: null,
+  painelRange: '30d',
+  painelYear: new Date().getFullYear(),
+  settingsTab: 'negocio',
+  objectives: [],
+  selectedObjectiveId: null,
+  objDraftOpen: false
 };
 
 // Initialize columns from defaults
@@ -1537,16 +1650,16 @@ function navIconBadge(key) {
 const SECONDARY_PANELS = {
   'gestor-tarefas': {
     title: 'Atividades',
-    defaultNav: 'clientes',
+    defaultNav: 'objetivos',
     sections: [
+      { label: 'WorkSmart', items: [
+        {nav:'objetivos', icon:'target', label:'Objetivos'},
+        {nav:'reunioes', icon:'calendar', label:'Reuniões'}
+      ]},
+      { label: 'Plano de Ação', boards: true },
       { items: [
         {nav:'paineis', icon:'dashboard', label:'Dashboard'},
-        {nav:'reunioes', icon:'calendar', label:'Reuniões'},
         {nav:'importar', icon:'import', label:'Importar Dados'}
-      ]},
-      { items: [
-        {nav:'automacoes', icon:'zap', label:'Automações'},
-        {nav:'permissoes', icon:'lock', label:'Permissões'}
       ]}
     ]
   }
@@ -1571,28 +1684,26 @@ function renderSecondaryPanel(moduleKey) {
   if (!cfg) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
 
   wrap.style.display = 'flex';
-  let html = '<div class="secondary-header">'+escapeHtml(cfg.title)+'</div><nav class="sidebar-nav">';
-
-  // Plano de Ação vira uma lista dinâmica de kanbans (Projeto X, Projeto Y...),
-  // mesmo padrão de "Meus mapas" do mapa mental — não é mais 1 item fixo.
-  if (moduleKey === 'gestor-tarefas') {
-    html += '<div class="sidebar-section-label">Plano de Ação</div>';
-    html += state.boards.map(b => {
-      const activeCls = (b.id === state.activeBoardId && state.activeNav === 'clientes') ? ' active' : '';
-      return '<div class="map-list-row'+activeCls+'" data-select-board="'+escapeHtml(b.id)+'">'
-        + navIconBadge('board')
-        + '<span class="map-list-name" data-board-rename="'+escapeHtml(b.id)+'" spellcheck="false">'+escapeHtml(b.name)+'</span>'
-        + (state.boards.length > 1 ? '<button class="map-list-del" data-board-delete="'+escapeHtml(b.id)+'" title="Excluir kanban">&#10005;</button>' : '')
-        + '</div>';
-    }).join('');
-    html += '<button class="btn btn-ghost" id="newBoardBtn" style="width:100%;margin:4px 0 8px;justify-content:center">+ Novo kanban</button>';
-    html += '<div class="sidebar-divider"></div>';
-  }
+  let html = '<div class="secondary-header"><span>'+escapeHtml(cfg.title)+'</span>'
+    + '<button class="secondary-collapse" type="button" data-nav-collapse title="Recolher menu" aria-label="Recolher menu">'
+    + '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><polyline points="16 15 13 12 16 9"/></svg>'
+    + '</button></div><nav class="sidebar-nav">';
 
   cfg.sections.forEach((sec, i) => {
     if (i > 0) html += '<div class="sidebar-divider"></div>';
     if (sec.label) html += '<div class="sidebar-section-label">'+escapeHtml(sec.label)+'</div>';
-    sec.items.forEach(it => {
+    if (sec.boards) {
+      html += state.boards.map(b => {
+        const activeCls = (b.id === state.activeBoardId && state.activeNav === 'clientes') ? ' active' : '';
+        return '<div class="map-list-row'+activeCls+'" data-select-board="'+escapeHtml(b.id)+'">'
+          + navIconBadge('board')
+          + '<span class="map-list-name" data-board-rename="'+escapeHtml(b.id)+'" spellcheck="false">'+escapeHtml(b.name)+'</span>'
+          + (state.boards.length > 1 ? '<button class="map-list-del" data-board-delete="'+escapeHtml(b.id)+'" title="Excluir kanban">&#10005;</button>' : '')
+          + '</div>';
+      }).join('');
+      html += '<button class="btn btn-ghost" id="newBoardBtn" style="width:100%;margin:4px 0 8px;justify-content:center">+ Novo kanban</button>';
+    }
+    (sec.items || []).forEach(it => {
       const activeCls = it.nav === state.activeNav ? ' active' : '';
       const countHtml = it.count !== undefined ? '<span class="count">'+it.count+'</span>' : '';
       html += '<button class="sidebar-item'+activeCls+'" data-nav="'+it.nav+'">'+navIconBadge(it.icon)+'<span class="label">'+escapeHtml(it.label)+'</span>'+countHtml+'</button>';
@@ -1602,7 +1713,13 @@ function renderSecondaryPanel(moduleKey) {
   wrap.innerHTML = html;
 }
 
-function selectModule(moduleKey) {
+function selectModule(moduleKey, opts) {
+  if (!opts || !opts.restore) {
+    if (moduleKey === 'bin' && window.PulsoBin && PulsoBin.clearPlace) PulsoBin.clearPlace();
+    if (moduleKey === 'min') {
+      try { localStorage.removeItem('pulso-preview-min-place'); } catch (e) {}
+    }
+  }
   document.querySelectorAll('.primary-item').forEach(i => i.classList.remove('active'));
   const btn = document.querySelector('[data-module="'+moduleKey+'"]');
   if (btn) btn.classList.add('active');
@@ -1623,21 +1740,60 @@ function selectModule(moduleKey) {
 // iniciado/em andamento/concluído) e a barra de progresso do card são sempre
 // derivados desse par, nunca um campo solto pra sincronizar à mão.
 const BIN_SECTORS_DEMO = [
-  {name:'Operacional', desc:'Processos, rotinas e eficiência das entregas.', total:7, respondidas:7},
-  {name:'RH', desc:'Contratação, cultura e gestão de pessoas.', total:6, respondidas:6},
-  {name:'Financeiro', desc:'Fluxo de caixa, margem e saúde financeira.', total:7, respondidas:7},
-  {name:'Marketing', desc:'Posicionamento, canais e geração de demanda.', total:6, respondidas:2},
-  {name:'Administrativo', desc:'Rotinas, documentação e organização interna.', total:6, respondidas:6},
-  {name:'Estratégico', desc:'Metas, posicionamento e desdobramento de planos.', total:6, respondidas:6},
+  {name:'Operacional', desc:'Processos, rotinas e eficiência das entregas.', total:7, respondidas:0},
+  {name:'RH', desc:'Contratação, cultura e gestão de pessoas.', total:6, respondidas:0},
+  {name:'Financeiro', desc:'Fluxo de caixa, margem e saúde financeira.', total:7, respondidas:0},
+  {name:'Marketing', desc:'Posicionamento, canais e geração de demanda.', total:6, respondidas:0},
+  {name:'Administrativo', desc:'Rotinas, documentação e organização interna.', total:6, respondidas:0},
+  {name:'Estratégico', desc:'Metas, posicionamento e desdobramento de planos.', total:6, respondidas:0},
   {name:'Vendas', desc:'Funil comercial, conversão e relacionamento com cliente.', total:6, respondidas:0},
   {name:'Inovação', desc:'Novos produtos, processos e diferenciação.', total:6, respondidas:0},
-  {name:'Jurídico', desc:'Contratos, compliance e riscos legais.', total:6, respondidas:6},
-  {name:'Liderança', desc:'Tomada de decisão, delegação e visão de longo prazo.', total:7, respondidas:3}
+  {name:'Jurídico', desc:'Contratos, compliance e riscos legais.', total:6, respondidas:0},
+  {name:'Liderança', desc:'Tomada de decisão, delegação e visão de longo prazo.', total:7, respondidas:0}
 ];
-const MIN_PROGRESS_DEMO = { done: 6, total: 13 };
-// Placeholder — quando o Painel Geral for ligado a um cliente de verdade,
-// troca por o nome real da organização logada.
-const CURRENT_CLIENT_NAME = 'Empresa Cliente';
+// Placeholder — o nome vem do endereço da empresa (?name=).
+const NEGOCIO_KEY = 'pulso-preview-negocio-' + CURRENT_CLIENT_SLUG;
+const CONTA_KEY = 'pulso-preview-conta-' + CURRENT_CLIENT_SLUG;
+const THEME_KEY = 'pulso-preview-theme';
+const DEFAULT_NEGOCIO = {
+  name: CURRENT_CLIENT_NAME,
+  segment: 'Serviços',
+  owner: 'Responsável',
+  email: 'contato@empresacliente.com',
+  phone: ''
+};
+const DEFAULT_CONTA = { name: 'Você', email: 'voce@empresacliente.com' };
+const THEME_SUN = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+const THEME_MOON = '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+
+function readStored(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return Object.assign({}, fallback);
+    return Object.assign({}, fallback, JSON.parse(raw));
+  } catch (e) {
+    return Object.assign({}, fallback);
+  }
+}
+function clientBusiness() { return readStored(NEGOCIO_KEY, DEFAULT_NEGOCIO); }
+function clientAccount() { return readStored(CONTA_KEY, DEFAULT_CONTA); }
+function initialsOf(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'EC';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+function syncAccountChrome() {
+  const biz = clientBusiness();
+  const initials = initialsOf(biz.name);
+  ['accountBtn', 'accountPopAvatar'].forEach(function (id) {
+    const el = $(id);
+    if (el) el.textContent = initials;
+  });
+  if ($('accountBtn')) $('accountBtn').title = biz.name + ' — perfil do negócio';
+  if ($('accountPopName')) $('accountPopName').textContent = biz.name;
+  if ($('accountPopMeta')) $('accountPopMeta').textContent = biz.email || 'Perfil do negócio';
+}
 
 // Ícone + cor de cada um dos 10 setores do BIN (mesmos nomes de
 // BIN_SECTORS_DEMO acima) — sóbrios, linha simples, sem emoji, mesmo padrão
@@ -1663,21 +1819,21 @@ const BIN_AREA_ICONS = {
 // sempre derivados de respondidas/total, nunca um campo solto.
 const MIN_BLOCKS = [
   { fase:'Fundação & Validação', blocos:[
-    {nome:'Proposta de Valor', total:3, respondidas:3, tags:['Canvas','Cliente'], color:'#3b82f6', svg:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'},
-    {nome:'Segmentos de Clientes', total:3, respondidas:3, tags:['ICP','Persona'], color:'#ec4899', svg:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'},
-    {nome:'Atividades-Chave', total:4, respondidas:4, tags:['Operação'], color:'#10b981', svg:'<rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'},
-    {nome:'Modelo de Receita', total:3, respondidas:3, tags:['Financeiro'], color:'#f59e0b', svg:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'},
-    {nome:'Comportamento do Consumidor', total:4, respondidas:1, tags:['Pesquisa'], color:'#8b5cf6', svg:'<circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>'},
-    {nome:'Jornada do Cliente', total:3, respondidas:3, tags:['Experiência'], color:'#06b6d4', svg:'<path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14l-8-4-8 4z"/>'}
+    {nome:'Proposta de Valor', total:3, respondidas:0, tags:['Canvas','Cliente'], color:'#3b82f6', svg:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'},
+    {nome:'Segmentos de Clientes', total:3, respondidas:0, tags:['ICP','Persona'], color:'#ec4899', svg:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'},
+    {nome:'Atividades-Chave', total:4, respondidas:0, tags:['Operação'], color:'#10b981', svg:'<rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'},
+    {nome:'Modelo de Receita', total:3, respondidas:0, tags:['Financeiro'], color:'#f59e0b', svg:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'},
+    {nome:'Comportamento do Consumidor', total:4, respondidas:0, tags:['Pesquisa'], color:'#8b5cf6', svg:'<circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>'},
+    {nome:'Jornada do Cliente', total:3, respondidas:0, tags:['Experiência'], color:'#06b6d4', svg:'<path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14l-8-4-8 4z"/>'}
   ]},
   { fase:'Operação & Eficiência', blocos:[
-    {nome:'Canais de Engajamento', total:2, respondidas:1, tags:['Marketing'], color:'#14b8a6', svg:'<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>'},
+    {nome:'Canais de Engajamento', total:2, respondidas:0, tags:['Marketing'], color:'#14b8a6', svg:'<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>'},
     {nome:'Recursos Estratégicos', total:3, respondidas:0, tags:['Time','Infra'], color:'#64748b', svg:'<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>'},
-    {nome:'Estrutura de Custos', total:3, respondidas:3, tags:['Financeiro'], color:'#ef4444', svg:'<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>'}
+    {nome:'Estrutura de Custos', total:3, respondidas:0, tags:['Financeiro'], color:'#ef4444', svg:'<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>'}
   ]},
   { fase:'Consolidação & Governança', blocos:[
     {nome:'Ecossistema de Parceiros', total:2, respondidas:0, tags:['Parcerias'], color:'#6366f1', svg:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/>'},
-    {nome:'Métricas de Impacto', total:3, respondidas:1, tags:['KPI'], color:'#3b82f6', svg:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'},
+    {nome:'Métricas de Impacto', total:3, respondidas:0, tags:['KPI'], color:'#3b82f6', svg:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'},
     {nome:'Cultura e Valores', total:2, respondidas:0, tags:['Pessoas'], color:'#ec4899', svg:'<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6z"/>'},
     {nome:'Gestão de Riscos', total:3, respondidas:0, tags:['Compliance'], color:'#f59e0b', svg:'<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>'}
   ]}
@@ -1726,33 +1882,110 @@ function renderDiagCard(opts) {
     + '</button>';
 }
 
+function binPainelStats() {
+  if (window.PulsoBin && PulsoBin.ready) return PulsoBin.progress();
+  return { filled: 0, total: 0, pct: 0 };
+}
+
+function minPainelStats() {
+  const all = MIN_BLOCKS.flatMap(f => f.blocos);
+  const done = all.filter(b => {
+    const c = minBlockProgress(b);
+    return diagStatusKey(c.respondidas, c.total) === 'concluido';
+  }).length;
+  const total = all.length;
+  return { done, total, pct: total ? Math.round((done / total) * 100) : 0 };
+}
+
+const PAINEL_RANGE_OPTIONS = [
+  { value: '7d', label: 'Últimos 7 dias' },
+  { value: '30d', label: 'Últimos 30 dias' },
+  { value: '90d', label: 'Últimos 90 dias' },
+  { value: '12m', label: 'Últimos 12 meses' },
+  { value: 'year', label: 'Ano inteiro' }
+];
+
+function periodIso(d) {
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function periodBounds(range, year) {
+  const now = new Date();
+  const selectedYear = year || now.getFullYear();
+  const end = selectedYear === now.getFullYear() ? now : new Date(selectedYear, 11, 31);
+  const to = periodIso(end);
+  if (range === 'year') return { from: selectedYear+'-01-01', to: to };
+  if (range === '12m') {
+    const start = new Date(end.getFullYear(), end.getMonth() - 11, 1);
+    return { from: periodIso(start), to: to };
+  }
+  const start = new Date(end);
+  const days = range === '7d' ? 6 : range === '30d' ? 29 : 89;
+  start.setDate(start.getDate() - days);
+  return { from: periodIso(start), to: to };
+}
+
+function periodCaption(range, year) {
+  if (range === 'year') return 'Ano '+year;
+  const opt = PAINEL_RANGE_OPTIONS.find(o => o.value === range);
+  const base = opt ? opt.label : range;
+  return year === new Date().getFullYear() ? base : base+' · '+year;
+}
+
+function periodFilterHtml(which) {
+  const range = state.painelRange || '30d';
+  const year = state.painelYear || new Date().getFullYear();
+  const current = new Date().getFullYear();
+  let years = '';
+  for (let y = current; y >= current - 5; y--) {
+    years += '<option value="'+y+'"'+(y===year?' selected':'')+'>'+y+'</option>';
+  }
+  const ranges = PAINEL_RANGE_OPTIONS.map(o =>
+    '<option value="'+o.value+'"'+(o.value===range?' selected':'')+'>'+o.label+'</option>'
+  ).join('');
+  return '<div class="period-filters">'
+    + '<select class="period-select" data-period-year="'+which+'" aria-label="Ano">'+years+'</select>'
+    + '<select class="period-select" data-period-range="'+which+'" aria-label="Período">'+ranges+'</select>'
+    + '</div>';
+}
+
+function cardsInPeriod(cards, bounds) {
+  return cards.filter(c => c.prazo && c.prazo >= bounds.from && c.prazo <= bounds.to);
+}
+
+function applyPeriodFilter(which, field, value) {
+  if (field === 'year') state.painelYear = Number(value);
+  else state.painelRange = value;
+  if (which === 'dash') renderDashboard();
+  else if (which === 'metricas') renderMetricasNegocio();
+  else renderPainelGeral();
+}
+
 function renderPainelGeral() {
   const wrap = $('placeholderView');
   if (!wrap) return;
 
-  const binTotal = BIN_SECTORS_DEMO.reduce((sum, s) => sum + s.total, 0);
-  const binRespondidas = BIN_SECTORS_DEMO.reduce((sum, s) => sum + s.respondidas, 0);
-  const binPct = Math.round((binRespondidas / binTotal) * 100);
-  const minPct = Math.round((MIN_PROGRESS_DEMO.done / MIN_PROGRESS_DEMO.total) * 100);
+  const binStats = binPainelStats();
+  const binTotal = binStats.total;
+  const binRespondidas = binStats.filled;
+  const binPct = binStats.pct;
+  const minStats = minPainelStats();
+  const minPct = minStats.pct;
 
-  const cards = state.cards;
+  const range = state.painelRange || '30d';
+  const year = state.painelYear || new Date().getFullYear();
+  const bounds = periodBounds(range, year);
+  const period = periodCaption(range, year);
+  const cards = cardsInPeriod(state.cards, bounds);
   const total = cards.length;
   const emAndamento = cards.filter(c => c.status && c.status.includes('Em Andamento')).length;
   const atrasadas = cards.filter(c => !isDone(c.status) && isOverdue(c.prazo)).length;
   const concluidas = cards.filter(c => isDone(c.status)).length;
 
-  let weekTasks = cards.filter(c => !isDone(c.status) && isThisWeek(c.prazo));
-  if (weekTasks.length === 0) {
-    // Fallback: sem tarefa na semana-calendário estrita, mostra as mais
-    // próximas do prazo (evita a seção sumir por causa de um recorte de
-    // data rígido — o que importa aqui é dar um resumo útil, não a
-    // definição exata de "semana").
-    weekTasks = cards.filter(c => !isDone(c.status) && c.prazo).sort((a,b)=>a.prazo.localeCompare(b.prazo)).slice(0, 4);
-  }
-  weekTasks = weekTasks.sort((a,b)=>(a.prazo||'').localeCompare(b.prazo||''));
+  const periodTasks = cards.filter(c => !isDone(c.status)).sort((a,b)=>(a.prazo||'').localeCompare(b.prazo||''));
 
-  const weekTasksHtml = weekTasks.length
-    ? weekTasks.map(c => {
+  const weekTasksHtml = periodTasks.length
+    ? periodTasks.map(c => {
         const dateCls = isOverdue(c.prazo) ? 'week-task-date" style="color:var(--danger);font-weight:600' : 'week-task-date';
         return '<div class="week-task-row" data-card-id="'+escapeHtml(c.id)+'">'
           + '<span class="badge '+priorityClass(c.prioridade)+'">'+priorityLabel(c.prioridade)+'</span>'
@@ -1760,12 +1993,17 @@ function renderPainelGeral() {
           + '<span class="'+dateCls+'">'+escapeHtml(formatDate(c.prazo))+'</span>'
           + '</div>';
       }).join('')
-    : '<p style="font-size:12px;color:var(--text-faint)">Nenhuma tarefa pendente com prazo definido.</p>';
+    : '<p style="font-size:12px;color:var(--text-faint)">Nenhuma tarefa pendente neste recorte.</p>';
 
   wrap.innerHTML =
     '<div class="painel-wrap">'
-    + '<div class="painel-greeting">Seja bem-vindo(a), '+escapeHtml(CURRENT_CLIENT_NAME)+' 👋</div>'
-    + '<div class="painel-subtitle">Panorama do período atual: BIN, MIN, tarefas e métricas em um só lugar.</div>'
+    + '<div class="painel-head">'
+    +   '<div>'
+    +     '<div class="painel-greeting">Seja bem-vindo(a), '+escapeHtml(clientBusiness().name)+' 👋</div>'
+    +     '<div class="painel-subtitle">Panorama do recorte: BIN, MIN, tarefas e métricas. O filtro manda nos números e nos gráficos.</div>'
+    +   '</div>'
+    +   periodFilterHtml('painel')
+    + '</div>'
 
     + '<div class="painel-section-title">Diagnóstico e Modelo de Negócio</div>'
     + '<div class="insight-cards">'
@@ -1775,7 +2013,7 @@ function renderPainelGeral() {
     +       '<div class="insight-card-heading"><div class="insight-card-title">BIN</div><div class="insight-card-subtitle">Business Insights Navigator</div></div>'
     +       '<span class="insight-card-pct">'+binPct+'%</span>'
     +     '</div>'
-    +     '<p class="insight-card-desc">Análise profunda de 10 setores do seu negócio.</p>'
+    +     '<p class="insight-card-desc">Diagnóstico geral e os 10 setores. Clique para responder.</p>'
     +   '</button>'
     +   '<button class="insight-card" data-goto-module="min" style="--card-accent:#8b5cf6">'
     +     '<div class="insight-card-top">'
@@ -1783,14 +2021,14 @@ function renderPainelGeral() {
     +       '<div class="insight-card-heading"><div class="insight-card-title">MIN</div><div class="insight-card-subtitle">Modelo Integrado de Negócios</div></div>'
     +       '<span class="insight-card-pct">'+minPct+'%</span>'
     +     '</div>'
-    +     '<p class="insight-card-desc">'+MIN_PROGRESS_DEMO.done+' de '+MIN_PROGRESS_DEMO.total+' blocos preenchidos. Estrutura completa do modelo do seu negócio.</p>'
+    +     '<p class="insight-card-desc">'+minStats.done+' de '+minStats.total+' blocos preenchidos. Estrutura completa do modelo do seu negócio.</p>'
     +   '</button>'
     + '</div>'
 
-    + '<div class="painel-section-title">Tarefas desta semana</div>'
+    + '<div class="painel-section-title">Tarefas do período</div>'
     + '<div class="week-tasks-list">'+weekTasksHtml+'</div>'
 
-    + '<div class="painel-section-title">Overview de Métricas</div>'
+    + '<div class="painel-section-title">Overview de Métricas · '+escapeHtml(period)+'</div>'
     + '<div class="dash-stats" style="margin-bottom:16px">'
     +   '<div class="dash-stat-card"><div class="dash-stat-label">Todas as tarefas</div><div class="dash-stat-value">'+total+'</div></div>'
     +   '<div class="dash-stat-card"><div class="dash-stat-label">Em andamento</div><div class="dash-stat-value" style="color:var(--info)">'+emAndamento+'</div></div>'
@@ -1798,18 +2036,10 @@ function renderPainelGeral() {
     +   '<div class="dash-stat-card"><div class="dash-stat-label">Concluídas</div><div class="dash-stat-value" style="color:var(--success)">'+concluidas+'</div></div>'
     + '</div>'
     + '<div class="dash-charts">'
-    +   '<div class="dash-chart-card"><div class="dash-chart-title">Tarefas por status</div><div class="dash-chart-subtitle">Distribuição atual do quadro</div><div class="dash-chart-canvas-wrap"><canvas id="chartPainelStatus"></canvas></div></div>'
-    +   '<div class="dash-chart-card"><div class="dash-chart-title">Atrasadas vs. em dia</div><div class="dash-chart-subtitle">Cumprimento de prazos</div><div class="dash-chart-canvas-wrap"><canvas id="chartPainelOverdue"></canvas></div></div>'
+    +   '<div class="dash-chart-card"><div class="dash-chart-title">Tarefas por status</div><div class="dash-chart-subtitle">'+escapeHtml(period)+'</div><div class="dash-chart-canvas-wrap"><canvas id="chartPainelStatus"></canvas></div></div>'
+    +   '<div class="dash-chart-card"><div class="dash-chart-title">Atrasadas vs. em dia</div><div class="dash-chart-subtitle">'+escapeHtml(period)+'</div><div class="dash-chart-canvas-wrap"><canvas id="chartPainelOverdue"></canvas></div></div>'
     + '</div>'
     + '<p style="font-size:11.5px;color:var(--text-faint);margin-top:8px">Ver todos os gráficos em Atividades → Painel de Atividades.</p>'
-
-    + '<div class="painel-section-title">Módulos</div>'
-    + '<div class="quicklinks-grid">'
-    +   '<button class="quicklink-card" data-goto-module="bin"><div class="quicklink-icon">📈</div><div class="quicklink-title">BIN</div><div class="quicklink-desc">Diagnóstico dos 10 setores do negócio.</div></button>'
-    +   '<button class="quicklink-card" data-goto-module="min"><div class="quicklink-icon">💼</div><div class="quicklink-title">MIN</div><div class="quicklink-desc">Modelo integrado de negócio, em 13 blocos.</div></button>'
-    +   '<button class="quicklink-card" data-goto-module="gestor-tarefas"><div class="quicklink-icon">📋</div><div class="quicklink-title">Atividades</div><div class="quicklink-desc">Plano de ação, quadro e relatórios.</div></button>'
-    +   '<button class="quicklink-card" data-goto-module="mapa-mental"><div class="quicklink-icon">🧠</div><div class="quicklink-title">Projeto</div><div class="quicklink-desc">Desenho visual do projeto/plano.</div></button>'
-    + '</div>'
     + '</div>';
 
   destroyDashCharts();
@@ -1845,10 +2075,8 @@ const PLACEHOLDER_LABELS = {
   bin: {icon:'📈', title:'Business Insights Navigator', desc:'Diagnóstico dos 10 setores: RADAR, COMPASS, HORIZON, ROUTE PLANNER.'},
   min: {icon:'💼', title:'Modelo Integrado de Negócios', desc:'Os 13 blocos do MIN.'},
   'mapa-mental': {icon:'🧠', title:'Mapa Mental', desc:'Desenho visual do projeto/plano.'},
-  metricas: {icon:'📉', title:'Métricas', desc:'Indicadores gerais da conta.'},
-  importar: {icon:'📥', title:'Importar Dados', desc:'Trazer dados de outra ferramenta (planilha, CRM, etc.) para o módulo de Atividades.'},
-  automacoes: {icon:'⚡', title:'Automações', desc:'Gatilhos e ações automáticas.'},
-  permissoes: {icon:'🔒', title:'Permissões', desc:'Quem pode ver e editar o quê.'}
+  metricas: {icon:'📉', title:'Métricas', desc:'Indicadores do negócio.'},
+  importar: {icon:'📥', title:'Importar Dados', desc:'Trazer dados de outra ferramenta (planilha, CRM, etc.) para o módulo de Atividades.'}
 };
 
 // Todas as views de conteúdo de nível superior — sempre que uma é mostrada,
@@ -1877,16 +2105,108 @@ function navigateTo(key) {
   } else if (key === 'reunioes') {
     showContentView('placeholderView');
     renderReunioes();
+  } else if (key === 'objetivos') {
+    showContentView('placeholderView');
+    renderObjetivos();
+  } else if (key === 'metricas') {
+    showContentView('placeholderView');
+    renderMetricasNegocio();
   } else if (key === 'bin') {
     showContentView('placeholderView');
     renderBinPage();
   } else if (key === 'min') {
     showContentView('placeholderView');
     renderMinPage();
+  } else if (key === 'configuracoes') {
+    showContentView('placeholderView');
+    renderSettings();
   } else {
     showContentView('placeholderView');
     renderPlaceholder(key);
   }
+  savePlace();
+}
+
+const PLACE_KEY = 'pulso-preview-place-' + CURRENT_CLIENT_SLUG;
+
+function savePlace() {
+  const active = document.querySelector('.primary-item.active');
+  let module = active && active.getAttribute('data-module');
+  if (!module && active && active.id === 'settingsBtn') module = 'configuracoes';
+  if (!module || !state.activeNav) return;
+  try {
+    localStorage.setItem(PLACE_KEY, JSON.stringify({
+      module: module,
+      nav: state.activeNav,
+      settingsTab: state.settingsTab || 'negocio'
+    }));
+  } catch (e) {}
+}
+
+function loadPlace() {
+  try { return JSON.parse(localStorage.getItem(PLACE_KEY) || 'null'); }
+  catch (e) { return null; }
+}
+
+function openSettings(tab) {
+  state.settingsTab = tab || state.settingsTab || 'negocio';
+  document.querySelectorAll('.primary-item').forEach(i => i.classList.remove('active'));
+  const settingsBtn = $('settingsBtn');
+  if (settingsBtn) settingsBtn.classList.add('active');
+  closeAccountPop();
+  const wrap = $('sidebarSecondary');
+  if (wrap) { wrap.style.display = 'none'; wrap.innerHTML = ''; }
+  state.activeNav = 'configuracoes';
+  navigateTo('configuracoes');
+}
+
+function renderSettings() {
+  const wrap = $('placeholderView');
+  if (!wrap) return;
+  const tab = state.settingsTab || 'negocio';
+  const biz = clientBusiness();
+  const acc = clientAccount();
+  const theme = currentTheme();
+  const tabs = [
+    { id: 'negocio', label: 'Perfil do negócio' },
+    { id: 'conta', label: 'Conta' },
+    { id: 'aparencia', label: 'Aparência' }
+  ];
+  let body = '';
+  if (tab === 'negocio') {
+    body =
+      '<form class="settings-card" id="negocioForm">'
+      + '<div class="settings-field"><label for="negName">Nome da empresa</label><input id="negName" name="name" value="'+escapeHtml(biz.name)+'" required></div>'
+      + '<div class="settings-field"><label for="negSegment">Segmento</label><input id="negSegment" name="segment" value="'+escapeHtml(biz.segment)+'"></div>'
+      + '<div class="settings-field"><label for="negOwner">Responsável</label><input id="negOwner" name="owner" value="'+escapeHtml(biz.owner)+'"></div>'
+      + '<div class="settings-field"><label for="negEmail">E-mail</label><input id="negEmail" name="email" type="email" value="'+escapeHtml(biz.email)+'"></div>'
+      + '<div class="settings-field"><label for="negPhone">Telefone</label><input id="negPhone" name="phone" value="'+escapeHtml(biz.phone)+'"></div>'
+      + '<button class="btn btn-primary" type="submit">Salvar perfil</button>'
+      + '</form>';
+  } else if (tab === 'conta') {
+    body =
+      '<form class="settings-card" id="contaForm">'
+      + '<div class="settings-field"><label for="accName">Seu nome</label><input id="accName" name="name" value="'+escapeHtml(acc.name)+'" required></div>'
+      + '<div class="settings-field"><label for="accEmail">E-mail de acesso</label><input id="accEmail" name="email" type="email" value="'+escapeHtml(acc.email)+'"></div>'
+      + '<p style="font-size:12px;color:var(--text-faint);margin:0 0 12px">No app logado a senha e o e-mail ficam em Configurações → Conta.</p>'
+      + '<button class="btn btn-primary" type="submit">Salvar conta</button>'
+      + '</form>';
+  } else {
+    body =
+      '<div class="settings-card" style="display:flex;flex-direction:column;gap:10px">'
+      +   '<button type="button" class="theme-choice'+(theme==='light'?' active':'')+'" data-set-theme="light"><strong>Claro</strong><span>Fundo claro o tempo todo.</span></button>'
+      +   '<button type="button" class="theme-choice'+(theme==='dark'?' active':'')+'" data-set-theme="dark"><strong>Escuro</strong><span>Fundo escuro o tempo todo.</span></button>'
+      + '</div>';
+  }
+  wrap.innerHTML =
+    '<div class="settings-wrap">'
+    + '<div class="dash-title">Configurações</div>'
+    + '<div class="dash-subtitle">Perfil do negócio, sua conta e o tema desta tela.</div>'
+    + '<div class="settings-tabs">'+tabs.map(t =>
+        '<button type="button" class="settings-tab'+(t.id===tab?' active':'')+'" data-settings-tab="'+t.id+'">'+t.label+'</button>'
+      ).join('')+'</div>'
+    + body
+    + '</div>';
 }
 
 // ====================================================================
@@ -1970,6 +2290,281 @@ function deleteMeetingFn() {
   renderReunioes();
 }
 
+const OBJETIVOS_KEY = 'pulso-preview-objetivos-' + CURRENT_CLIENT_SLUG;
+const OBJ_STATUS = { rascunho: 'Rascunho', ativo: 'Ativo', concluido: 'Concluído' };
+
+function defaultObjectives() {
+  return [];
+}
+
+function loadObjectives() {
+  try {
+    const raw = localStorage.getItem(OBJETIVOS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length) {
+        state.objectives = parsed;
+        return;
+      }
+    }
+  } catch (e) { /* ignore */ }
+  state.objectives = defaultObjectives();
+}
+
+function saveObjectives() {
+  try { localStorage.setItem(OBJETIVOS_KEY, JSON.stringify(state.objectives)); } catch (e) {}
+}
+
+function getObjective(id) {
+  return state.objectives.find(o => o.id === id) || null;
+}
+
+function objProgress(obj) {
+  if (!obj || !obj.krs || !obj.krs.length) return 0;
+  const vals = obj.krs.map(kr => {
+    if (!kr.target) return 0;
+    return Math.max(0, Math.min(100, (Number(kr.current) || 0) / Number(kr.target) * 100));
+  });
+  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+}
+
+function filledSmartCount(smart) {
+  if (!smart) return 0;
+  return ['especifica', 'mensuravel', 'atingivel', 'relevante', 'temporal'].filter(k => String(smart[k] || '').trim()).length;
+}
+
+function formatBrl(n) {
+  return (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+}
+
+function isMoneyUnit(unit) {
+  return /^(r\$|brl|reais?)$/i.test(String(unit || '').trim());
+}
+
+function formatKrValue(n, unit) {
+  const v = Number(n) || 0;
+  if (isMoneyUnit(unit)) return formatBrl(v);
+  if (String(unit || '').trim() === '%') return v + '%';
+  if (String(unit || '').trim()) return v + ' ' + unit;
+  return String(v);
+}
+
+function listKeyResults() {
+  const rows = [];
+  (state.objectives || []).forEach(o => {
+    (o.krs || []).forEach(kr => {
+      const target = Number(kr.target) || 0;
+      const current = Number(kr.current) || 0;
+      rows.push({
+        id: kr.id,
+        title: kr.title,
+        unit: kr.unit || '',
+        current: current,
+        target: target,
+        pct: target ? Math.round(Math.min(100, current / target * 100)) : 0,
+        objectiveId: o.id,
+        objectiveTitle: o.title,
+        setor: o.setor || ''
+      });
+    });
+  });
+  return rows;
+}
+
+function renderObjetivos() {
+  const wrap = $('placeholderView');
+  if (!wrap) return;
+  if (!state.objectives.length) loadObjectives();
+  const selected = getObjective(state.selectedObjectiveId) || state.objectives[0] || null;
+  if (selected) state.selectedObjectiveId = selected.id;
+  const open = state.objectives.filter(o => o.status !== 'concluido');
+  const won = state.objectives.filter(o => o.status === 'concluido');
+
+  function chip(o) {
+    const wonCls = o.status === 'concluido' ? ' won' : '';
+    const active = selected && o.id === selected.id ? ' active' : '';
+    const pct = objProgress(o);
+    return '<button type="button" class="ws-chip'+wonCls+active+'" data-obj-select="'+escapeHtml(o.id)+'">'
+      + '<strong>'+escapeHtml(o.title)+'</strong>'
+      + '<span>'+(o.status === 'concluido' ? 'Resultado' : (OBJ_STATUS[o.status] || o.status))
+      + (o.setor ? ' · '+escapeHtml(o.setor) : '')
+      + (pct ? ' · '+pct+'%' : '')
+      + '</span></button>';
+  }
+
+  let body = '';
+  if (state.objDraftOpen) {
+    body += '<div class="ws-draft">'
+      + '<input id="objTitleInput" placeholder="Ex.: Sair da venda no fundador" maxlength="120">'
+      + '<input id="objSetorInput" placeholder="Setor (opcional)" maxlength="60">'
+      + '<button type="button" class="btn btn-primary" data-obj-create>Criar</button>'
+      + '</div>';
+  }
+
+  if (!state.objectives.length) {
+    body += '<p style="color:var(--text-muted);font-size:13px">Nenhum objetivo ainda. Comece pelo resultado que muda o jogo neste negócio.</p>';
+  } else {
+    body += '<div class="ws-chips">'+open.map(chip).join('')+'</div>';
+    if (won.length) {
+      body += '<div class="sidebar-section-label" style="padding-left:0">Resultados</div>';
+      body += '<div class="ws-chips">'+won.map(chip).join('')+'</div>';
+    }
+  }
+
+  if (selected) {
+    const smart = selected.smart || {};
+    const pct = objProgress(selected);
+    const rows = [
+      ['especifica', 'Específica'],
+      ['mensuravel', 'Mensurável'],
+      ['atingivel', 'Atingível'],
+      ['relevante', 'Relevante']
+    ].map(([key, label]) =>
+      '<div class="ws-smart-row"><dt>'+label+'</dt><dd><textarea data-smart="'+key+'" data-obj="'+escapeHtml(selected.id)+'">'+escapeHtml(smart[key] || '')+'</textarea></dd></div>'
+    ).join('')
+      + '<div class="ws-smart-row"><dt>Temporal</dt><dd><input type="date" data-smart="temporal" data-obj="'+escapeHtml(selected.id)+'" value="'+escapeHtml(smart.temporal || '')+'"></dd></div>';
+
+    const krs = (selected.krs || []).map((kr, i) => {
+      const krPct = kr.target ? Math.round(Math.min(100, (Number(kr.current) || 0) / Number(kr.target) * 100)) : 0;
+      return '<article class="ws-kr">'
+        + '<h4>KR'+(i+1)+' · '+escapeHtml(kr.title)+'</h4>'
+        + '<div class="ws-kr-vals">'
+        +   '<div><label>Atual</label><input class="ws-kr-num" type="number" min="0" step="any" data-kr-current="'+escapeHtml(kr.id)+'" data-obj="'+escapeHtml(selected.id)+'" value="'+(kr.current ?? '')+'"></div>'
+        +   '<div><label>Meta '+(kr.unit ? '('+escapeHtml(kr.unit)+')' : '')+'</label><input class="ws-kr-num" type="number" min="0" step="any" data-kr-target="'+escapeHtml(kr.id)+'" data-obj="'+escapeHtml(selected.id)+'" value="'+(kr.target ?? '')+'"></div>'
+        + '</div>'
+        + '<div class="ws-progress" style="margin:10px 0 0"><span style="width:'+krPct+'%"></span></div>'
+        + '<p class="ws-meta" style="margin-top:6px">'+(kr.current ?? 0)+' / '+(kr.target ?? 0)+(kr.unit ? ' '+escapeHtml(kr.unit) : '')+' · '+krPct+'%</p>'
+        + '</article>';
+    }).join('');
+
+    body += '<section class="ws-card">'
+      + '<header class="ws-head" style="margin-bottom:8px">'
+      +   '<div><p class="ws-meta" style="text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">'+(selected.setor ? escapeHtml(selected.setor) : 'Objetivo')+'</p>'
+      +     '<h3>'+escapeHtml(selected.title)+'</h3>'
+      +     '<p class="ws-meta">'+filledSmartCount(smart)+'/5 SMART · '+(OBJ_STATUS[selected.status] || selected.status)
+      +       (selected.krs && selected.krs.length ? ' · '+pct+'% do percurso' : '')+'</p></div>'
+      +   '<button type="button" class="btn btn-ghost" data-obj-status="'+escapeHtml(selected.id)+'">'
+      +     (selected.status === 'concluido' ? 'Reabrir' : 'Concluir')+'</button>'
+      + '</header>'
+      + (selected.krs && selected.krs.length ? '<div class="ws-progress"><span style="width:'+pct+'%"></span></div>' : '')
+      + '<div class="ws-grid">'
+      +   '<div><p class="ws-col-title">SMART</p><dl class="ws-smart">'+rows+'</dl></div>'
+      +   '<div><div class="ws-head" style="margin-bottom:8px"><p class="ws-col-title" style="margin:0">Key results</p>'
+      +     '<button type="button" class="btn btn-ghost" data-kr-add="'+escapeHtml(selected.id)+'">+ Novo KR</button></div>'
+      +     (krs || '<p class="ws-meta">Complete o SMART ou crie o primeiro key result.</p>')
+      +   '</div>'
+      + '</div></section>';
+  }
+
+  wrap.innerHTML =
+    '<div class="ws-wrap">'
+    + '<div class="ws-head">'
+    +   '<div><div class="dash-title">Objetivos</div><div class="dash-subtitle">Resultado → SMART → key result. O Plano de Ação executa o percurso.</div></div>'
+    +   '<button type="button" class="btn btn-primary" data-obj-new>Novo objetivo</button>'
+    + '</div>'
+    + body
+    + '</div>';
+}
+
+function createObjectiveFromForm() {
+  const title = ($('objTitleInput') && $('objTitleInput').value.trim()) || '';
+  if (!title) { if ($('objTitleInput')) $('objTitleInput').focus(); return; }
+  const setor = ($('objSetorInput') && $('objSetorInput').value.trim()) || '';
+  const id = 'obj'+Date.now()+Math.random().toString(36).slice(2, 6);
+  state.objectives.unshift({
+    id, title, setor, status: 'ativo',
+    smart: { especifica: '', mensuravel: '', atingivel: '', relevante: '', temporal: '' },
+    krs: []
+  });
+  state.selectedObjectiveId = id;
+  state.objDraftOpen = false;
+  saveObjectives();
+  renderObjetivos();
+}
+
+function addKeyResult(objId) {
+  const o = getObjective(objId);
+  if (!o) return;
+  o.krs = o.krs || [];
+  o.krs.push({
+    id: 'kr'+Date.now()+Math.random().toString(36).slice(2, 6),
+    title: 'Novo key result',
+    current: 0,
+    target: 100,
+    unit: ''
+  });
+  saveObjectives();
+  renderObjetivos();
+}
+
+function renderMetricasNegocio() {
+  const wrap = $('placeholderView');
+  if (!wrap) return;
+  if (!state.objectives.length) loadObjectives();
+  const biz = clientBusiness();
+  const krs = listKeyResults();
+  const objs = state.objectives.slice();
+  const binLive = binPainelStats();
+  const bin = { done: binLive.filled, total: binLive.total };
+  const binPct = Math.round(bin.done / Math.max(bin.total, 1) * 100);
+  const minPct = minPainelStats().pct;
+
+  const krCards = krs.length
+    ? '<div class="dash-stats">'+krs.map(kr =>
+        '<button type="button" class="dash-stat-card" data-metric-obj="'+escapeHtml(kr.objectiveId)+'" style="text-align:left;cursor:pointer;font:inherit;color:inherit">'
+        +   '<div class="dash-stat-label">'+escapeHtml(kr.title)+'</div>'
+        +   '<div class="dash-stat-value">'+escapeHtml(formatKrValue(kr.current, kr.unit))+'</div>'
+        +   '<div class="ws-meta">meta '+escapeHtml(formatKrValue(kr.target, kr.unit))+' · '+kr.pct+'% · key result de '+escapeHtml(kr.objectiveTitle)+'</div>'
+        + '</button>'
+      ).join('')+'</div>'
+    : '<div class="ws-card" style="margin-bottom:16px"><p class="ws-meta" style="margin:0 0 10px">Ainda não tem key result. É daí que o número desta tela sai — não tem livro financeiro neste workspace.</p>'
+      + '<button type="button" class="btn btn-primary" data-goto-module="gestor-tarefas">Abrir Objetivos</button></div>';
+
+  const objBars = objs.length
+    ? objs.map(o => {
+        const pct = objProgress(o);
+        return '<div class="metric-bar"><span>'+escapeHtml(o.title)+'</span><div class="metric-bar-track"><i style="width:'+pct+'%"></i></div><em>'+pct+'%</em></div>';
+      }).join('')
+    : '<p class="ws-meta">Nenhum objetivo cadastrado ainda.</p>';
+
+  wrap.innerHTML =
+    '<div class="painel-wrap">'
+    + '<div class="dash-head">'
+    +   '<div><div class="dash-title">Métricas</div>'
+    +     '<div class="dash-subtitle">O que '+escapeHtml(biz.name)+' declarou em Objetivos. Sem key result, não aparece indicador.</div></div>'
+    + '</div>'
+    + krCards
+    + '<div class="painel-section-title">Percurso dos objetivos</div>'
+    + '<div class="ws-card" style="margin-bottom:16px">'+objBars+'</div>'
+    + '<div class="dash-charts">'
+    +   '<div class="dash-chart-card"><div class="dash-chart-title">Key results</div><div class="dash-chart-subtitle">Atual vs. meta, vindo de Atividades → Objetivos</div><div class="dash-chart-canvas-wrap"><canvas id="chartMetricasKr"></canvas></div></div>'
+    +   '<div class="dash-chart-card"><div class="dash-chart-title">Diagnóstico</div><div class="dash-chart-subtitle">BIN e MIN preenchidos neste workspace</div><div class="dash-chart-canvas-wrap"><canvas id="chartMetricasDiag"></canvas></div></div>'
+    + '</div>'
+    + '</div>';
+
+  destroyDashCharts();
+  if (typeof Chart === 'undefined') return;
+  const grid = chartGridOptions();
+  if (krs.length) {
+    dashCharts.metricasKr = new Chart($('chartMetricasKr'), {
+      type: 'bar',
+      data: { labels: krs.map(k => k.title), datasets: [{ data: krs.map(k => k.pct), backgroundColor: (c) => chartBarGradient(c.chart.ctx, c.chart.chartArea, '#3b82f6'), borderRadius: 6, maxBarThickness: 46 }] },
+      options: { indexAxis: 'y', plugins: { legend: { display: false } }, maintainAspectRatio: false, scales: {
+        x: { beginAtZero: true, max: 100, ticks: { color: grid.ticksColor, callback: (v) => v+'%' }, grid: grid.grid, border: grid.border },
+        y: { ticks: { color: grid.ticksColor }, grid: { display: false }, border: grid.border }
+      } }
+    });
+  }
+  dashCharts.metricasDiag = new Chart($('chartMetricasDiag'), {
+    type: 'bar',
+    data: { labels: ['BIN', 'MIN'], datasets: [{ data: [binPct, minPct], backgroundColor: (c) => chartBarGradient(c.chart.ctx, c.chart.chartArea, ['#3b82f6', '#8b5cf6'][c.dataIndex]), borderRadius: 6, maxBarThickness: 46 }] },
+    options: { plugins: { legend: { display: false } }, maintainAspectRatio: false, scales: {
+      y: { beginAtZero: true, max: 100, ticks: { color: grid.ticksColor, callback: (v) => v+'%' }, grid: grid.grid, border: grid.border },
+      x: { ticks: { color: grid.ticksColor }, grid: { display: false }, border: grid.border }
+    } }
+  });
+}
+
 // Módulos que já têm upload de documento de verdade, mesmo sem o resto do
 // desenho pronto (BIN/MIN: inventário de recursos do cliente; Importar
 // Dados: planilha/export de outra ferramenta).
@@ -2002,58 +2597,43 @@ function renderPlaceholder(key) {
 // BIN — Business Insights Navigator (diagnóstico dos 10 setores)
 // ====================================================================
 function renderBinPage() {
+  if (window.PulsoBin) {
+    PulsoBin.renderOverview();
+    return;
+  }
   const wrap = $('placeholderView');
   if (!wrap) return;
-  const binTotal = BIN_SECTORS_DEMO.reduce((sum, s) => sum + s.total, 0);
-  const binRespondidas = BIN_SECTORS_DEMO.reduce((sum, s) => sum + s.respondidas, 0);
-  const binPct = Math.round((binRespondidas / binTotal) * 100);
-
-  const areasHtml = BIN_SECTORS_DEMO.map((s, i) => {
-    const ic = BIN_AREA_ICONS[s.name] || {color:'#3b82f6', svg:''};
-    return renderDiagCard({
-      dataAttr: 'data-bin-area', dataValue: s.name, indexLabel: 'Área', index: i + 1,
-      color: ic.color, svg: ic.svg, title: s.name, meta: s.desc,
-      total: s.total, respondidas: s.respondidas
-    });
-  }).join('');
-
   wrap.innerHTML =
-    '<div class="diag-page">'
-    + '<div class="diag-page-header">'
-    +   '<div class="diag-page-title">'+escapeHtml(PLACEHOLDER_LABELS.bin.title)+'</div>'
-    +   '<button class="btn btn-primary" id="binEntregaveisBtn">Ver 4 Entregáveis Oficiais</button>'
-    + '</div>'
-    + '<div class="diag-progress-box">'
-    +   '<div class="diag-progress-top"><span class="diag-progress-label">Progresso do diagnóstico</span><span class="diag-progress-pct">'+binRespondidas+' de '+binTotal+' perguntas ('+binPct+'%)</span></div>'
-    +   '<div class="diag-progress-track"><div class="diag-progress-fill" style="width:'+binPct+'%"></div></div>'
-    + '</div>'
-    + '<div class="diag-section-title">Os 10 setores</div>'
-    + '<div class="area-grid">'+areasHtml+'</div>'
-    + '<div class="diag-section-title">Documentos do diagnóstico</div>'
-    + '<div id="placeholderUploader_bin"></div>'
-    + '</div>';
-
-  renderUploader('placeholderUploader_bin', { hint: UPLOADER_MODULES.bin });
+    '<div class="diag-page"><div class="diag-page-title">BIN</div>'
+    + '<p style="color:var(--text-muted);margin-top:12px">Carregando o diagnóstico…</p></div>';
 }
 
 // ====================================================================
 // MIN — Modelo Integrado de Negócios (13 blocos, 3 fases)
 // ====================================================================
+function minBlockProgress(bloco) {
+  const live = window.PulsoMin && PulsoMin.counts ? PulsoMin.counts()[bloco.nome] : null;
+  if (live) return { total: live.total, respondidas: live.filled };
+  return { total: bloco.total, respondidas: 0 };
+}
+
 function renderMinPage() {
   const wrap = $('placeholderView');
   if (!wrap) return;
   const allBlocos = MIN_BLOCKS.flatMap(f => f.blocos);
-  const done = allBlocos.filter(b => diagStatusKey(b.respondidas, b.total) === 'concluido').length;
-  const pct = Math.round((done / allBlocos.length) * 100);
+  const minStats = minPainelStats();
+  const done = minStats.done;
+  const pct = minStats.pct;
 
   let cardIndex = 0;
   const phasesHtml = MIN_BLOCKS.map(fase => {
     const blocksHtml = fase.blocos.map(b => {
       cardIndex++;
+      const c = minBlockProgress(b);
       return renderDiagCard({
         dataAttr: 'data-min-block', dataValue: b.nome, indexLabel: 'Bloco', index: cardIndex,
         color: b.color, svg: b.svg, title: b.nome, meta: b.tags,
-        total: b.total, respondidas: b.respondidas, countLabel: 'perguntas-guia'
+        total: c.total, respondidas: c.respondidas, countLabel: 'perguntas-guia'
       });
     }).join('');
     return '<div class="min-phase">'
@@ -2071,6 +2651,9 @@ function renderMinPage() {
     +   '<div class="diag-progress-top"><span class="diag-progress-label">Conclusão Geral</span><span class="diag-progress-pct">'+done+'/'+allBlocos.length+' Blocos ('+pct+'%)</span></div>'
     +   '<div class="diag-progress-track"><div class="diag-progress-fill" style="width:'+pct+'%"></div></div>'
     + '</div>'
+    + (window.PulsoMin && PulsoMin.lastStatus
+        ? '<p class="diag-page-lead" style="color:'+(PulsoMin.lastStatus.error ? '#f87171' : 'var(--text-muted)')+'">'+escapeHtml(PulsoMin.lastStatus.text)+'</p>'
+        : '')
     + phasesHtml
     + '<div class="diag-section-title">Documentos do modelo de negócio</div>'
     + '<div id="placeholderUploader_min"></div>'
@@ -2126,15 +2709,24 @@ function renderDashboard() {
     if (wrap) wrap.innerHTML = '<p style="color:var(--text-faint)">Não foi possível carregar os gráficos (Chart.js).</p>';
     return;
   }
-  const cards = state.cards;
+  const range = state.painelRange || '30d';
+  const year = state.painelYear || new Date().getFullYear();
+  const bounds = periodBounds(range, year);
+  const period = periodCaption(range, year);
+  const cards = cardsInPeriod(state.cards, bounds);
   const total = cards.length;
   const emAndamento = cards.filter(c => c.status && c.status.includes('Em Andamento')).length;
   const atrasadas = cards.filter(c => !isDone(c.status) && isOverdue(c.prazo)).length;
   const concluidas = cards.filter(c => isDone(c.status)).length;
 
   wrap.innerHTML =
-    '<div class="dash-title">Painéis e Relatórios</div>'
-    + '<div class="dash-subtitle">Andamento das atividades: Plano de Ação</div>'
+    '<div class="dash-head">'
+    +   '<div>'
+    +     '<div class="dash-title">Painéis e Relatórios</div>'
+    +     '<div class="dash-subtitle">Andamento das atividades: Plano de Ação · '+escapeHtml(period)+'</div>'
+    +   '</div>'
+    +   periodFilterHtml('dash')
+    + '</div>'
     + '<div class="dash-stats">'
     +   '<div class="dash-stat-card"><div class="dash-stat-label">Todas as tarefas</div><div class="dash-stat-value">'+total+'</div></div>'
     +   '<div class="dash-stat-card"><div class="dash-stat-label">Em andamento</div><div class="dash-stat-value" style="color:#3B82F6">'+emAndamento+'</div></div>'
@@ -2142,10 +2734,10 @@ function renderDashboard() {
     +   '<div class="dash-stat-card"><div class="dash-stat-label">Concluídas</div><div class="dash-stat-value" style="color:var(--success)">'+concluidas+'</div></div>'
     + '</div>'
     + '<div class="dash-charts">'
-    +   '<div class="dash-chart-card"><div class="dash-chart-title">Tarefas por status</div><div class="dash-chart-subtitle">Distribuição atual do quadro</div><div class="dash-chart-canvas-wrap"><canvas id="chartByStatus"></canvas></div></div>'
-    +   '<div class="dash-chart-card"><div class="dash-chart-title">Tarefas por responsável</div><div class="dash-chart-subtitle">Carga de trabalho por pessoa</div><div class="dash-chart-canvas-wrap"><canvas id="chartByResp"></canvas></div></div>'
-    +   '<div class="dash-chart-card"><div class="dash-chart-title">Tarefas atrasadas vs. em dia</div><div class="dash-chart-subtitle">Cumprimento de prazos</div><div class="dash-chart-canvas-wrap"><canvas id="chartOverdue"></canvas></div></div>'
-    +   '<div class="dash-chart-card"><div class="dash-chart-title">Tarefas por prazo</div><div class="dash-chart-subtitle">Linha do tempo de entregas</div><div class="dash-chart-canvas-wrap"><canvas id="chartByPrazo"></canvas></div></div>'
+    +   '<div class="dash-chart-card"><div class="dash-chart-title">Tarefas por status</div><div class="dash-chart-subtitle">'+escapeHtml(period)+'</div><div class="dash-chart-canvas-wrap"><canvas id="chartByStatus"></canvas></div></div>'
+    +   '<div class="dash-chart-card"><div class="dash-chart-title">Tarefas por responsável</div><div class="dash-chart-subtitle">'+escapeHtml(period)+'</div><div class="dash-chart-canvas-wrap"><canvas id="chartByResp"></canvas></div></div>'
+    +   '<div class="dash-chart-card"><div class="dash-chart-title">Tarefas atrasadas vs. em dia</div><div class="dash-chart-subtitle">'+escapeHtml(period)+'</div><div class="dash-chart-canvas-wrap"><canvas id="chartOverdue"></canvas></div></div>'
+    +   '<div class="dash-chart-card"><div class="dash-chart-title">Tarefas por prazo</div><div class="dash-chart-subtitle">'+escapeHtml(period)+'</div><div class="dash-chart-canvas-wrap"><canvas id="chartByPrazo"></canvas></div></div>'
     + '</div>';
 
   destroyDashCharts();
@@ -2832,18 +3424,53 @@ function clearFilters() {
 }
 
 // ====================================================================
-// THEME
+// THEME + CONTA
 // ====================================================================
-function toggleTheme() {
-  const root = document.documentElement;
-  const icon = $('themeIcon');
+function currentTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
+function syncThemeUi() {
+  const dark = currentTheme() === 'dark';
+  const icon = $('themeIconSvg');
   const label = $('themeLabel');
-  if (root.getAttribute('data-theme') === 'dark') {
-    root.setAttribute('data-theme', 'light');
-    icon.textContent = '☀️'; label.textContent = 'Claro';
-  } else {
-    root.setAttribute('data-theme', 'dark');
-    icon.textContent = 'ቷ69'; label.textContent = 'Escuro';
+  if (icon) icon.innerHTML = dark ? THEME_MOON : THEME_SUN;
+  if (label) label.textContent = dark ? 'Escuro' : 'Claro';
+  const toggle = $('themeToggle');
+  if (toggle) toggle.title = dark ? 'Mudar para tema claro' : 'Mudar para tema escuro';
+}
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+  try { localStorage.setItem(THEME_KEY, theme === 'light' ? 'light' : 'dark'); } catch (e) {}
+  syncThemeUi();
+  if (state.activeNav === 'configuracoes' && state.settingsTab === 'aparencia') renderSettings();
+}
+function toggleTheme() {
+  setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+}
+function applySavedTheme() {
+  let theme = 'dark';
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === 'light' || saved === 'dark') theme = saved;
+  } catch (e) {}
+  document.documentElement.setAttribute('data-theme', theme);
+  syncThemeUi();
+}
+function closeAccountPop() {
+  const pop = $('accountPop');
+  if (pop) pop.classList.remove('open');
+}
+function toggleAccountPop() {
+  const pop = $('accountPop');
+  const btn = $('accountBtn');
+  if (!pop || !btn) return;
+  syncAccountChrome();
+  const open = !pop.classList.contains('open');
+  pop.classList.toggle('open', open);
+  if (open) {
+    const rect = btn.getBoundingClientRect();
+    pop.style.left = (rect.right + 10) + 'px';
+    pop.style.top = Math.max(12, rect.top) + 'px';
   }
 }
 
@@ -2854,11 +3481,28 @@ document.addEventListener('click', function(e) {
   if (mm.panned) { mm.panned = false; return; }
   // --- SIDEBAR: SELECIONAR MÓDULO NO RAIL PRIMÁRIO ---
   const moduleBtn = e.target.closest('[data-module]');
-  if (moduleBtn) { selectModule(moduleBtn.getAttribute('data-module')); return; }
-  const navCollapse = e.target.closest('#navCollapseBtn');
-  if (navCollapse) { toggleNavCollapsed(); return; }
+  if (moduleBtn) { closeAccountPop(); selectModule(moduleBtn.getAttribute('data-module')); return; }
+  const navCollapse = e.target.closest('#navCollapseBtn, [data-nav-collapse]');
+  if (navCollapse) { closeAccountPop(); toggleNavCollapsed(); return; }
+  const accountBtn = e.target.closest('#accountBtn');
+  if (accountBtn) { toggleAccountPop(); return; }
+  const settingsBtn = e.target.closest('#settingsBtn');
+  if (settingsBtn) { openSettings(state.settingsTab || 'negocio'); return; }
+  const settingsTab = e.target.closest('[data-settings-tab]');
+  if (settingsTab) { openSettings(settingsTab.getAttribute('data-settings-tab')); return; }
+  const setThemeBtn = e.target.closest('[data-set-theme]');
+  if (setThemeBtn) { setTheme(setThemeBtn.getAttribute('data-set-theme')); return; }
+  if ($('accountPop') && $('accountPop').classList.contains('open') && !e.target.closest('#accountPop')) {
+    closeAccountPop();
+  }
 
   // --- PAINEL GERAL: ATALHOS DE MÓDULO ---
+  const metricObj = e.target.closest('[data-metric-obj]');
+  if (metricObj) {
+    state.selectedObjectiveId = metricObj.getAttribute('data-metric-obj');
+    selectModule('gestor-tarefas');
+    return;
+  }
   const gotoModule = e.target.closest('[data-goto-module]');
   if (gotoModule) { selectModule(gotoModule.getAttribute('data-goto-module')); return; }
 
@@ -3001,6 +3645,37 @@ document.addEventListener('click', function(e) {
   const mmNodeEl = e.target.closest('.mm-node');
   if (mmNodeEl) { mmSelect(mmNodeEl.getAttribute('data-node-id')); return; }
   if (e.target.closest('#mmCanvasWrap') && mm.tree) { mmSelect(null); return; }
+
+  const objSelect = e.target.closest('[data-obj-select]');
+  if (objSelect) {
+    state.selectedObjectiveId = objSelect.getAttribute('data-obj-select');
+    renderObjetivos();
+    return;
+  }
+  const objStatus = e.target.closest('[data-obj-status]');
+  if (objStatus) {
+    const o = getObjective(objStatus.getAttribute('data-obj-status'));
+    if (o) {
+      o.status = o.status === 'concluido' ? 'ativo' : 'concluido';
+      saveObjectives();
+      renderObjetivos();
+    }
+    return;
+  }
+  if (e.target.closest('[data-obj-new]')) {
+    state.objDraftOpen = !state.objDraftOpen;
+    renderObjetivos();
+    return;
+  }
+  if (e.target.closest('[data-obj-create]')) {
+    createObjectiveFromForm();
+    return;
+  }
+  const krAdd = e.target.closest('[data-kr-add]');
+  if (krAdd) {
+    addKeyResult(krAdd.getAttribute('data-kr-add'));
+    return;
+  }
 
   // --- SIDEBAR: NAVEGAÇÃO DENTRO DO PAINEL SECUNDÁRIO ---
   const nav = e.target.closest('#sidebarSecondary .sidebar-item');
@@ -3424,7 +4099,12 @@ document.addEventListener('click', function(e) {
     return;
   }
 
-  // --- BIN: ENTREGÁVEIS OFICIAIS ---
+  // --- BIN: setores e entregáveis ---
+  const binSectionCard = e.target.closest('[data-bin-section]');
+  if (binSectionCard && window.PulsoBin) {
+    PulsoBin.renderSection(binSectionCard.getAttribute('data-bin-section'));
+    return;
+  }
   const binEntregaveisBtn = e.target.closest('#binEntregaveisBtn');
   if (binEntregaveisBtn) { openBinEntregaveisModal(); return; }
   const closeBinEntregaveis = e.target.closest('#closeBinEntregaveisBtn');
@@ -3432,6 +4112,10 @@ document.addEventListener('click', function(e) {
 
   // --- MIN: DETALHE DE BLOCO ---
   const minBlockCard = e.target.closest('[data-min-block]');
+  if (minBlockCard && window.PulsoMin) {
+    PulsoMin.renderBlock(minBlockCard.getAttribute('data-min-block'));
+    return;
+  }
   if (minBlockCard) { openMinBlockModal(minBlockCard.getAttribute('data-min-block')); return; }
   const closeMinBlock = e.target.closest('#closeMinBlockBtn');
   if (closeMinBlock) { closeModal('minBlockModal'); return; }
@@ -3523,6 +4207,16 @@ document.addEventListener('input', function(e) {
 // CHANGE EVENTS (selects — dispara depois de escolher, não a cada tecla)
 // ====================================================================
 document.addEventListener('change', function(e) {
+  const periodYear = e.target.closest('[data-period-year]');
+  if (periodYear) {
+    applyPeriodFilter(periodYear.getAttribute('data-period-year'), 'year', periodYear.value);
+    return;
+  }
+  const periodRange = e.target.closest('[data-period-range]');
+  if (periodRange) {
+    applyPeriodFilter(periodRange.getAttribute('data-period-range'), 'range', periodRange.value);
+    return;
+  }
   // Uploader genérico: arquivos escolhidos pelo seletor nativo
   const uploaderInput = e.target.closest('[data-uploader-input]');
   if (uploaderInput) {
@@ -3634,8 +4328,68 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
+document.addEventListener('submit', function(e) {
+  if (e.target && e.target.id === 'negocioForm') {
+    e.preventDefault();
+    const next = {
+      name: ($('negName') && $('negName').value.trim()) || DEFAULT_NEGOCIO.name,
+      segment: $('negSegment') ? $('negSegment').value.trim() : '',
+      owner: $('negOwner') ? $('negOwner').value.trim() : '',
+      email: $('negEmail') ? $('negEmail').value.trim() : '',
+      phone: $('negPhone') ? $('negPhone').value.trim() : ''
+    };
+    try { localStorage.setItem(NEGOCIO_KEY, JSON.stringify(next)); } catch (err) {}
+    syncAccountChrome();
+    renderSettings();
+    return;
+  }
+  if (e.target && e.target.id === 'contaForm') {
+    e.preventDefault();
+    const next = {
+      name: ($('accName') && $('accName').value.trim()) || DEFAULT_CONTA.name,
+      email: $('accEmail') ? $('accEmail').value.trim() : DEFAULT_CONTA.email
+    };
+    try { localStorage.setItem(CONTA_KEY, JSON.stringify(next)); } catch (err) {}
+    renderSettings();
+  }
+});
+
 // Mapa mental: salva o texto do nó quando o usuário sai do campo editável
 document.addEventListener('blur', function(e) {
+  const smartEl = e.target.closest && e.target.closest('[data-smart]');
+  if (smartEl) {
+    const o = getObjective(smartEl.getAttribute('data-obj'));
+    if (o) {
+      o.smart = o.smart || {};
+      o.smart[smartEl.getAttribute('data-smart')] = smartEl.value;
+      saveObjectives();
+    }
+    return;
+  }
+  const krCur = e.target.closest && e.target.closest('[data-kr-current]');
+  if (krCur) {
+    const o = getObjective(krCur.getAttribute('data-obj'));
+    const kr = o && (o.krs || []).find(k => k.id === krCur.getAttribute('data-kr-current'));
+    if (kr) {
+      const n = Number(krCur.value);
+      kr.current = Number.isFinite(n) ? n : 0;
+      saveObjectives();
+      renderObjetivos();
+    }
+    return;
+  }
+  const krTarget = e.target.closest && e.target.closest('[data-kr-target]');
+  if (krTarget) {
+    const o = getObjective(krTarget.getAttribute('data-obj'));
+    const kr = o && (o.krs || []).find(k => k.id === krTarget.getAttribute('data-kr-target'));
+    if (kr) {
+      const n = Number(krTarget.value);
+      kr.target = Number.isFinite(n) ? n : 0;
+      saveObjectives();
+      renderObjetivos();
+    }
+    return;
+  }
   const boardEl = e.target.closest && e.target.closest('[data-board-rename][contenteditable="true"]');
   if (boardEl) {
     const id = boardEl.getAttribute('data-board-rename');
@@ -3679,26 +4433,45 @@ document.addEventListener('blur', function(e) {
 // ====================================================================
 function init() {
   initData();
+  loadObjectives();
+  applySavedTheme();
+  syncAccountChrome();
   // Set base icon
   if (state.baseIcon) $('baseIcon').textContent = state.baseIcon;
   if (state.baseColor) $('baseIcon').style.background = state.baseColor;
   try {
-    applyNavCollapsed(localStorage.getItem('pulso-preview-nav-collapsed') === '1');
-  } catch (e) { /* ignore */ }
+    localStorage.removeItem('pulso-preview-nav-collapsed');
+    applyNavCollapsed(localStorage.getItem('pulso-preview-nav-v2') === '1');
+  } catch (e) { applyNavCollapsed(false); }
   renderKanban();
-  selectModule('gestor-tarefas');
+  const place = loadPlace();
+  if (place && place.module === 'configuracoes') {
+    openSettings(place.settingsTab || 'negocio');
+  } else if (place && place.module && document.querySelector('[data-module="'+place.module+'"]')) {
+    selectModule(place.module, { restore: true });
+    if (place.nav && place.nav !== state.activeNav) {
+      state.activeNav = place.nav;
+      renderSecondaryPanel(place.module);
+      navigateTo(place.nav);
+    }
+  } else {
+    selectModule('gestor-tarefas');
+  }
 }
 
 function applyNavCollapsed(collapsed) {
   document.body.classList.toggle('nav-collapsed', !!collapsed);
   const btn = $('navCollapseBtn');
-  if (btn) btn.title = collapsed ? 'Expandir menu' : 'Recolher menu';
+  const label = $('navCollapseLabel');
+  const title = collapsed ? 'Expandir menu' : 'Recolher menu';
+  if (btn) btn.title = title;
+  if (label) label.textContent = collapsed ? 'Expandir' : 'Recolher';
 }
 
 function toggleNavCollapsed() {
   const next = !document.body.classList.contains('nav-collapsed');
   applyNavCollapsed(next);
-  try { localStorage.setItem('pulso-preview-nav-collapsed', next ? '1' : '0'); } catch (e) { /* ignore */ }
+  try { localStorage.setItem('pulso-preview-nav-v2', next ? '1' : '0'); } catch (e) { /* ignore */ }
 }
 
 // ====================================================================
@@ -3710,7 +4483,7 @@ function toggleNavCollapsed() {
 // estrutura de um projeto. Três formas de começar: em branco, por
 // template, ou "gerado por IA" a partir de um texto (ver nota sobre o
 // gerador ser uma simulação, não uma chamada de IA de verdade, no modal).
-const MM_STORAGE_KEY = 'pulso-mindmap-v1';
+const MM_STORAGE_KEY = 'pulso-mindmap-v1-' + CURRENT_CLIENT_SLUG;
 // Paleta dos GALHOS (não inclui o verde escuro do nó raiz de propósito —
 // evita um galho nascer com a mesma cor da raiz e ficar difícil de distinguir).
 const MM_COLORS = ['#3B82F6','#A78BFA','#F59E0B','#EC4899','#16A34A','#EF4444','#0EA5E9','#F472B6'];
@@ -4613,7 +5386,10 @@ function renderMapsSecondaryPanel() {
   const wrap = $('sidebarSecondary');
   if (!wrap) return;
   wrap.style.display = 'flex';
-  let html = '<div class="secondary-header">Projeto</div><nav class="sidebar-nav">';
+  let html = '<div class="secondary-header"><span>Projeto</span>'
+    + '<button class="secondary-collapse" type="button" data-nav-collapse title="Recolher menu" aria-label="Recolher menu">'
+    + '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><polyline points="16 15 13 12 16 9"/></svg>'
+    + '</button></div><nav class="sidebar-nav">';
   html += '<div class="sidebar-section-label">Meus mapas</div>';
   html += mm.maps.map(m => {
     const activeCls = m.id === mm.activeMapId ? ' active' : '';
@@ -4673,5 +5449,7 @@ function mmDeleteMap(id) {
 // e o board não carregava os dados salvos até uma ação manual).
 init();
 </script>
+<script src="/preview/bin-form.js?v=20260926-sim"></script>
+<script src="/preview/min-form.js?v=20260926-sim"></script>
 </body>
 </html>

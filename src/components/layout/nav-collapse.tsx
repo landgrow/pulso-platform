@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ChevronLeft, PanelLeft, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,11 +13,24 @@ export function usePersistedCollapsed(
 } {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrates from localStorage, unavailable during SSR
+      if (stored === "1") setCollapsed(true);
+      if (stored === "0") setCollapsed(false);
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, [storageKey]);
+
   function toggle(): void {
     setCollapsed((prev) => {
       const next = !prev;
-      if (typeof window !== "undefined") {
+      try {
         window.localStorage.setItem(storageKey, next ? "1" : "0");
+      } catch {
+        /* ignore quota / private mode */
       }
       return next;
     });
@@ -58,10 +71,24 @@ export function NavCollapseButton({
   );
 }
 
+function useNarrow(query = "(max-width: 1023px)"): boolean {
+  const [narrow, setNarrow] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const apply = (): void => setNarrow(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, [query]);
+
+  return narrow;
+}
+
 /**
  * Submenu de tela no padrão ClickUp:
- * aberto = lista completa + pílula na costura (sem faixa de texto);
- * fechado = some de vez; só um ícone 32px no fluxo, sem coluna "MENU".
+ * desktop aberto = coluna 224px; fechado = só ícone 32px.
+ * abaixo de lg = overlay, para não esmagar o conteúdo.
  */
 export function CollapsibleSubnav({
   storageKey,
@@ -73,29 +100,57 @@ export function CollapsibleSubnav({
   className?: string | undefined;
 }): JSX.Element {
   const { collapsed, toggle } = usePersistedCollapsed(storageKey);
+  const narrow = useNarrow();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  if (collapsed) {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- closes mobile drawer when viewport crosses into narrow
+    if (narrow) setMobileOpen(false);
+  }, [narrow]);
+
+  const open = narrow ? mobileOpen : !collapsed;
+
+  function handleToggle(): void {
+    if (narrow) setMobileOpen((prev) => !prev);
+    else toggle();
+  }
+
+  if (!open) {
     return (
       <NavCollapseButton
         collapsed
-        onToggle={toggle}
+        onToggle={handleToggle}
         className={cn("mt-1 shrink-0 self-start", className)}
       />
     );
   }
 
   return (
-    <div className={cn("relative w-56 shrink-0 self-stretch", className)}>
-      {children}
+    <>
       <button
         type="button"
-        onClick={toggle}
-        className="absolute top-3 -right-3 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-1 text-text-2 shadow-sm hover:bg-surface-2 hover:text-text-1"
-        title="Recolher menu"
-        aria-label="Recolher menu"
+        className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+        aria-label="Fechar menu"
+        onClick={handleToggle}
+      />
+      <div
+        className={cn(
+          "relative w-56 shrink-0 self-stretch",
+          "max-lg:fixed max-lg:top-12 max-lg:bottom-0 max-lg:left-0 max-lg:z-40 max-lg:overflow-y-auto max-lg:bg-surface-1 max-lg:shadow-xl",
+          className,
+        )}
       >
-        <ChevronLeft className="h-3.5 w-3.5" />
-      </button>
-    </div>
+        {children}
+        <button
+          type="button"
+          onClick={handleToggle}
+          className="absolute top-3 -right-3 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-1 text-text-2 shadow-sm hover:bg-surface-2 hover:text-text-1"
+          title="Recolher menu"
+          aria-label="Recolher menu"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </>
   );
 }

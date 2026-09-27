@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const ENTER_MS = 180;
+const EXIT_MS = 140;
+const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 /** Modal central estilo ClickUp — não usa Sheet (aba lateral). */
 export function TaskModal({
@@ -14,8 +19,25 @@ export function TaskModal({
   onClose: () => void;
   children: ReactNode;
 }): JSX.Element | null {
+  const [mounted, setMounted] = useState(open);
+  const [shown, setShown] = useState(false);
+
   useEffect(() => {
-    if (!open) return;
+    if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- drives the mount-then-animate-in sequence on open
+      setMounted(true);
+      const id = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setShown(true));
+      });
+      return () => cancelAnimationFrame(id);
+    }
+    setShown(false);
+    const timeout = window.setTimeout(() => setMounted(false), EXIT_MS);
+    return () => window.clearTimeout(timeout);
+  }, [open]);
+
+  useEffect(() => {
+    if (!mounted) return;
     function onKey(event: KeyboardEvent): void {
       if (event.key === "Escape") onClose();
     }
@@ -26,9 +48,9 @@ export function TaskModal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previousOverflow;
     };
-  }, [open, onClose]);
+  }, [mounted, onClose]);
 
-  if (!open) return null;
+  if (!mounted) return null;
   if (typeof document === "undefined") return null;
 
   return createPortal(
@@ -36,13 +58,30 @@ export function TaskModal({
       <button
         type="button"
         aria-label="Fechar"
-        className="absolute inset-0 bg-black/50"
+        className={cn(
+          "absolute inset-0 bg-black/50 transition-opacity",
+          shown ? "opacity-100" : "opacity-0",
+        )}
+        style={{
+          transitionDuration: `${shown ? ENTER_MS : EXIT_MS}ms`,
+          transitionTimingFunction: EASE,
+        }}
         onClick={onClose}
       />
       <div
         role="dialog"
         aria-modal="true"
-        className="relative z-10 flex h-[min(90vh,880px)] w-full max-w-[1180px] overflow-hidden rounded-xl border border-border bg-background shadow-2xl"
+        className={cn(
+          "relative z-10 flex h-[min(90vh,880px)] w-full max-w-[1180px] overflow-hidden rounded-xl border border-border bg-background shadow-2xl",
+          shown
+            ? "opacity-100 translate-y-0 blur-0"
+            : "opacity-0 translate-y-2 blur-[4px]",
+        )}
+        style={{
+          transitionProperty: "opacity, transform, filter",
+          transitionDuration: `${shown ? ENTER_MS : EXIT_MS}ms`,
+          transitionTimingFunction: EASE,
+        }}
       >
         {children}
         <button

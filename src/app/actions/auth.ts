@@ -5,7 +5,8 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies, headers } from "next/headers"; // headers: para IP do cliente no rate limiter
 import { redirect } from "next/navigation";
 import { isRateLimited } from "@/lib/supabase/rate-limit";
-import { inviteRedirectTo } from "@/lib/auth/invite-callback";
+import { passwordResetRedirectTo } from "@/lib/auth/invite-callback";
+import { ACTIVE_ORG_COOKIE, resolveHomePath } from "@/lib/auth/client-portal";
 
 // ─── Schemas de validação ────────────────────────────────────────────────────
 
@@ -73,7 +74,7 @@ async function getClientIpAsync(): Promise<string> {
 // ─── Server Actions ─────────────────────────────────────────────────────────
 
 export type SignInResult =
-  | { success: true }
+  | { success: true; redirectTo: string }
   | {
       success: false;
       error: string;
@@ -103,7 +104,7 @@ export async function signIn(raw: unknown): Promise<SignInResult> {
   const { email, password } = parsed.data;
   const supabase = await getClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: signedIn, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
@@ -130,7 +131,15 @@ export async function signIn(raw: unknown): Promise<SignInResult> {
     return { success: false, error: error.message, code: "invalid" };
   }
 
-  return { success: true };
+  const userId = signedIn.user?.id;
+  if (!userId) return { success: true, redirectTo: "/dashboard" };
+  const cookieStore = await cookies();
+  const redirectTo = await resolveHomePath(
+    supabase,
+    userId,
+    cookieStore.get(ACTIVE_ORG_COOKIE)?.value ?? null,
+  );
+  return { success: true, redirectTo };
 }
 
 export type SignOutResult = { success: boolean };
@@ -154,10 +163,16 @@ export async function forgotPassword(
 
   const { email } = parsed.data;
   const supabase = await getClient();
+  const headersList = await headers();
+  const redirectTo = passwordResetRedirectTo(
+    headersList.get("origin"),
+    headersList.get("x-forwarded-host") ?? headersList.get("host"),
+    process.env.NEXT_PUBLIC_APP_URL,
+  );
 
   // Sempre retorna sucesso — não revela se o email existe ou não.
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: inviteRedirectTo(process.env.NEXT_PUBLIC_APP_URL),
+    redirectTo,
   });
 
   if (error) {

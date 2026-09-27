@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -64,9 +65,9 @@ export function EquipeTab(): JSX.Element {
       <p className="text-xs text-text-2">
         Quem pode ser Responsável por uma tarefa — mesmo time da plataforma.
         Gerencie em{" "}
-        <a href="/admin/equipe" className="text-primary hover:underline">
+        <Link href="/admin/equipe" className="text-primary hover:underline">
           Equipe
-        </a>
+        </Link>
         .
       </p>
       {loading ? (

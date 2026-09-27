@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  actionListCaption,
   actionIsDone,
   daysUntil,
   derivedObjectiveStatus,
@@ -106,6 +107,13 @@ describe("5H2W", () => {
     expect(fiveH2WSummary(fields)).toBe(
       "Quem Nayara · Quando 2026-09-30 · Como 5H2W",
     );
+    expect(
+      actionListCaption({
+        quem: "Nayara",
+        quando: "2026-09-30",
+        columnLabel: "Concluído",
+      }),
+    ).toBe("30/09/2026 · Nayara · Concluído");
   });
 
   it("marks done from closed kanban columns", () => {
@@ -162,7 +170,10 @@ describe("cascade generation", () => {
       "fazer followup com nossos clientes",
     ]);
     expect(actions[0]?.quando).toBe("2026-09-23");
-    expect(actions[0]?.quanto).toBe("fazer followup com nossos clientes");
+    expect(actions[0]?.quanto).toBeNull();
+    expect(actions[0]?.como).toBeNull();
+    expect(actions[1]?.quanto).toBeNull();
+    expect(new Set(actions.map((a) => a.oQue)).size).toBe(actions.length);
   });
 
   it("parses 5H2W notes into readable rows", () => {

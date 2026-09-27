@@ -13,14 +13,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { User } from "@supabase/supabase-js";
-import { getInitials } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 
 interface UserDropdownProps {
   user: User | null;
+  placement?: "header" | "rail";
 }
 
-export function UserDropdown({ user }: UserDropdownProps): JSX.Element {
+export function UserDropdown({
+  user,
+  placement = "header",
+}: UserDropdownProps): JSX.Element {
   const router = useRouter();
+  const rail = placement === "rail";
 
   const displayName =
     user?.user_metadata?.full_name ?? user?.email?.split("@")[0] ?? "Usuário";
@@ -36,16 +41,25 @@ export function UserDropdown({ user }: UserDropdownProps): JSX.Element {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-          <Avatar className="h-9 w-9">
-            <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+        <Button
+          variant="ghost"
+          className={cn("relative rounded-full", rail ? "h-8 w-8" : "h-9 w-9")}
+          title={displayName}
+        >
+          <Avatar className={rail ? "h-7 w-7" : "h-9 w-9"}>
+            <AvatarFallback className="bg-primary/10 text-primary text-[11px] font-medium">
               {initials}
             </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent
+        align={rail ? "start" : "end"}
+        side={rail ? "top" : "bottom"}
+        sideOffset={8}
+        className="w-56"
+      >
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium text-text-1 leading-none">

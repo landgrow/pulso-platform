@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
 import {
   LayoutDashboard,
   Settings,
@@ -12,14 +13,24 @@ import {
   Share2,
   Contact,
   Home,
-  BarChart3,
   Wallet,
+  Radar,
 } from "lucide-react";
+import { BrandMark } from "@/components/brand/brand-mark";
+import { OrgSwitcher } from "@/components/layout/org-switcher";
+import { NavCollapseButton } from "@/components/layout/nav-collapse";
 import { useSidebar } from "@/components/layout/sidebar-context";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { UserDropdown } from "@/components/layout/user-dropdown";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import { getMyPlatformRole } from "@/app/actions/me";
 import type { StaffCapabilityId } from "@/lib/auth/staff-access";
+import {
+  filterHqNav,
+  HQ_NAV,
+  requestCommandPalette,
+} from "@/lib/nav/destinations";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "layout-dashboard": LayoutDashboard,
@@ -30,88 +41,37 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "share-2": Share2,
   contact: Contact,
   home: Home,
-  "bar-chart-3": BarChart3,
   wallet: Wallet,
+  radar: Radar,
 };
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: string;
-  /**
-   * "all" = qualquer usuário logado; "client" = só cliente;
-   * capability = função admin marcada em Equipe (admin tem todas).
-   */
-  visibility?: "all" | "client" | StaffCapabilityId;
-}
-
-const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: "layout-dashboard" },
-  {
-    href: "/admin/painel",
-    label: "Painel",
-    icon: "home",
-    visibility: "painel",
-  },
-  {
-    href: "/admin/atividades",
-    label: "Atividades",
-    icon: "clipboard-list",
-    visibility: "atividades",
-  },
-  {
-    href: "/admin/mapa-mental",
-    label: "Mapa Mental",
-    icon: "share-2",
-    visibility: "mapa_mental",
-  },
-  {
-    href: "/admin/financeiro",
-    label: "Financeiro",
-    icon: "wallet",
-    visibility: "financeiro",
-  },
-  {
-    href: "/admin/metricas",
-    label: "Métricas",
-    icon: "bar-chart-3",
-    visibility: "metricas",
-  },
-  { href: "/admin/crm", label: "CRM", icon: "contact", visibility: "crm" },
-  {
-    href: "/admin/clientes",
-    label: "Organizações",
-    icon: "building-2",
-    visibility: "clientes",
-  },
-  {
-    href: "/admin/equipe",
-    label: "Equipe",
-    icon: "users",
-    visibility: "equipe",
-  },
-  { href: "/configuracoes", label: "Configurações", icon: "settings" },
-];
 
 export function Sidebar({
   variant = "rail",
+  user = null,
 }: {
   variant?: "rail" | "full";
+  user?: User | null;
 }): JSX.Element {
   const pathname = usePathname();
-  const { isCollapsed, isMobileOpen, onMobileClose } = useSidebar();
+  const { isCollapsed, toggle, onMobileClose } = useSidebar();
   const [platformRole, setPlatformRole] = useState<
     "platform_admin" | "consultant" | null
   >(null);
   const [capabilities, setCapabilities] = useState<StaffCapabilityId[]>([]);
+  const [inClientWorkspace, setInClientWorkspace] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const { role, capabilities: nextCaps } = await getMyPlatformRole();
+      const {
+        role,
+        capabilities: nextCaps,
+        inClientWorkspace: nextClient,
+      } = await getMyPlatformRole();
       if (!cancelled) {
         setPlatformRole(role);
         setCapabilities(nextCaps);
+        setInClientWorkspace(nextClient);
       }
     })();
     return () => {
@@ -119,90 +79,123 @@ export function Sidebar({
     };
   }, []);
 
-  const visibleItems = navItems.filter((item) => {
-    if (!item.visibility || item.visibility === "all") return true;
-    if (item.visibility === "client") return platformRole === null;
-    return capabilities.includes(item.visibility);
+  const onHqRoute = pathname.startsWith("/admin");
+  const visibleItems = filterHqNav(HQ_NAV, {
+    capabilities,
+    inClientWorkspace,
+    onHqRoute,
+    platformRole,
   });
 
-  const isFull = variant === "full";
-  const compact = !isFull && isCollapsed;
+  const isFull = variant === "full" || !isCollapsed;
 
   const className = cn(
-    "flex flex-col h-full bg-surface-1 border-r border-border transition-[width] duration-200",
-    isFull ? "w-full" : compact ? "w-14" : "w-56",
-    isMobileOpen ? "block" : "hidden lg:flex",
+    "flex h-full flex-col border-r border-border bg-background",
+    variant === "full"
+      ? "w-full"
+      : isFull
+        ? "hidden w-56 lg:flex"
+        : "hidden w-[4.5rem] lg:flex",
   );
 
   return (
-    <>
-      {/* Overlay para mobile */}
-      {isMobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={onMobileClose}
-          aria-hidden="true"
-        />
-      )}
+    <aside className={className} aria-label="Navegação principal">
+      <div
+        className={cn(
+          "flex shrink-0 items-center gap-2 border-b border-border",
+          isFull ? "px-3 py-3" : "flex-col px-1.5 py-3",
+        )}
+      >
+        <BrandMark />
+        {isFull ? (
+          <span className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight text-text-1">
+            {APP_NAME}
+          </span>
+        ) : null}
+        <OrgSwitcher compact={!isFull} />
+        {variant === "rail" ? (
+          <NavCollapseButton
+            collapsed={!isFull}
+            onToggle={toggle}
+            className={isFull ? "ml-auto" : ""}
+          />
+        ) : null}
+      </div>
 
-      <aside className={className} aria-label="Navegação principal">
-        {/* Logo */}
-        <div
-          className={cn(
-            "flex items-center h-16 border-b border-border shrink-0",
-            compact ? "justify-center" : "gap-2 px-3",
-          )}
-        >
-          <div className="h-8 w-8 rounded-lg bg-brand-lime flex items-center justify-center shrink-0">
-            <span className="text-brand-lime-foreground font-bold text-sm">
-              LG
-            </span>
-          </div>
-          {!compact && (
-            <span className="text-lg font-semibold text-text-1 tracking-tight truncate">
-              {APP_NAME}
-            </span>
-          )}
-        </div>
+      <nav
+        className={cn(
+          "flex-1 overflow-y-auto",
+          isFull ? "space-y-0.5 px-2 py-3" : "flex flex-col items-stretch py-1",
+        )}
+        aria-label={APP_NAME}
+      >
+        {visibleItems.map((item) => {
+          const Icon = iconMap[item.icon] ?? LayoutDashboard;
+          const isActive =
+            pathname === item.href || pathname.startsWith(`${item.href}/`);
 
-        <nav
-          className={cn(
-            "flex-1 overflow-y-auto space-y-0.5",
-            compact ? "py-3 px-1.5" : "py-3 px-2",
-          )}
-          aria-label={APP_NAME}
-        >
-          {visibleItems.map((item) => {
-            const Icon = iconMap[item.icon] ?? LayoutDashboard;
-            const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onMobileClose}
-                title={compact ? item.label : undefined}
-              >
-                <span
-                  className={cn(
-                    "transition-colors duration-150 rounded-lg",
-                    isActive
-                      ? "bg-primary/15 text-primary ring-1 ring-primary/30"
-                      : "text-text-2 hover:bg-surface-2 hover:text-text-1",
-                    compact
-                      ? "flex items-center justify-center py-2.5"
-                      : "flex items-center gap-3 px-3 py-2.5 text-sm font-medium",
-                  )}
-                >
-                  <Icon className="h-5 w-5 shrink-0" />
-                  {!compact && <span className="truncate">{item.label}</span>}
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onMobileClose}
+              title={item.label}
+              aria-current={isActive ? "page" : undefined}
+              className={cn(
+                "flex items-center transition-colors duration-150",
+                isFull
+                  ? cn(
+                      "gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
+                      isActive
+                        ? "bg-surface-2 text-text-1"
+                        : "text-text-2 hover:bg-surface-2 hover:text-text-1",
+                    )
+                  : cn(
+                      "flex-col gap-1 px-1 py-2.5",
+                      isActive
+                        ? "text-text-1"
+                        : "text-text-3 hover:text-text-1",
+                    ),
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {isFull ? (
+                <span className="truncate">{item.label}</span>
+              ) : (
+                <span className="text-[9px] font-medium leading-none tracking-wide">
+                  {item.short}
                 </span>
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
-    </>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div
+        className={cn(
+          "shrink-0 border-t border-border",
+          isFull
+            ? "flex items-center gap-1 px-2 py-2"
+            : "flex flex-col items-center gap-1 py-2",
+        )}
+      >
+        <button
+          type="button"
+          onClick={requestCommandPalette}
+          title="Ir para (Ctrl K)"
+          aria-label="Ir para"
+          className={cn(
+            "text-[10px] font-medium tracking-wide text-text-3 transition-colors hover:text-text-1",
+            isFull
+              ? "mr-auto px-2 py-1.5"
+              : "flex h-8 w-8 items-center justify-center",
+          )}
+        >
+          {isFull ? "Ctrl K" : "K"}
+        </button>
+        <ThemeToggle placement="rail" />
+        <UserDropdown user={user} placement="rail" />
+      </div>
+    </aside>
   );
 }

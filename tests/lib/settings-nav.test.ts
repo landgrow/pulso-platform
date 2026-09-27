@@ -11,6 +11,7 @@ describe("parseNotificationPrefs", () => {
   it("fills defaults when metadata is empty", () => {
     expect(parseNotificationPrefs(undefined).prazo).toBe(true);
     expect(parseNotificationPrefs(null).resumoDiario).toBe(false);
+    expect(parseNotificationPrefs(undefined).binCliente).toBe(true);
   });
 
   it("keeps saved booleans", () => {

@@ -62,13 +62,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const msg = error.message.toLowerCase();
+    const recovering = (searchParams.get("next") ?? "").startsWith(
+      "/reset-password",
+    );
     const friendlyError =
       msg.includes("signup") || msg.includes("not allowed")
         ? "Esse email do Google ainda não tem acesso liberado. Fale com sua consultora."
-        : "Link de convite inválido ou expirado. Peça um novo acesso.";
+        : recovering
+          ? "Esse link de redefinição não abriu a troca de senha. Peça outro em Esqueci a senha, no mesmo endereço do PULSO."
+          : "Link de convite inválido ou expirado. Peça um novo acesso.";
 
+    const failPath = recovering ? "/forgot-password" : "/login";
     return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent(friendlyError)}`,
+      `${origin}${failPath}?error=${encodeURIComponent(friendlyError)}`,
     );
   }
 

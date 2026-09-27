@@ -20,6 +20,7 @@ import { MeetingsPanel } from "@/components/atividades/meetings-panel";
 import { ImportPanel } from "@/components/atividades/import-panel";
 import { AutomationsPanel } from "@/components/atividades/automations-panel";
 import { WorksmartPanel } from "@/components/atividades/worksmart-panel";
+import { FadeSwap } from "@/components/ui/fade-swap";
 import { cn } from "@/lib/utils";
 import { CollapsibleSubnav } from "@/components/layout/nav-collapse";
 
@@ -61,7 +62,7 @@ export function AtividadesShell({ orgId }: { orgId: string }): JSX.Element {
   }
 
   return (
-    <div className="flex items-stretch">
+    <div className="flex w-full min-w-0 items-stretch">
       <CollapsibleSubnav storageKey="pulso-nav-atividades">
         <aside className="flex h-full min-h-[calc(100vh-9rem)] flex-col border-r border-border bg-surface-1">
           <div className="flex-1 overflow-y-auto p-2">
@@ -162,31 +163,35 @@ export function AtividadesShell({ orgId }: { orgId: string }): JSX.Element {
         </aside>
       </CollapsibleSubnav>
 
-      <div className="flex-1 min-w-0 pl-4">
-        {nav.kind === "dashboard" && <AtividadesDashboard orgId={orgId} />}
-        {nav.kind === "worksmart" && (
-          <WorksmartPanel orgId={orgId} onOpenBoard={selectBoard} />
-        )}
-        {nav.kind === "meetings" && <MeetingsPanel orgId={orgId} />}
-        {nav.kind === "import" && <ImportPanel boards={boards} />}
-        {nav.kind === "automations" && <AutomationsPanel boards={boards} />}
-        {nav.kind === "board" &&
-          (loading ? (
-            <div className="flex items-center justify-center py-16 text-text-2">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              Carregando board...
-            </div>
-          ) : board ? (
-            <BoardContent
-              board={board}
-              onChanged={() => void refreshCurrentBoard()}
-              updateBoardOptimistic={updateBoardOptimistic}
-            />
-          ) : (
-            <p className="text-sm text-text-2">
-              Não foi possível carregar o board.
-            </p>
-          ))}
+      <div className="min-w-0 w-full flex-1 pl-3 sm:pl-4">
+        <FadeSwap
+          swapKey={nav.kind === "board" ? `board:${nav.boardId}` : nav.kind}
+        >
+          {nav.kind === "dashboard" && <AtividadesDashboard orgId={orgId} />}
+          {nav.kind === "worksmart" && (
+            <WorksmartPanel orgId={orgId} onOpenBoard={selectBoard} />
+          )}
+          {nav.kind === "meetings" && <MeetingsPanel orgId={orgId} />}
+          {nav.kind === "import" && <ImportPanel boards={boards} />}
+          {nav.kind === "automations" && <AutomationsPanel boards={boards} />}
+          {nav.kind === "board" &&
+            (loading ? (
+              <div className="flex items-center justify-center py-16 text-text-2">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                Carregando board...
+              </div>
+            ) : board ? (
+              <BoardContent
+                board={board}
+                onChanged={() => void refreshCurrentBoard()}
+                updateBoardOptimistic={updateBoardOptimistic}
+              />
+            ) : (
+              <p className="text-sm text-text-2">
+                Não foi possível carregar o board.
+              </p>
+            ))}
+        </FadeSwap>
       </div>
     </div>
   );

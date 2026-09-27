@@ -32,8 +32,8 @@ import {
   type WorksmartObjective,
 } from "@/types/worksmart";
 import {
+  actionListCaption,
   filledSmartCount,
-  fiveH2WSummary,
   horizonChip,
   isObjectiveAchieved,
   isSmartComplete,
@@ -177,20 +177,10 @@ export function WorksmartPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">Objetivos WorkSmart</h2>
-          <p className="text-sm text-text-2">
-            SMART completo gera o key result, a métrica e os cards 5H2W no Plano
-            de Ação. Acompanhe atual versus meta aqui; o andamento segue no
-            kanban.
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-text-1">Objetivos</h2>
         <div className="flex flex-wrap items-center gap-2">
-          <PdfExportButton
-            label="Exportar PDF"
-            run={() => exportWorksmartPdf(orgId)}
-          />
+          <PdfExportButton label="PDF" run={() => exportWorksmartPdf(orgId)} />
           <Button size="sm" onClick={() => setNewObjectiveOpen(true)}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             Novo objetivo
@@ -355,8 +345,8 @@ function ObjectiveDetail({
   }
 
   return (
-    <section className="rounded-lg border border-border bg-surface-1 p-4 space-y-4">
-      <header className="flex items-start justify-between gap-3">
+    <section className="w-full rounded-lg border border-border bg-surface-1 p-4 space-y-4">
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           {objective.setor ? (
             <p className="text-xs uppercase tracking-wide text-text-2 mb-1">
@@ -415,117 +405,140 @@ function ObjectiveDetail({
         </div>
       ) : null}
 
-      <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-        <SmartField
-          key={`${objective.id}-especifica`}
-          label="Específica"
-          value={objective.smartEspecifica ?? ""}
-          example={OBJECTIVE_EXAMPLES.especifica}
-          onSave={(value) => void saveSmart({ smartEspecifica: value })}
-        />
-        <SmartField
-          key={`${objective.id}-mensuravel`}
-          label="Mensurável"
-          value={objective.smartMensuravel ?? ""}
-          example={OBJECTIVE_EXAMPLES.mensuravel}
-          onSave={(value) => void saveSmart({ smartMensuravel: value })}
-        />
-        <SmartField
-          key={`${objective.id}-atingivel`}
-          label="Atingível"
-          value={objective.smartAtingivel ?? ""}
-          example={OBJECTIVE_EXAMPLES.atingivel}
-          onSave={(value) => void saveSmart({ smartAtingivel: value })}
-        />
-        <SmartField
-          key={`${objective.id}-relevante`}
-          label="Relevante"
-          value={objective.smartRelevante ?? ""}
-          example={OBJECTIVE_EXAMPLES.relevante}
-          onSave={(value) => void saveSmart({ smartRelevante: value })}
-        />
-        <div className="rounded-md border border-border bg-background p-2 space-y-1">
-          <dt className="text-[11px] font-medium uppercase tracking-wide text-text-2">
-            Temporal
-          </dt>
-          <dd>
-            <Input
-              type="date"
-              className="h-8 text-sm"
-              value={objective.smartTemporal ?? ""}
-              onChange={(e) =>
-                void saveSmart({ smartTemporal: e.target.value || null })
-              }
+      <div
+        className={cn(
+          "grid gap-6",
+          objective.keyResults.length > 0
+            ? "lg:grid-cols-[minmax(18rem,2fr)_minmax(0,3fr)]"
+            : "md:grid-cols-2",
+        )}
+      >
+        <div className="space-y-2">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-3">
+            SMART
+          </p>
+          <dl className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+            <SmartField
+              key={`${objective.id}-especifica`}
+              label="Específica"
+              value={objective.smartEspecifica ?? ""}
+              example={OBJECTIVE_EXAMPLES.especifica}
+              onSave={(value) => void saveSmart({ smartEspecifica: value })}
             />
-          </dd>
-          <p className="text-[11px] leading-snug text-text-2">
-            {OBJECTIVE_EXAMPLES.temporal}
-          </p>
+            <SmartField
+              key={`${objective.id}-mensuravel`}
+              label="Mensurável"
+              value={objective.smartMensuravel ?? ""}
+              example={OBJECTIVE_EXAMPLES.mensuravel}
+              onSave={(value) => void saveSmart({ smartMensuravel: value })}
+            />
+            <SmartField
+              key={`${objective.id}-atingivel`}
+              label="Atingível"
+              value={objective.smartAtingivel ?? ""}
+              example={OBJECTIVE_EXAMPLES.atingivel}
+              onSave={(value) => void saveSmart({ smartAtingivel: value })}
+            />
+            <SmartField
+              key={`${objective.id}-relevante`}
+              label="Relevante"
+              value={objective.smartRelevante ?? ""}
+              example={OBJECTIVE_EXAMPLES.relevante}
+              onSave={(value) => void saveSmart({ smartRelevante: value })}
+            />
+            <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 bg-surface-1 px-3 py-2.5">
+              <dt className="pt-1.5 text-[11px] font-medium uppercase tracking-wide text-text-3">
+                Temporal
+              </dt>
+              <dd className="min-w-0 space-y-1">
+                <Input
+                  type="date"
+                  className="h-8 text-sm"
+                  value={objective.smartTemporal ?? ""}
+                  onChange={(e) =>
+                    void saveSmart({ smartTemporal: e.target.value || null })
+                  }
+                />
+                {objective.smartTemporal ? null : (
+                  <p className="text-[11px] leading-snug text-text-3">
+                    {OBJECTIVE_EXAMPLES.temporal}
+                  </p>
+                )}
+              </dd>
+            </div>
+          </dl>
         </div>
-      </dl>
 
-      {needsCascade ? (
-        <div className="rounded-md border border-dashed border-primary/40 bg-primary/5 p-4 space-y-3">
-          <p className="text-sm text-text-1">
-            {objective.keyResults.length === 0
-              ? "O SMART está pronto. Isso vira key result com métrica e cards 5H2W no Plano de Ação."
-              : "Há key result sem cards. Gera as atividades no kanban a partir do SMART."}
-          </p>
-          <div className="max-w-xs space-y-1">
-            <p className="text-[11px] uppercase tracking-wide text-text-2">
-              Responsável dos cards
+        <div className="min-w-0 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-text-3">
+              Key results
             </p>
-            <Select value={quemId} onChange={(e) => setQuemId(e.target.value)}>
-              <option value="">Eu — quem está gerando</option>
-              {team.map((member) => (
-                <option key={member.userId} value={member.userId}>
-                  {member.fullName ?? member.email}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <Button
-            size="sm"
-            onClick={() => void handleGenerate()}
-            disabled={generating}
-          >
-            {generating ? (
-              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-            ) : (
+            <Button size="sm" variant="outline" onClick={onAddKr}>
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-            )}
-            Gerar percurso e cards no kanban
-          </Button>
-        </div>
-      ) : null}
+              Novo KR
+            </Button>
+          </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">Key results</p>
-        <Button size="sm" variant="outline" onClick={onAddKr}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
-          Novo KR
-        </Button>
+          {needsCascade ? (
+            <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-4 space-y-3">
+              <p className="text-sm text-text-1">
+                {objective.keyResults.length === 0
+                  ? "SMART pronto. Gera o key result e os cards 5H2W no Plano de Ação."
+                  : "Há key result sem cards. Gera as atividades no kanban a partir do SMART."}
+              </p>
+              <div className="max-w-xs space-y-1">
+                <p className="text-[11px] uppercase tracking-wide text-text-3">
+                  Responsável dos cards
+                </p>
+                <Select
+                  value={quemId}
+                  onChange={(e) => setQuemId(e.target.value)}
+                >
+                  <option value="">Eu — quem está gerando</option>
+                  {team.map((member) => (
+                    <option key={member.userId} value={member.userId}>
+                      {member.fullName ?? member.email}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => void handleGenerate()}
+                disabled={generating}
+              >
+                {generating ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Gerar percurso e cards
+              </Button>
+            </div>
+          ) : null}
+
+          {objective.keyResults.length === 0 && !needsCascade ? (
+            <p className="text-sm text-text-2">
+              Complete os cinco campos SMART para gerar o percurso, ou crie o
+              primeiro key result à mão.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {objective.keyResults.map((kr, index) => (
+                <KeyResultCard
+                  key={kr.id}
+                  kr={kr}
+                  index={index + 1}
+                  onChanged={onChanged}
+                  onAddAction={() => onAddAction(kr.id)}
+                  onOpenBoard={onOpenBoard}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-
-      {objective.keyResults.length === 0 && !needsCascade ? (
-        <p className="text-sm text-text-2">
-          Complete os cinco campos SMART para gerar o percurso, ou crie o
-          primeiro key result à mão.
-        </p>
-      ) : objective.keyResults.length === 0 ? null : (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {objective.keyResults.map((kr, index) => (
-            <KeyResultCard
-              key={kr.id}
-              kr={kr}
-              index={index + 1}
-              onChanged={onChanged}
-              onAddAction={() => onAddAction(kr.id)}
-              onOpenBoard={onOpenBoard}
-            />
-          ))}
-        </div>
-      )}
     </section>
   );
 }
@@ -542,23 +555,26 @@ function SmartField({
   onSave: (value: string) => void;
 }): JSX.Element {
   const [local, setLocal] = useState(value);
+  const filled = local.trim().length > 0;
   return (
-    <div className="rounded-md border border-border bg-background p-2 space-y-1">
-      <dt className="text-[11px] font-medium uppercase tracking-wide text-text-2">
+    <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 bg-surface-1 px-3 py-2.5">
+      <dt className="pt-1.5 text-[11px] font-medium uppercase tracking-wide text-text-3">
         {label}
       </dt>
-      <dd>
+      <dd className="min-w-0 space-y-1">
         <Textarea
-          rows={3}
-          className="min-h-[4.5rem] text-sm resize-none"
+          rows={filled ? 2 : 3}
+          className="min-h-0 resize-none text-sm"
           value={local}
           onChange={(e) => setLocal(e.target.value)}
           onBlur={() => {
             if (local !== value) onSave(local);
           }}
         />
+        {filled ? null : (
+          <p className="text-[11px] leading-snug text-text-3">{example}</p>
+        )}
       </dd>
-      <p className="text-[11px] leading-snug text-text-2">{example}</p>
     </div>
   );
 }
@@ -685,52 +701,50 @@ function KeyResultCard({
         />
       </div>
       <ul className="space-y-2">
-        {kr.actions.map((action) => (
-          <li
-            key={action.id}
-            className="flex items-start justify-between gap-2 text-sm"
-          >
-            <div className="min-w-0">
-              <p className="font-medium">{action.oQue}</p>
-              <p className="text-xs text-text-2">
-                {fiveH2WSummary({
-                  oQue: action.oQue,
-                  quem: action.quemNome,
-                  quando: action.quando,
-                  onde: action.onde,
-                  porQue: action.porQue,
-                  como: action.como,
-                  quanto: action.quanto,
-                }) || "5H2W"}
-                {action.columnLabel ? ` · ${action.columnLabel}` : ""}
-              </p>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              {action.boardId && onOpenBoard ? (
+        {kr.actions.map((action) => {
+          const caption = actionListCaption({
+            quem: action.quemNome,
+            quando: action.quando,
+            columnLabel: action.columnLabel,
+          });
+          return (
+            <li
+              key={action.id}
+              className="flex items-start justify-between gap-2 text-sm"
+            >
+              <div className="min-w-0">
+                <p className="font-medium">{action.oQue}</p>
+                {caption ? (
+                  <p className="text-xs text-text-2">{caption}</p>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {action.boardId && onOpenBoard ? (
+                  <button
+                    type="button"
+                    className="text-[11px] text-primary hover:underline"
+                    onClick={() => onOpenBoard(action.boardId as string)}
+                  >
+                    kanban
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  className="text-[11px] text-primary hover:underline"
-                  onClick={() => onOpenBoard(action.boardId as string)}
+                  onClick={() =>
+                    void deleteWorksmartAction(action.id).then((result) => {
+                      if (!result.success) toast.error(result.error);
+                      else onChanged();
+                    })
+                  }
+                  className="p-1 text-text-2 hover:text-error"
+                  aria-label="Excluir ação"
                 >
-                  kanban
+                  <Trash2 className="h-3 w-3" />
                 </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() =>
-                  void deleteWorksmartAction(action.id).then((result) => {
-                    if (!result.success) toast.error(result.error);
-                    else onChanged();
-                  })
-                }
-                className="p-1 text-text-2 hover:text-error"
-                aria-label="Excluir ação"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
-            </div>
-          </li>
-        ))}
+              </div>
+            </li>
+          );
+        })}
       </ul>
       <Button
         size="sm"

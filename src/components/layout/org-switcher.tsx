@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
+import { returnToLandGrowHq } from "@/app/actions/hq";
 import { setActiveOrganization } from "@/app/actions/organization";
 import type { AccessibleOrganization } from "@/types/organization";
 
@@ -21,7 +22,11 @@ const CLIENT_ROLES = new Set([
   "client_viewer",
 ]);
 
-export function OrgSwitcher(): JSX.Element {
+export function OrgSwitcher({
+  compact = false,
+}: {
+  compact?: boolean;
+}): JSX.Element {
   const [orgs, setOrgs] = useState<AccessibleOrganization[]>([]);
   const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,7 +73,13 @@ export function OrgSwitcher(): JSX.Element {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div
+        className={
+          compact
+            ? "flex h-8 w-8 items-center justify-center"
+            : "flex items-center gap-2 px-2 py-1.5"
+        }
+      >
         <Loader2 className="h-4 w-4 animate-spin text-text-2" />
       </div>
     );
@@ -81,11 +92,16 @@ export function OrgSwitcher(): JSX.Element {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => router.push("/admin/clientes")}
-        className="gap-2"
+        onClick={() => void returnToLandGrowHq("/dashboard")}
+        title="Administração"
+        className={
+          compact
+            ? "h-8 w-8 p-0 text-text-2"
+            : "h-8 w-full justify-start gap-2 px-2 text-xs font-medium text-text-2"
+        }
       >
         <ShieldCheck className="h-4 w-4 text-primary" />
-        Administração
+        {!compact && "Administração"}
       </Button>
     );
   }
@@ -93,13 +109,18 @@ export function OrgSwitcher(): JSX.Element {
   if (!activeOrg) {
     return (
       <Button
-        variant="outline"
+        variant="ghost"
         size="sm"
         onClick={() => router.push("/configuracoes/organizacoes")}
-        className="gap-2"
+        title="Organizações"
+        className={
+          compact
+            ? "h-8 w-8 p-0 text-text-2"
+            : "h-8 w-full justify-start gap-2 px-2 text-xs font-medium text-text-2"
+        }
       >
         <Building2 className="h-4 w-4" />
-        Organizações
+        {!compact && "Organizações"}
       </Button>
     );
   }
@@ -109,17 +130,30 @@ export function OrgSwitcher(): JSX.Element {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="flex items-center gap-2 px-3 h-auto py-2 text-sm font-medium hover:bg-surface-2"
+          title={activeOrg.name}
+          className={
+            compact
+              ? "h-8 w-8 p-0 text-text-2"
+              : "flex h-8 w-full items-center justify-start gap-2 px-2 text-xs font-medium text-text-2 hover:bg-surface-2 hover:text-text-1"
+          }
         >
           <Building2 className="h-4 w-4 text-primary" />
-          <span className="hidden sm:inline max-w-[160px] truncate">
-            {activeOrg.name}
-          </span>
-          <ChevronDown className="h-3 w-3 text-text-2" />
+          {!compact && (
+            <>
+              <span className="min-w-0 flex-1 truncate text-left">
+                {activeOrg.name}
+              </span>
+              <ChevronDown className="h-3 w-3 shrink-0 text-text-3" />
+            </>
+          )}
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start" className="w-64">
+      <DropdownMenuContent
+        align="start"
+        side={compact ? "right" : "bottom"}
+        className="w-64"
+      >
         <DropdownMenuLabel className="text-xs text-text-2 font-normal">
           Organizações
         </DropdownMenuLabel>
@@ -158,11 +192,11 @@ export function OrgSwitcher(): JSX.Element {
 
         {isAdminOrConsultant && (
           <DropdownMenuItem
-            onClick={() => router.push("/admin/clientes")}
+            onClick={() => void returnToLandGrowHq("/admin/clientes")}
             className="cursor-pointer text-primary"
           >
             <ShieldCheck className="h-4 w-4 mr-2" />
-            Ver todos os clientes (admin)
+            Voltar à Land Grow
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

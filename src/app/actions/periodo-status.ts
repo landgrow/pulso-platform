@@ -2,8 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { Result, ErrorCode } from "@/types/collections";
-import type { FormularioPayload } from "@/lib/validations/formulario";
-import { calcProgresso } from "@/lib/validations/formulario";
+import { binProgressFromPayload } from "@/lib/bin-v2";
 import { markReadySchema } from "@/lib/validations/periodo-status";
 import { isPlatformAdmin } from "@/lib/supabase/platform-role-server";
 
@@ -120,7 +119,9 @@ export async function markReadyForAnalysis(
     .maybeSingle();
 
   const progresso = formularioColecao
-    ? calcProgresso(formularioColecao.payload as Partial<FormularioPayload>)
+    ? binProgressFromPayload(
+        formularioColecao.payload as Record<string, unknown>,
+      )
     : 0;
 
   const { count: outrasColecoesCount } = await supabase
