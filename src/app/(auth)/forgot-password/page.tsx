@@ -33,11 +33,11 @@ function ForgotPasswordForm(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const searchParams = useSearchParams();
+  const linkError = searchParams.get("error");
 
   useEffect(() => {
-    const errorParam = searchParams.get("error");
-    if (errorParam) toast.error(decodeURIComponent(errorParam));
-  }, [searchParams]);
+    if (linkError) toast.error(linkError);
+  }, [linkError]);
 
   const {
     register,
@@ -109,6 +109,14 @@ function ForgotPasswordForm(): JSX.Element {
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
+            {linkError ? (
+              <p
+                role="alert"
+                className="rounded-md border border-error/40 bg-error/10 px-3 py-2 text-sm text-error"
+              >
+                {linkError}
+              </p>
+            ) : null}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
