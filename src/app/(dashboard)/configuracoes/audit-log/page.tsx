@@ -1,5 +1,4 @@
 import { Activity, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -48,13 +47,7 @@ export default async function AuditLogPage({
   return (
     <div className="space-y-6 max-w-5xl">
       <div>
-        <Link
-          href="/configuracoes"
-          className="text-sm text-primary hover:underline"
-        >
-          ← Configurações
-        </Link>
-        <div className="flex items-center gap-3 mb-2 mt-2">
+        <div className="flex items-center gap-3 mb-2">
           <h1 className="text-3xl font-bold tracking-tight">
             Histórico de ações
           </h1>
