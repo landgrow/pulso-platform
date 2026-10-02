@@ -5,11 +5,10 @@ import { cn } from "@/lib/utils";
 
 const OPTIONS = [
   { id: "light" as const, label: "Claro", hint: "Fundo claro o tempo todo." },
-  { id: "dark" as const, label: "Escuro", hint: "Fundo escuro o tempo todo." },
   {
     id: "system" as const,
     label: "Sistema",
-    hint: "Segue o claro/escuro do computador.",
+    hint: "Segue o claro/escuro do computador — é o padrão do PULSO.",
   },
 ];
 

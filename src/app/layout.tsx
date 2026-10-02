@@ -30,7 +30,7 @@ export default function RootLayout({ children }: RootLayoutProps): JSX.Element {
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <ThemeProvider defaultTheme="dark">
+        <ThemeProvider defaultTheme="system">
           <QueryProvider>
             <AuthHashCatcher />
             {children}

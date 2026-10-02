@@ -36,6 +36,8 @@ function readStoredTheme(): Theme | null {
   if (typeof window === "undefined") return null;
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    // A opção "Escuro" saiu da tela: quem tinha escolhido passa a seguir o sistema.
+    if (stored === "dark") return "system";
     if (isValidTheme(stored)) return stored;
   } catch {
     // localStorage indisponível (modo privado, quota cheia, etc.) — cai no default
@@ -119,7 +121,7 @@ function useThemeState(defaultTheme: Theme): {
 
 export function ThemeProvider({
   children,
-  defaultTheme = "dark",
+  defaultTheme = "system",
 }: ThemeProviderProps): JSX.Element {
   const { theme, setTheme, actualTheme } = useThemeState(defaultTheme);
 
