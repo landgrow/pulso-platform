@@ -58,22 +58,13 @@ export function DiagCard({
       disabled={!onClick}
       className="text-left rounded-xl border border-border bg-surface-1 p-4 flex flex-col gap-2.5 hover:border-text-2/40 transition-colors disabled:cursor-default"
     >
-      <div className="flex items-center justify-between">
-        <span
-          className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0"
-          style={{ background: `${color}24`, color }}
-        >
-          <span
-            className="h-2.5 w-2.5 rounded-full"
-            style={{ background: color }}
-          />
-        </span>
-        <span className="text-[11px] text-text-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="text-sm font-semibold" style={{ color }}>
+          {title}
+        </div>
+        <span className="shrink-0 text-[11px] text-text-2">
           {indexLabel} #{index}
         </span>
-      </div>
-      <div className="text-sm font-semibold" style={{ color }}>
-        {title}
       </div>
       {Array.isArray(meta) ? (
         <div className="flex flex-wrap gap-1.5">

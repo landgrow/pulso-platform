@@ -69,7 +69,7 @@ export const MIN_BLOCK_META: Record<
   comportamento_do_consumidor: { color: "#8b5cf6", tags: ["Pesquisa"] },
   jornada_do_cliente: { color: "#06b6d4", tags: ["Experiência"] },
   canais_de_engajamento: { color: "#14b8a6", tags: ["Marketing"] },
-  recursos_estrategicos: { color: "#64748b", tags: ["Time", "Infra"] },
+  recursos_estrategicos: { color: "#38bdf8", tags: ["Time", "Infra"] },
   estrutura_de_custos: { color: "#ef4444", tags: ["Financeiro"] },
   ecossistema_de_parceiros: { color: "#6366f1", tags: ["Parcerias"] },
   metricas_de_impacto: { color: "#3b82f6", tags: ["KPI"] },
