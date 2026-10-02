@@ -1,0 +1,20 @@
+# Só o app Next.js sobe. Protótipo legado da raiz e ferramentas locais ficam fora
+# (a pasta /api, se subisse, viraria função serverless pública com service role).
+.aiox-core
+.aiox
+aiox-core
+api
+lib
+views
+data
+app.js
+charts.js
+store.js
+styles.css
+index.html
+test-kanban.js
+docker-compose.yml
+fluent forms
+supabase/.temp
+graphify-out
+*.pdf

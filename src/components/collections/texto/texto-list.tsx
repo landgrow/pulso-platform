@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const MIN_LENGTH = 10;
 const MAX_LENGTH = 10_000;
@@ -51,6 +52,7 @@ export function TextoList({
   const [editArea, setEditArea] = useState<TextoArea>("Geral");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmNode, confirm] = useConfirm();
 
   if (textos.length === 0) {
     return (
@@ -92,8 +94,13 @@ export function TextoList({
   }
 
   async function handleDelete(colecao: Colecao) {
-    if (!window.confirm("Excluir este texto? Essa ação não pode ser desfeita."))
-      return;
+    const ok = await confirm({
+      title: "Excluir este texto?",
+      description:
+        "O texto sai deste período para todo mundo. Não dá para desfazer.",
+      confirmLabel: "Excluir texto",
+    });
+    if (!ok) return;
     setDeletingId(colecao.id);
     const result = await discardColecao({ colecaoId: colecao.id });
     setDeletingId(null);
@@ -187,6 +194,7 @@ export function TextoList({
           </div>
         );
       })}
+      {confirmNode}
     </div>
   );
 }

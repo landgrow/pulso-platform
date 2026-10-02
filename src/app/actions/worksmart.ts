@@ -3,16 +3,24 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { isClosedColumnLabel } from "@/lib/boards/plano-de-acao-template";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getStaffCapabilities } from "@/lib/supabase/platform-role-server";
+import { authorizeOrg, type OrgAccess } from "@/lib/auth/org-access";
+import { getBoard } from "@/app/actions/boards";
+import {
+  findTodoColumnId,
+  isClosedColumnLabel,
+} from "@/lib/boards/plano-de-acao-template";
 import {
   derivedObjectiveStatus,
+  format5h2wNotes,
   isKrAchieved,
   isSmartComplete,
   resolveCascadeOwner,
   toNumber,
+  type FiveH2W,
   type SmartFields,
 } from "@/lib/worksmart/cascade";
-import { promoteWorksmartAction } from "@/lib/worksmart/promote-action";
 import {
   suggestActions,
   suggestKeyResults,
@@ -25,10 +33,13 @@ import type {
 } from "@/types/worksmart";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
+type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
 
 const orgIdSchema = z.object({
   orgId: z.string().uuid("Organização inválida"),
 });
+
+const idSchema = z.string().uuid();
 
 function emptyToNull(value: unknown): string | null | undefined {
   if (value === undefined) return undefined;
@@ -263,11 +274,136 @@ function revalidateAtividades(): void {
   revalidatePath("/admin/crm");
 }
 
+// ─── Autorização ─────────────────────────────────────────────────────────────
+
+type WorksmartAuth =
+  | { ok: true; admin: AdminClient; access: OrgAccess }
+  | { ok: false; error: string };
+
+/** Resolve a org da linha WorkSmart (via admin) e autoriza o usuário nela. */
+async function authorizeWorksmartRow(
+  table: "worksmart_objectives" | "worksmart_key_results" | "worksmart_actions",
+  id: string,
+  notFound: string,
+  opts: { write?: boolean } = {},
+): Promise<WorksmartAuth> {
+  const admin = await createAdminClient();
+  const { data } = await admin
+    .from(table)
+    .select("org_id")
+    .eq("id", id)
+    .maybeSingle();
+  const orgId = (data as { org_id: string | null } | null)?.org_id;
+  if (!orgId) return { ok: false, error: notFound };
+  const auth = await authorizeOrg(orgId, opts);
+  if (!auth.ok) return auth;
+  return { ok: true, admin, access: auth.access };
+}
+
+/** Plano de Ação padrão da org — getBoard cria quando ainda não existe. */
+async function defaultBoardColumns(
+  admin: AdminClient,
+  orgId: string,
+): Promise<
+  | { boardId: string; columns: { id: string; label: string }[] }
+  | { error: string }
+> {
+  const { data: existing } = await admin
+    .from("boards")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("module", "atividades")
+    .eq("kind", "standard")
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const existingId = (existing as { id: string } | null)?.id;
+  if (!existingId) {
+    const created = await getBoard(orgId);
+    if (!created.success) return { error: created.error };
+    return { boardId: created.data.id, columns: created.data.columns };
+  }
+  const { data: columns } = await admin
+    .from("board_columns")
+    .select("id, label")
+    .eq("board_id", existingId)
+    .order("position", { ascending: true });
+  return {
+    boardId: existingId,
+    columns: (columns ?? []) as { id: string; label: string }[],
+  };
+}
+
+/** Promove uma ação do WorkSmart a card do Plano de Ação (sem RPC: o admin client não tem auth.uid()). */
+async function promoteActionToCard(
+  admin: AdminClient,
+  input: {
+    actionId: string;
+    orgId: string;
+    fields: FiveH2W;
+    quemId: string | null;
+    quando: string | null;
+    setor: string | null;
+    createdBy: string;
+  },
+): Promise<{ cardId: string; boardId: string } | { error: string }> {
+  const { data: existing } = await admin
+    .from("board_cards")
+    .select("id, board_id")
+    .eq("source_action_id", input.actionId)
+    .maybeSingle();
+  const existingCard = existing as { id: string; board_id: string } | null;
+  if (existingCard?.id && existingCard.board_id) {
+    return { cardId: existingCard.id, boardId: existingCard.board_id };
+  }
+
+  const board = await defaultBoardColumns(admin, input.orgId);
+  if ("error" in board) return { error: board.error };
+  const todoId = findTodoColumnId(board.columns);
+  if (!todoId) {
+    return { error: "O Plano de Ação não tem coluna para novos cards." };
+  }
+
+  const { count } = await admin
+    .from("board_cards")
+    .select("id", { count: "exact", head: true })
+    .eq("column_id", todoId);
+
+  const { data: card, error: cardError } = await admin
+    .from("board_cards")
+    .insert({
+      board_id: board.boardId,
+      column_id: todoId,
+      titulo: input.fields.oQue.trim(),
+      position: count ?? 0,
+      created_by: input.createdBy,
+      source_action_id: input.actionId,
+      responsavel_id: input.quemId,
+      prazo: input.quando,
+      setor: input.setor,
+      observacoes: format5h2wNotes(input.fields),
+    })
+    .select("id")
+    .single();
+
+  if (cardError || !card) {
+    return { error: cardError?.message ?? "Erro ao criar o card 5H2W." };
+  }
+
+  await admin
+    .from("worksmart_actions")
+    .update({ card_id: card.id })
+    .eq("id", input.actionId);
+
+  return { cardId: card.id as string, boardId: board.boardId };
+}
+
 export async function listWorksmartObjectives(
   orgId?: string,
 ): Promise<Result<WorksmartObjective[]>> {
-  const supabase = await createClient();
-  let query = supabase
+  const admin = await createAdminClient();
+  let query = admin
     .from("worksmart_objectives")
     .select(OBJECTIVE_SELECT)
     .order("created_at", { ascending: false });
@@ -276,7 +412,16 @@ export async function listWorksmartObjectives(
     const parsed = orgIdSchema.safeParse({ orgId });
     if (!parsed.success)
       return { success: false, error: "Organização inválida" };
-    query = query.eq("org_id", orgId);
+    const auth = await authorizeOrg(parsed.data.orgId);
+    if (!auth.ok) return { success: false, error: auth.error };
+    query = query.eq("org_id", parsed.data.orgId);
+  } else {
+    // Visão de todas as orgs: mesmo recorte da antiga RLS (staff_can('atividades')).
+    const supabase = await createClient();
+    const capabilities = await getStaffCapabilities(supabase);
+    if (!capabilities.includes("atividades")) {
+      return { success: false, error: "Acesso restrito à equipe Land Grow" };
+    }
   }
 
   const { data, error } = await query;
@@ -284,7 +429,7 @@ export async function listWorksmartObjectives(
   if (error) return { success: false, error: error.message };
   return {
     success: true,
-    data: ((data ?? []) as ObjectiveRow[]).map(mapObjective),
+    data: ((data ?? []) as unknown as ObjectiveRow[]).map(mapObjective),
   };
 }
 
@@ -299,13 +444,14 @@ export async function createWorksmartObjective(
     };
   }
   const input = parsed.data;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
+  const auth = await authorizeOrg(input.orgId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const userId = auth.access.user.id;
+
+  const admin = await createAdminClient();
   const status = derivedObjectiveStatus(smartFromInput(input), "rascunho");
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("worksmart_objectives")
     .insert({
       org_id: input.orgId,
@@ -317,7 +463,7 @@ export async function createWorksmartObjective(
       smart_relevante: input.smartRelevante ?? null,
       smart_temporal: input.smartTemporal ?? null,
       status,
-      created_by: user?.id ?? null,
+      created_by: userId,
     })
     .select("id")
     .single();
@@ -328,14 +474,15 @@ export async function createWorksmartObjective(
       error: error?.message ?? "Erro ao criar objetivo",
     };
   }
+  const objectiveId = data.id as string;
   revalidateAtividades();
   if (isSmartComplete(smartFromInput(input))) {
     await generateWorksmartCascade({
-      objectiveId: data.id,
-      quemId: input.quemId ?? user?.id ?? null,
+      objectiveId,
+      quemId: input.quemId ?? userId,
     });
   }
-  return { success: true, data: { id: data.id } };
+  return { success: true, data: { id: objectiveId } };
 }
 
 export async function updateWorksmartObjective(
@@ -349,9 +496,17 @@ export async function updateWorksmartObjective(
     };
   }
   const { objectiveId, ...rest } = parsed.data;
-  const supabase = await createClient();
 
-  const { data: current, error: fetchError } = await supabase
+  const auth = await authorizeWorksmartRow(
+    "worksmart_objectives",
+    objectiveId,
+    "Objetivo não encontrado",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin } = auth;
+
+  const { data: current, error: fetchError } = await admin
     .from("worksmart_objectives")
     .select(
       "title, setor, status, smart_especifica, smart_mensuravel, smart_atingivel, smart_relevante, smart_temporal",
@@ -406,24 +561,24 @@ export async function updateWorksmartObjective(
   if (rest.smartTemporal !== undefined)
     patch.smart_temporal = rest.smartTemporal;
 
-  const { error } = await supabase
+  const { data: updated, error } = await admin
     .from("worksmart_objectives")
     .update(patch)
-    .eq("id", objectiveId);
+    .eq("id", objectiveId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!updated || updated.length === 0)
+    return { success: false, error: "Não encontrado" };
 
   if (isSmartComplete(nextSmart)) {
-    const { count } = await supabase
+    const { count } = await admin
       .from("worksmart_key_results")
       .select("id", { count: "exact", head: true })
       .eq("objective_id", objectiveId);
     if ((count ?? 0) === 0) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
       await generateWorksmartCascade({
         objectiveId,
-        quemId: user?.id ?? null,
+        quemId: auth.access.user.id,
       });
     }
   }
@@ -435,12 +590,25 @@ export async function updateWorksmartObjective(
 export async function deleteWorksmartObjective(
   objectiveId: string,
 ): Promise<Result<{ removed: true }>> {
-  const supabase = await createClient();
-  const { error } = await supabase
+  const parsed = idSchema.safeParse(objectiveId);
+  if (!parsed.success) return { success: false, error: "Objetivo inválido" };
+
+  const auth = await authorizeWorksmartRow(
+    "worksmart_objectives",
+    parsed.data,
+    "Objetivo não encontrado",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { data, error } = await auth.admin
     .from("worksmart_objectives")
     .delete()
-    .eq("id", objectiveId);
+    .eq("id", parsed.data)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidateAtividades();
   return { success: true, data: { removed: true } };
 }
@@ -456,16 +624,17 @@ export async function createWorksmartKeyResult(
     };
   }
   const input = parsed.data;
-  const supabase = await createClient();
 
-  const { data: objective } = await supabase
-    .from("worksmart_objectives")
-    .select("id, org_id")
-    .eq("id", input.objectiveId)
-    .single();
-  if (!objective) return { success: false, error: "Objetivo não encontrado" };
+  const auth = await authorizeWorksmartRow(
+    "worksmart_objectives",
+    input.objectiveId,
+    "Objetivo não encontrado",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin, access } = auth;
 
-  const { data: last } = await supabase
+  const { data: last } = await admin
     .from("worksmart_key_results")
     .select("position")
     .eq("objective_id", input.objectiveId)
@@ -473,16 +642,16 @@ export async function createWorksmartKeyResult(
     .limit(1)
     .maybeSingle();
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("worksmart_key_results")
     .insert({
       objective_id: input.objectiveId,
-      org_id: objective.org_id,
+      org_id: access.orgId,
       title: input.title,
       target_value: input.targetValue ?? null,
       current_value: input.currentValue ?? 0,
       unit: input.unit,
-      position: (last?.position ?? -1) + 1,
+      position: ((last as { position: number } | null)?.position ?? -1) + 1,
     })
     .select("id")
     .single();
@@ -494,7 +663,7 @@ export async function createWorksmartKeyResult(
     };
   }
   revalidateAtividades();
-  return { success: true, data: { id: data.id } };
+  return { success: true, data: { id: data.id as string } };
 }
 
 export async function updateWorksmartKeyResult(
@@ -508,6 +677,16 @@ export async function updateWorksmartKeyResult(
     };
   }
   const { keyResultId, ...rest } = parsed.data;
+
+  const auth = await authorizeWorksmartRow(
+    "worksmart_key_results",
+    keyResultId,
+    "Key result não encontrado",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin } = auth;
+
   const patch: Record<string, unknown> = {};
   if (rest.title !== undefined) patch.title = rest.title;
   if (rest.targetValue !== undefined) patch.target_value = rest.targetValue;
@@ -517,24 +696,23 @@ export async function updateWorksmartKeyResult(
     return { success: true, data: { id: keyResultId } };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  const { data: updated, error } = await admin
     .from("worksmart_key_results")
     .update(patch)
-    .eq("id", keyResultId);
+    .eq("id", keyResultId)
+    .select("id, objective_id");
   if (error) return { success: false, error: error.message };
+  if (!updated || updated.length === 0)
+    return { success: false, error: "Não encontrado" };
 
   if (rest.currentValue !== undefined) {
-    const { data: kr } = await supabase
-      .from("worksmart_key_results")
-      .select("objective_id")
-      .eq("id", keyResultId)
-      .single();
-    if (kr?.objective_id) {
-      const { data: siblings } = await supabase
+    const objectiveId = (updated[0] as { objective_id: string | null })
+      .objective_id;
+    if (objectiveId) {
+      const { data: siblings } = await admin
         .from("worksmart_key_results")
         .select("current_value, target_value")
-        .eq("objective_id", kr.objective_id);
+        .eq("objective_id", objectiveId);
       const rows = (siblings ?? []) as {
         current_value: unknown;
         target_value: unknown;
@@ -546,11 +724,11 @@ export async function updateWorksmartKeyResult(
           actions: [],
         }),
       );
-      if (allHit && (siblings ?? []).length > 0) {
-        await supabase
+      if (allHit && rows.length > 0) {
+        await admin
           .from("worksmart_objectives")
           .update({ status: "concluido" })
-          .eq("id", kr.objective_id)
+          .eq("id", objectiveId)
           .neq("status", "concluido");
       }
     }
@@ -563,12 +741,25 @@ export async function updateWorksmartKeyResult(
 export async function deleteWorksmartKeyResult(
   keyResultId: string,
 ): Promise<Result<{ removed: true }>> {
-  const supabase = await createClient();
-  const { error } = await supabase
+  const parsed = idSchema.safeParse(keyResultId);
+  if (!parsed.success) return { success: false, error: "Key result inválido" };
+
+  const auth = await authorizeWorksmartRow(
+    "worksmart_key_results",
+    parsed.data,
+    "Key result não encontrado",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { data, error } = await auth.admin
     .from("worksmart_key_results")
     .delete()
-    .eq("id", keyResultId);
+    .eq("id", parsed.data)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidateAtividades();
   return { success: true, data: { removed: true } };
 }
@@ -584,37 +775,42 @@ export async function createWorksmartAction(
     };
   }
   const input = parsed.data;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  const { data: kr } = await supabase
+  const auth = await authorizeWorksmartRow(
+    "worksmart_key_results",
+    input.keyResultId,
+    "Key result não encontrado",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin, access } = auth;
+
+  const { data: kr } = await admin
     .from("worksmart_key_results")
     .select("id, org_id, objective_id")
     .eq("id", input.keyResultId)
     .single();
   if (!kr) return { success: false, error: "Key result não encontrado" };
 
-  const { data: objective } = await supabase
+  const { data: objective } = await admin
     .from("worksmart_objectives")
     .select("setor")
     .eq("id", kr.objective_id)
     .maybeSingle();
 
   const { data: quem } = input.quemId
-    ? await supabase
+    ? await admin
         .from("profiles")
         .select("full_name")
         .eq("id", input.quemId)
         .maybeSingle()
     : { data: null };
 
-  const { data: action, error } = await supabase
+  const { data: action, error } = await admin
     .from("worksmart_actions")
     .insert({
       key_result_id: input.keyResultId,
-      org_id: kr.org_id,
+      org_id: access.orgId,
       o_que: input.oQue,
       quem_id: input.quemId ?? null,
       quando: input.quando ?? null,
@@ -629,13 +825,14 @@ export async function createWorksmartAction(
   if (error || !action) {
     return { success: false, error: error?.message ?? "Erro ao criar ação" };
   }
+  const actionId = action.id as string;
 
-  const promoted = await promoteWorksmartAction(supabase, {
-    actionId: action.id,
-    orgId: kr.org_id,
+  const promoted = await promoteActionToCard(admin, {
+    actionId,
+    orgId: access.orgId,
     fields: {
       oQue: input.oQue,
-      quem: quem?.full_name ?? null,
+      quem: (quem as { full_name: string | null } | null)?.full_name ?? null,
       quando: input.quando ?? null,
       onde: input.onde ?? null,
       porQue: input.porQue ?? null,
@@ -644,31 +841,44 @@ export async function createWorksmartAction(
     },
     quemId: input.quemId ?? null,
     quando: input.quando ?? null,
-    setor: objective?.setor ?? null,
-    createdBy: user?.id ?? null,
+    setor: (objective as { setor: string | null } | null)?.setor ?? null,
+    createdBy: access.user.id,
   });
 
   if ("error" in promoted) {
-    await supabase.from("worksmart_actions").delete().eq("id", action.id);
+    await admin.from("worksmart_actions").delete().eq("id", actionId);
     return { success: false, error: promoted.error };
   }
 
   revalidateAtividades();
   return {
     success: true,
-    data: { id: action.id, boardId: promoted.boardId },
+    data: { id: actionId, boardId: promoted.boardId },
   };
 }
 
 export async function deleteWorksmartAction(
   actionId: string,
 ): Promise<Result<{ removed: true }>> {
-  const supabase = await createClient();
-  const { error } = await supabase
+  const parsed = idSchema.safeParse(actionId);
+  if (!parsed.success) return { success: false, error: "Ação inválida" };
+
+  const auth = await authorizeWorksmartRow(
+    "worksmart_actions",
+    parsed.data,
+    "Ação não encontrada",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { data, error } = await auth.admin
     .from("worksmart_actions")
     .delete()
-    .eq("id", actionId);
+    .eq("id", parsed.data)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidateAtividades();
   return { success: true, data: { removed: true } };
 }
@@ -683,11 +893,16 @@ export async function generateWorksmartCascade(
     return { success: false, error: "Objetivo inválido" };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const ownerId = resolveCascadeOwner(parsed.data.quemId, user?.id);
+  const auth = await authorizeWorksmartRow(
+    "worksmart_objectives",
+    parsed.data.objectiveId,
+    "Objetivo não encontrado",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin, access } = auth;
+
+  const ownerId = resolveCascadeOwner(parsed.data.quemId, access.user.id);
   if (!ownerId) {
     return {
       success: false,
@@ -695,7 +910,7 @@ export async function generateWorksmartCascade(
     };
   }
 
-  const { data: objective, error } = await supabase
+  const { data: objective, error } = await admin
     .from("worksmart_objectives")
     .select(
       "id, title, smart_especifica, smart_mensuravel, smart_atingivel, smart_relevante, smart_temporal, worksmart_key_results ( id )",
@@ -743,7 +958,7 @@ export async function generateWorksmartCascade(
   let cardsCreated = 0;
   let boardId: string | null = null;
   for (const krId of krIds) {
-    const { count } = await supabase
+    const { count } = await admin
       .from("worksmart_actions")
       .select("id", { count: "exact", head: true })
       .eq("key_result_id", krId);

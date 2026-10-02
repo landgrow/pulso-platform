@@ -15,6 +15,7 @@
  * key pura.
  */
 
+import "server-only";
 import {
   createClient as createSupabaseClient,
   type SupabaseClient,

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   getActiveOrganization,
   isActiveOrgInternal,
@@ -45,6 +46,11 @@ export default async function DashboardPage(): Promise<JSX.Element> {
         }
       />
     );
+  }
+
+  // Org de cliente ativa: a casa é o Painel do portal, não esta página.
+  if (!(await isActiveOrgInternal())) {
+    redirect(`/clientes/${active.org.slug}`);
   }
 
   return (

@@ -4,7 +4,11 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isPlatformStaff } from "@/lib/supabase/platform-role-server";
+import {
+  isPlatformAdmin,
+  isPlatformStaff,
+} from "@/lib/supabase/platform-role-server";
+import { authorizeCard } from "@/lib/auth/org-access";
 import { driveOAuthConfigured } from "@/lib/google/oauth";
 import {
   accessToken,
@@ -19,6 +23,9 @@ import { dispatchCardEvent, loadCardEventContext } from "@/lib/notify/dispatch";
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+const BLOCKED_EXTENSIONS =
+  /\.(exe|bat|cmd|com|msi|scr|ps1|sh|js|jar|vbs|dll|app|dmg|apk|html?|svg)$/i;
 
 const linkSchema = z.object({
   cardId: z.string().uuid(),
@@ -61,8 +68,8 @@ export async function getDriveStatus(): Promise<
 
 export async function disconnectDrive(): Promise<Result<{ ok: true }>> {
   const supabase = await createClient();
-  if (!(await isPlatformStaff(supabase))) {
-    return { success: false, error: "Só a equipe Land Grow desliga o Drive." };
+  if (!(await isPlatformAdmin(supabase))) {
+    return { success: false, error: "Só administradores desligam o Drive." };
   }
   const admin = await createAdminClient();
   await admin
@@ -79,6 +86,9 @@ export async function openOrgDriveFolder(
   const parsed = z.string().uuid().safeParse(orgId);
   if (!parsed.success) return { success: false, error: "Organização inválida" };
   const supabase = await createClient();
+  if (!(await isPlatformStaff(supabase))) {
+    return { success: false, error: "Só a equipe Land Grow abre o Drive." };
+  }
   const { data: org } = await supabase
     .from("organizations")
     .select("id, name")
@@ -134,10 +144,11 @@ export async function linkDriveFileToCard(
     return { success: false, error: "Esse link não parece do Google Drive." };
   }
 
+  const auth = await authorizeCard(cardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const user = auth.access.user;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const admin = await createAdminClient();
 
   let name = "Arquivo do Drive";
   let mime: string | null = null;
@@ -152,7 +163,7 @@ export async function linkDriveFileToCard(
     // Link público ou Drive ainda não ligado: grava o URL mesmo assim.
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("card_files")
     .insert({
       card_id: cardId,
@@ -160,7 +171,7 @@ export async function linkDriveFileToCard(
       name,
       mime_type: mime,
       web_view_link: webViewLink,
-      uploaded_by: user?.id ?? null,
+      uploaded_by: user.id,
     })
     .select("id")
     .single();
@@ -171,8 +182,8 @@ export async function linkDriveFileToCard(
     };
   }
 
-  const label = user ? await actorName(supabase, user.id) : "Alguém";
-  void notifyFile(cardId, user?.id ?? null, label, name, data.id);
+  const label = await actorName(supabase, user.id);
+  void notifyFile(cardId, user.id, label, name, data.id);
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { id: data.id } };
@@ -195,16 +206,21 @@ export async function uploadCardFile(
       error: "Arquivo acima de 4 MB. Suba no Drive e cole o link no card.",
     };
   }
+  if (BLOCKED_EXTENSIONS.test(file.name)) {
+    return { success: false, error: "Esse tipo de arquivo não é permitido." };
+  }
 
+  // Autoriza antes de qualquer chamada ao Drive (usa o token da Land Grow).
+  const auth = await authorizeCard(cardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const user = auth.access.user;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const admin = await createAdminClient();
 
   const ctx = await loadCardEventContext(cardId);
   if (!ctx) return { success: false, error: "Card não encontrado" };
 
-  const { data: org } = await supabase
+  const { data: org } = await admin
     .from("organizations")
     .select("name")
     .eq("id", ctx.orgId)
@@ -222,7 +238,7 @@ export async function uploadCardFile(
       bytes,
     });
 
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from("card_files")
       .insert({
         card_id: cardId,
@@ -230,7 +246,7 @@ export async function uploadCardFile(
         name: file.name,
         mime_type: file.type || null,
         web_view_link: uploaded.webViewLink,
-        uploaded_by: user?.id ?? null,
+        uploaded_by: user.id,
       })
       .select("id")
       .single();
@@ -242,8 +258,8 @@ export async function uploadCardFile(
       };
     }
 
-    const label = user ? await actorName(supabase, user.id) : "Alguém";
-    void notifyFile(cardId, user?.id ?? null, label, file.name, data.id);
+    const label = await actorName(supabase, user.id);
+    void notifyFile(cardId, user.id, label, file.name, data.id);
     revalidatePath("/admin/atividades");
     revalidatePath("/admin/crm");
     return { success: true, data: { id: data.id, url: uploaded.webViewLink } };
@@ -263,8 +279,16 @@ export async function deleteCardFile(
 ): Promise<Result<{ removed: true }>> {
   const parsed = z.string().uuid().safeParse(fileId);
   if (!parsed.success) return { success: false, error: "Arquivo inválido" };
-  const supabase = await createClient();
-  const { error } = await supabase.from("card_files").delete().eq("id", fileId);
+  const admin = await createAdminClient();
+  const { data: row } = await admin
+    .from("card_files")
+    .select("card_id")
+    .eq("id", fileId)
+    .maybeSingle();
+  if (!row) return { success: false, error: "Arquivo não encontrado" };
+  const auth = await authorizeCard(row.card_id as string, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { error } = await admin.from("card_files").delete().eq("id", fileId);
   if (error) return { success: false, error: error.message };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");

@@ -18,6 +18,7 @@ interface FormFieldProps {
   onChange: (value: unknown) => void;
   onSpecifyChange?: (value: unknown) => void;
   readOnly?: boolean;
+  number?: number;
 }
 
 function selectedList(value: unknown): string[] {
@@ -36,6 +37,7 @@ export function FormField({
   onChange,
   onSpecifyChange,
   readOnly = false,
+  number,
 }: FormFieldProps) {
   const id = `campo-${campo.id}`;
   const hasError = Boolean(error);
@@ -54,6 +56,9 @@ export function FormField({
           !campo.required && "text-muted-foreground",
         )}
       >
+        {number !== undefined ? (
+          <span className="mr-1.5 tabular-nums text-text-3">{number}.</span>
+        ) : null}
         {campo.label}
         {campo.required && <span className="text-destructive ml-0.5">*</span>}
       </Label>

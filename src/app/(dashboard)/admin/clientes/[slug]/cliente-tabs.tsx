@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   LayoutGrid,
   Share2,
@@ -10,6 +11,7 @@ import {
   ClipboardList,
   UserPlus,
   FileText,
+  FolderOpen,
 } from "lucide-react";
 import {
   Card,
@@ -32,6 +34,7 @@ import { MinResults } from "@/components/admin/min-results";
 import { AtividadesShell } from "@/components/atividades/atividades-shell";
 import { MindMapCanvas } from "@/components/mindmaps/mind-map-canvas";
 import { CrmShell } from "@/components/crm/crm-shell";
+import { ClienteDocumentos } from "@/components/admin/cliente-documentos";
 import { FadeSwap } from "@/components/ui/fade-swap";
 import { AddTeamMemberForm } from "./add-team-member-form";
 import { RemoveTeamMemberButton } from "./remove-team-member-button";
@@ -44,9 +47,22 @@ type Tab =
   | "contratos"
   | "bin"
   | "min"
+  | "documentos"
   | "atividades"
   | "mapa-mental"
   | "crm";
+
+const TABS: Tab[] = [
+  "visao-geral",
+  "usuarios",
+  "contratos",
+  "bin",
+  "min",
+  "documentos",
+  "atividades",
+  "mapa-mental",
+  "crm",
+];
 
 interface Props {
   orgId: string;
@@ -69,7 +85,11 @@ export function AdminClienteTabs({
   isEncerrado,
   internalOrgId,
 }: Props): JSX.Element {
-  const [tab, setTab] = useState<Tab>("visao-geral");
+  const searchParams = useSearchParams();
+  const requested = searchParams.get("tab");
+  const [tab, setTab] = useState<Tab>(
+    TABS.includes(requested as Tab) ? (requested as Tab) : "visao-geral",
+  );
 
   return (
     <div className="w-full min-w-0 space-y-6">
@@ -103,6 +123,12 @@ export function AdminClienteTabs({
           label="MIN"
           active={tab === "min"}
           onClick={() => setTab("min")}
+        />
+        <TabButton
+          icon={<FolderOpen className="h-4 w-4" />}
+          label="Documentos"
+          active={tab === "documentos"}
+          onClick={() => setTab("documentos")}
         />
         <TabButton
           icon={<ClipboardList className="h-4 w-4" />}
@@ -143,6 +169,7 @@ export function AdminClienteTabs({
         )}
         {tab === "bin" && <BinTab bin={bin} />}
         {tab === "min" && <MinTab min={min} />}
+        {tab === "documentos" && <ClienteDocumentos orgId={orgId} />}
         {tab === "atividades" && <AtividadesShell orgId={orgId} />}
         {tab === "mapa-mental" && <MindMapCanvas orgId={orgId} />}
         {tab === "crm" &&

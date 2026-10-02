@@ -12,10 +12,13 @@ function uiToCampoTipo(ui: BinQuestion["ui"]): FormularioCampo["tipo"] {
 }
 
 export function binQuestionToCampo(question: BinQuestion): FormularioCampo {
+  // Sem o código interno (G13, S02…) — é chave de schema, não texto de tela.
+  // A numeração visível é feita no FormBlocoArea, depois de esconder as
+  // perguntas condicionais, pra não pular número.
   const campo: FormularioCampo = {
     id: question.id,
     tipo: uiToCampoTipo(question.ui),
-    label: `${question.id}. ${question.prompt}`,
+    label: question.prompt,
     required: question.required,
   };
   if (question.help) campo.help = question.help;

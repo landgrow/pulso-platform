@@ -1,6 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { authorizePeriodo } from "@/lib/auth/org-access";
 import type { Colecao, Result, ErrorCode } from "@/types/collections";
 import {
   createTextoLivreSchema,
@@ -16,53 +17,27 @@ function ok<T>(data: T): Result<T> {
   return { success: true, data };
 }
 
-async function logAudit(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  args: {
-    orgId: string;
-    action: string;
-    resourceType: string;
-    resourceId: string;
-    metadata?: Record<string, unknown>;
-  },
-): Promise<void> {
-  try {
-    await supabase.from("audit_log").insert({
-      org_id: args.orgId,
-      action: args.action,
-      resource_type: args.resourceType,
-      resource_id: args.resourceId,
-      metadata: args.metadata ?? {},
-    });
-  } catch (err) {
-    console.error("[audit] Falha ao registrar:", err);
-  }
+function accessCode(error: string): ErrorCode {
+  return error === "Período não encontrado" ? "NOT_FOUND" : "PERMISSION_DENIED";
 }
 
-/**
- * Busca o período + org_id do cliente (usado nas 3 actions abaixo pra checar
- * status e alimentar o audit log).
- */
-async function getPeriodoOrgId(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  periodoId: string,
-): Promise<{ status: string; orgId: string } | null> {
-  const { data: periodo, error } = await supabase
-    .from("periodos_dados")
-    .select("status, cliente_id, clientes!inner(org_id)")
-    .eq("id", periodoId)
-    .single();
-
-  if (error || !periodo) return null;
-
-  const clienteJoin = periodo.clientes as
-    { org_id: string } | { org_id: string }[] | null;
-  const orgId = Array.isArray(clienteJoin)
-    ? clienteJoin[0]?.org_id
-    : clienteJoin?.org_id;
-  if (!orgId) return null;
-
-  return { status: periodo.status, orgId };
+async function logAudit(args: {
+  orgId: string;
+  userId: string;
+  action: string;
+  resourceId: string;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  const admin = await createAdminClient();
+  const { error } = await admin.from("audit_log").insert({
+    org_id: args.orgId,
+    user_id: args.userId,
+    action: args.action,
+    resource_type: "colecao",
+    resource_id: args.resourceId,
+    metadata: args.metadata ?? {},
+  });
+  if (error) console.error("[audit] texto:", error.message);
 }
 
 // ─── createTextoLivre ─────────────────────────────────────────────────────
@@ -70,10 +45,9 @@ async function getPeriodoOrgId(
 export type CreateTextoLivreResult = Result<{ colecao: Colecao }>;
 
 /**
- * Cria uma NOVA entrada de texto livre — diferente de upsertColecao
- * (src/app/actions/colecoes.ts), que atualiza a mesma linha por
- * (periodo_id, tipo). Texto livre é uma lista de entradas independentes ao
- * longo do tempo, não um rascunho único sendo sobrescrito.
+ * Cria uma NOVA entrada de texto livre — diferente de upsertColecao, que
+ * sobrescreve a mesma linha por (periodo_id, tipo). Texto livre é uma lista
+ * de entradas independentes ao longo do tempo.
  */
 export async function createTextoLivre(
   raw: unknown,
@@ -87,20 +61,16 @@ export async function createTextoLivre(
   }
   const { periodoId, conteudo, area } = parsed.data;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
-
-  const periodo = await getPeriodoOrgId(supabase, periodoId);
-  if (!periodo) return fail("Período não encontrado", "NOT_FOUND");
-  if (periodo.status === "fechado")
+  const auth = await authorizePeriodo(periodoId, { write: true });
+  if (!auth.ok) return fail(auth.error, accessCode(auth.error));
+  if (auth.periodoStatus === "fechado") {
     return fail("Período está fechado", "PERIOD_CLOSED");
+  }
+  const { user, orgId } = auth.access;
 
   const payload: TextoLivrePayload = { conteudo, area };
-
-  const { data: inserted, error: insertError } = await supabase
+  const admin = await createAdminClient();
+  const { data: inserted, error: insertError } = await admin
     .from("colecoes")
     .insert({
       periodo_id: periodoId,
@@ -108,6 +78,7 @@ export async function createTextoLivre(
       payload,
       metadata: { area },
       created_by: user.id,
+      updated_by: user.id,
       status: "validado",
     })
     .select("*")
@@ -120,11 +91,11 @@ export async function createTextoLivre(
     );
   }
 
-  await logAudit(supabase, {
-    orgId: periodo.orgId,
+  await logAudit({
+    orgId,
+    userId: user.id,
     action: "create",
-    resourceType: "colecao",
-    resourceId: inserted.id,
+    resourceId: inserted.id as string,
     metadata: { tipo: "texto_livre", area },
   });
 
@@ -135,7 +106,7 @@ export async function createTextoLivre(
 
 export type UpdateTextoLivreResult = Result<{ colecao: Colecao }>;
 
-/** Edita uma entrada de texto livre existente (por id, não por upsert). */
+/** Edita uma entrada de texto livre existente (por id). */
 export async function updateTextoLivre(
   raw: unknown,
 ): Promise<UpdateTextoLivreResult> {
@@ -148,43 +119,32 @@ export async function updateTextoLivre(
   }
   const { colecaoId, conteudo, area } = parsed.data;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
-
-  const { data: existing, error: fetchError } = await supabase
+  const admin = await createAdminClient();
+  const { data: existing } = await admin
     .from("colecoes")
-    .select(
-      "id, periodo_id, periodos_dados!inner(status, cliente_id, clientes!inner(org_id))",
-    )
+    .select("id, periodo_id")
     .eq("id", colecaoId)
     .eq("tipo", "texto_livre")
-    .single();
+    .maybeSingle();
+  if (!existing) return fail("Texto não encontrado", "NOT_FOUND");
 
-  if (fetchError || !existing) return fail("Texto não encontrado", "NOT_FOUND");
-
-  const periodoJoin = existing.periodos_dados as {
-    status: string;
-    clientes: { org_id: string } | { org_id: string }[];
-  } | null;
-  const clienteJoin = periodoJoin?.clientes;
-  const orgId = Array.isArray(clienteJoin)
-    ? clienteJoin[0]?.org_id
-    : clienteJoin?.org_id;
-
-  if (periodoJoin?.status === "fechado")
+  const auth = await authorizePeriodo(existing.periodo_id as string, {
+    write: true,
+  });
+  if (!auth.ok) return fail(auth.error, accessCode(auth.error));
+  if (auth.periodoStatus === "fechado") {
     return fail("Período está fechado", "PERIOD_CLOSED");
+  }
+  const { user, orgId } = auth.access;
 
   const payload: TextoLivrePayload = { conteudo, area };
-
-  const { data: updated, error: updateError } = await supabase
+  const { data: updated, error: updateError } = await admin
     .from("colecoes")
     .update({
       payload,
       metadata: { area },
       updated_at: new Date().toISOString(),
+      updated_by: user.id,
     })
     .eq("id", colecaoId)
     .select("*")
@@ -197,15 +157,13 @@ export async function updateTextoLivre(
     );
   }
 
-  if (orgId) {
-    await logAudit(supabase, {
-      orgId,
-      action: "update",
-      resourceType: "colecao",
-      resourceId: colecaoId,
-      metadata: { tipo: "texto_livre", area },
-    });
-  }
+  await logAudit({
+    orgId,
+    userId: user.id,
+    action: "update",
+    resourceId: colecaoId,
+    metadata: { tipo: "texto_livre", area },
+  });
 
   return ok({ colecao: updated as Colecao });
 }
@@ -225,13 +183,11 @@ export async function listTextoLivre(
     );
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
+  const auth = await authorizePeriodo(parsed.data.periodoId);
+  if (!auth.ok) return fail(auth.error, accessCode(auth.error));
 
-  const { data, error } = await supabase
+  const admin = await createAdminClient();
+  const { data, error } = await admin
     .from("colecoes")
     .select("*")
     .eq("periodo_id", parsed.data.periodoId)

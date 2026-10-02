@@ -97,7 +97,7 @@ describe("inbox do HQ", () => {
       },
     ]);
     expect(items).toHaveLength(1);
-    expect(items[0]?.href).toBe("/admin/clientes/techflow#bin");
+    expect(items[0]?.href).toBe("/admin/clientes/techflow?tab=bin");
     expect(items[0]?.headline).toMatch(/geral/i);
   });
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type {
   PeriodoDados,
   PeriodSummary,
@@ -13,7 +13,7 @@ import type {
 } from "@/types/collections";
 import type { MembershipRole } from "@/types/organization";
 import { requireOrganization } from "@/lib/supabase/organization-server";
-import { isPlatformAdmin } from "@/lib/supabase/platform-role-server";
+import { authorizeOrg, authorizePeriodo } from "@/lib/auth/org-access";
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -28,11 +28,11 @@ const createPeriodSchema = z.object({
     .int()
     .min(2024, "Ano deve ser >= 2024")
     .max(2100, "Ano inválido"),
+  orgId: z.string().uuid().optional(),
 });
 
 const updatePeriodDataSchema = z.object({
   periodId: z.string().uuid("ID de período inválido"),
-  // Payload parcial — campos opcionais permitem merge
   status: z
     .enum(["em_coleta", "pronto_para_analise", "analisado", "fechado"])
     .optional(),
@@ -56,42 +56,41 @@ function ok<T>(data: T): Result<T> {
   return { success: true, data };
 }
 
-/**
- * Insere uma entrada no audit_log para ações sensíveis.
- * Falha silenciosa se a tabela não tiver policy permissiva.
- */
-async function logAudit(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  args: {
-    orgId: string;
-    action: string;
-    resourceType: string;
-    resourceId: string;
-    metadata?: Record<string, unknown>;
-  },
-): Promise<void> {
-  try {
-    await supabase.from("audit_log").insert({
-      org_id: args.orgId,
-      action: args.action,
-      resource_type: args.resourceType,
-      resource_id: args.resourceId,
-      metadata: args.metadata ?? {},
-    });
-  } catch (err) {
-    // Não bloqueia a operação principal
-    console.error("[audit] Falha ao registrar:", err);
-  }
+function accessCode(error: string): ErrorCode {
+  return error === "Período não encontrado" ? "NOT_FOUND" : "PERMISSION_DENIED";
 }
 
-// ─── AC-1: createPeriod ─────────────────────────────────────────────────────
+async function logAudit(args: {
+  orgId: string;
+  userId: string;
+  action: string;
+  resourceId: string;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  const admin = await createAdminClient();
+  const { error } = await admin.from("audit_log").insert({
+    org_id: args.orgId,
+    user_id: args.userId,
+    action: args.action,
+    resource_type: "periodo_dados",
+    resource_id: args.resourceId,
+    metadata: args.metadata ?? {},
+  });
+  if (error) console.error("[audit] periodo:", error.message);
+}
+
+/** Org explícita (da URL) ou, sem ela, a org ativa do cookie. */
+async function resolveOrgId(orgId: string | undefined): Promise<string | null> {
+  if (orgId) return orgId;
+  const ctx = await requireOrganization().catch(() => null);
+  return ctx?.org.id ?? null;
+}
+
+// ─── createPeriod ────────────────────────────────────────────────────────────
 
 export type CreatePeriodResult = Result<{ periodId: string; created: boolean }>;
 
-/**
- * Cria (ou retorna) o período (mes, ano) do cliente da org ativa.
- * Idempotente — múltiplas chamadas com o mesmo (mes, ano) retornam o mesmo ID.
- */
+/** Cria (ou retorna) o período (mes, ano) do cliente da org. Idempotente. */
 export async function createPeriod(raw: unknown): Promise<CreatePeriodResult> {
   const parsed = createPeriodSchema.safeParse(raw);
   if (!parsed.success) {
@@ -102,50 +101,34 @@ export async function createPeriod(raw: unknown): Promise<CreatePeriodResult> {
   }
   const { mes, ano } = parsed.data;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
+  const orgId = await resolveOrgId(parsed.data.orgId);
+  if (!orgId) return fail("Nenhuma organização ativa", "PERMISSION_DENIED");
 
-  // Pega org ativa via cookie + helper existente
-  const orgCtx = await requireOrganization().catch(() => null);
-  if (!orgCtx) return fail("Nenhuma organização ativa", "PERMISSION_DENIED");
-  const orgId = orgCtx.org.id;
+  const auth = await authorizeOrg(orgId, { write: true });
+  if (!auth.ok) return fail(auth.error, "PERMISSION_DENIED");
 
-  // Pega o cliente da org (1:1)
-  const { data: cliente, error: cliError } = await supabase
+  const admin = await createAdminClient();
+  const { data: cliente } = await admin
     .from("clientes")
     .select("id")
     .eq("org_id", orgId)
-    .single();
-
-  if (cliError || !cliente) {
+    .maybeSingle();
+  if (!cliente) {
     return fail("Cliente não encontrado para esta organização", "NOT_FOUND");
   }
 
-  // Verifica se já existe período (idempotência)
-  const { data: existing } = await supabase
+  const { data: existing } = await admin
     .from("periodos_dados")
     .select("id")
     .eq("cliente_id", cliente.id)
     .eq("mes", mes)
     .eq("ano", ano)
     .maybeSingle();
+  if (existing) return ok({ periodId: existing.id as string, created: false });
 
-  if (existing) {
-    return ok({ periodId: existing.id, created: false });
-  }
-
-  // Cria o período
-  const { data: created, error: insertError } = await supabase
+  const { data: created, error: insertError } = await admin
     .from("periodos_dados")
-    .insert({
-      cliente_id: cliente.id,
-      mes,
-      ano,
-      status: "em_coleta",
-    })
+    .insert({ cliente_id: cliente.id, mes, ano, status: "em_coleta" })
     .select("id")
     .single();
 
@@ -156,37 +139,34 @@ export async function createPeriod(raw: unknown): Promise<CreatePeriodResult> {
     );
   }
 
-  await logAudit(supabase, {
+  await logAudit({
     orgId,
+    userId: auth.access.user.id,
     action: "create",
-    resourceType: "periodo_dados",
-    resourceId: created.id,
+    resourceId: created.id as string,
     metadata: { mes, ano, status: "em_coleta" },
   });
 
-  return ok({ periodId: created.id, created: true });
+  return ok({ periodId: created.id as string, created: true });
 }
 
-// ─── AC-2: getOrCreateCurrentPeriod ─────────────────────────────────────────
-
-/**
- * Cria (ou retorna) o período do mês/ano atual para a org ativa.
- */
-export async function getOrCreateCurrentPeriod(): Promise<CreatePeriodResult> {
+/** Cria (ou retorna) o período do mês/ano atual da org. */
+export async function getOrCreateCurrentPeriod(
+  orgId?: string,
+): Promise<CreatePeriodResult> {
   const now = new Date();
   return createPeriod({
     mes: now.getMonth() + 1,
     ano: now.getFullYear(),
+    ...(orgId ? { orgId } : {}),
   });
 }
 
-// ─── AC-3: listPeriods ──────────────────────────────────────────────────────
+// ─── listPeriods ─────────────────────────────────────────────────────────────
 
 export type ListPeriodsResult = Result<{ periods: PeriodSummary[] }>;
 
-/**
- * Lista períodos de uma organização, ordenado por ano/mes decrescente.
- */
+/** Períodos de uma org, do mais recente pro mais antigo. */
 export async function listPeriods(raw: unknown): Promise<ListPeriodsResult> {
   const parsed = listPeriodsSchema.safeParse(raw);
   if (!parsed.success) {
@@ -197,55 +177,69 @@ export async function listPeriods(raw: unknown): Promise<ListPeriodsResult> {
   }
   const { orgId } = parsed.data;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
+  const auth = await authorizeOrg(orgId);
+  if (!auth.ok) return fail(auth.error, "PERMISSION_DENIED");
 
-  // Chama a função SQL helper
-  const { data, error } = await supabase.rpc("list_periods_for_org", {
-    p_org_id: orgId,
-  });
+  // Em TS em vez do RPC list_periods_for_org: a função não existe no banco de
+  // produção (migration 0005 nunca foi aplicada inteira lá).
+  const admin = await createAdminClient();
+  const { data: cliente } = await admin
+    .from("clientes")
+    .select("id")
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (!cliente) return ok({ periods: [] });
 
+  const { data: rows, error } = await admin
+    .from("periodos_dados")
+    .select("id, mes, ano, status, closed_at, created_at")
+    .eq("cliente_id", cliente.id)
+    .order("ano", { ascending: false })
+    .order("mes", { ascending: false });
   if (error) {
     return fail(`Erro ao listar períodos: ${error.message}`, "INTERNAL_ERROR");
   }
 
-  // A função SQL retorna BIGINT como string em alguns drivers
-  const periods: PeriodSummary[] = (
-    (data ?? []) as Array<{
-      id: string;
-      mes: number;
-      ano: number;
-      status: PeriodoDados["status"];
-      closed_at: string | null;
-      created_at: string;
-      colecoes_count: number | string;
-      evidencias_count: number | string;
-    }>
-  ).map((row) => ({
-    id: row.id,
-    mes: row.mes,
-    ano: row.ano,
-    status: row.status,
-    closed_at: row.closed_at,
-    created_at: row.created_at,
-    colecoes_count: Number(row.colecoes_count),
-    evidencias_count: Number(row.evidencias_count),
+  const ids = (rows ?? []).map((r) => r.id as string);
+  const [{ data: cols }, { data: evs }] = ids.length
+    ? await Promise.all([
+        admin
+          .from("colecoes")
+          .select("periodo_id")
+          .in("periodo_id", ids)
+          .neq("status", "descartado"),
+        admin.from("evidencias").select("periodo_id").in("periodo_id", ids),
+      ])
+    : [{ data: [] }, { data: [] }];
+
+  const count = (list: { periodo_id: string }[] | null, id: string): number =>
+    (list ?? []).filter((r) => r.periodo_id === id).length;
+
+  const periods: PeriodSummary[] = (rows ?? []).map((row) => ({
+    id: row.id as string,
+    mes: row.mes as number,
+    ano: row.ano as number,
+    status: row.status as PeriodoDados["status"],
+    closed_at: (row.closed_at as string | null) ?? null,
+    created_at: row.created_at as string,
+    colecoes_count: count(
+      cols as { periodo_id: string }[] | null,
+      row.id as string,
+    ),
+    evidencias_count: count(
+      evs as { periodo_id: string }[] | null,
+      row.id as string,
+    ),
   }));
 
   return ok({ periods });
 }
 
-// ─── AC-4: getPeriod ────────────────────────────────────────────────────────
+// ─── getPeriod ───────────────────────────────────────────────────────────────
 
 export type GetPeriodResult = Result<{ period: PeriodDetail }>;
 
-/**
- * Busca um período com todas as suas coleções e evidências.
- * Retorna também flags de permissão (canEdit, canDelete, role).
- */
+/** Período com coleções, evidências e flags de permissão. */
 export async function getPeriod(raw: unknown): Promise<GetPeriodResult> {
   const parsed = periodIdSchema.safeParse(raw);
   if (!parsed.success) {
@@ -256,82 +250,48 @@ export async function getPeriod(raw: unknown): Promise<GetPeriodResult> {
   }
   const { periodId } = parsed.data;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
+  const auth = await authorizePeriodo(periodId);
+  if (!auth.ok) return fail(auth.error, accessCode(auth.error));
 
-  // Pega o período (RLS filtra se não for da org do user)
-  const { data: periodo, error: pError } = await supabase
-    .from("periodos_dados")
-    .select("*")
-    .eq("id", periodId)
-    .single();
+  const admin = await createAdminClient();
+  const [{ data: periodo }, { data: colecoes }, { data: evidencias }] =
+    await Promise.all([
+      admin.from("periodos_dados").select("*").eq("id", periodId).single(),
+      admin
+        .from("colecoes")
+        .select("*")
+        .eq("periodo_id", periodId)
+        .order("created_at", { ascending: true }),
+      admin
+        .from("evidencias")
+        .select("*")
+        .eq("periodo_id", periodId)
+        .order("created_at", { ascending: true }),
+    ]);
 
-  if (pError || !periodo) {
-    return fail("Período não encontrado", "NOT_FOUND");
-  }
+  if (!periodo) return fail("Período não encontrado", "NOT_FOUND");
 
-  // Pega org_id via cliente (para checar role)
-  const { data: cliente } = await supabase
-    .from("clientes")
-    .select("org_id")
-    .eq("id", periodo.cliente_id)
-    .single();
-
-  if (!cliente) {
-    return fail("Cliente do período não encontrado", "NOT_FOUND");
-  }
-
-  // Pega role do user na org
-  const { data: membership } = await supabase
-    .from("memberships")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("org_id", cliente.org_id)
-    .maybeSingle();
-
-  const role: MembershipRole | null = membership?.role ?? null;
-
-  // Pega coleções e evidências em paralelo
-  const [{ data: colecoes }, { data: evidencias }] = await Promise.all([
-    supabase
-      .from("colecoes")
-      .select("*")
-      .eq("periodo_id", periodId)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("evidencias")
-      .select("*")
-      .eq("periodo_id", periodId)
-      .order("created_at", { ascending: true }),
-  ]);
-
-  // Permissões
+  const { memberRole, platformRole, canWrite } = auth.access;
+  const role = (memberRole ?? platformRole) as MembershipRole | null;
   const isClosed =
     periodo.status === "fechado" || periodo.status === "analisado";
-  const canEdit = !isClosed && role !== null && role !== "client_viewer";
-  const canDelete = role === "client_owner";
 
   const period: PeriodDetail = {
     periodo: periodo as PeriodoDados,
     colecoes: (colecoes ?? []) as Colecao[],
     evidencias: (evidencias ?? []) as Evidencia[],
-    canEdit,
-    canDelete,
+    canEdit: !isClosed && canWrite,
+    canDelete:
+      memberRole === "client_owner" || platformRole === "platform_admin",
     role,
   };
 
   return ok({ period });
 }
 
-// ─── AC-5: updatePeriodData ─────────────────────────────────────────────────
+// ─── updatePeriodData ────────────────────────────────────────────────────────
 
-/**
- * Atualiza dados parciais de um período (atualmente apenas status).
- * Recusa se o período estiver fechado.
- */
+/** Atualiza o status de um período. Recusa período fechado e somente leitura. */
 export async function updatePeriodData(
   raw: unknown,
 ): Promise<Result<{ periodId: string; status: PeriodoDados["status"] }>> {
@@ -343,66 +303,18 @@ export async function updatePeriodData(
     );
   }
   const { periodId, status } = parsed.data;
+  if (!status) return fail("Nenhum campo para atualizar", "INVALID_INPUT");
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
-
-  // Verifica status atual
-  const { data: current, error: fetchError } = await supabase
-    .from("periodos_dados")
-    .select("id, status, cliente_id, clientes!inner(org_id)")
-    .eq("id", periodId)
-    .single();
-
-  if (fetchError || !current) {
-    return fail("Período não encontrado", "NOT_FOUND");
-  }
-
-  // Join dinâmico do Supabase — type cast explícito
-  const clienteJoin = current.clientes as
-    { org_id: string } | { org_id: string }[] | null;
-  const orgId: string | undefined = Array.isArray(clienteJoin)
-    ? clienteJoin[0]?.org_id
-    : clienteJoin?.org_id;
-  if (!orgId) {
-    return fail("Organização do período não encontrada", "NOT_FOUND");
-  }
-
-  // Verifica role mínima (client_member)
-  const { data: membership } = await supabase
-    .from("memberships")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("org_id", orgId)
-    .maybeSingle();
-
-  if (!membership)
-    return fail("Sem permissão nesta organização", "PERMISSION_DENIED");
-  if (membership.role === "client_viewer") {
-    return fail(
-      "Sem permissão (client_viewer é somente leitura)",
-      "PERMISSION_DENIED",
-    );
-  }
-
-  // Recusa se fechado
-  if (current.status === "fechado") {
+  const auth = await authorizePeriodo(periodId, { write: true });
+  if (!auth.ok) return fail(auth.error, accessCode(auth.error));
+  if (auth.periodoStatus === "fechado") {
     return fail("Período está fechado", "PERIOD_CLOSED");
   }
 
-  // Aplica update
-  const updatePayload: Record<string, unknown> = {};
-  if (status) updatePayload.status = status;
-  if (Object.keys(updatePayload).length === 0) {
-    return fail("Nenhum campo para atualizar", "INVALID_INPUT");
-  }
-
-  const { data: updated, error: updateError } = await supabase
+  const admin = await createAdminClient();
+  const { data: updated, error: updateError } = await admin
     .from("periodos_dados")
-    .update(updatePayload)
+    .update({ status })
     .eq("id", periodId)
     .select("id, status")
     .single();
@@ -414,23 +326,20 @@ export async function updatePeriodData(
     );
   }
 
-  await logAudit(supabase, {
-    orgId,
+  await logAudit({
+    orgId: auth.access.orgId,
+    userId: auth.access.user.id,
     action: "update",
-    resourceType: "periodo_dados",
     resourceId: periodId,
-    metadata: { changes: updatePayload },
+    metadata: { changes: { status } },
   });
 
   return ok({ periodId, status: updated.status as PeriodoDados["status"] });
 }
 
-// ─── AC-6: closePeriod ──────────────────────────────────────────────────────
+// ─── closePeriod ─────────────────────────────────────────────────────────────
 
-/**
- * Fecha um período — seta status = 'fechado' e closed_at = now().
- * Idempotente. Requer client_owner ou platform_admin.
- */
+/** Fecha o período. Idempotente. Só client_owner ou platform_admin. */
 export async function closePeriod(
   raw: unknown,
 ): Promise<
@@ -445,69 +354,33 @@ export async function closePeriod(
   }
   const { periodId } = parsed.data;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
+  const auth = await authorizePeriodo(periodId, { write: true });
+  if (!auth.ok) return fail(auth.error, accessCode(auth.error));
+  const { memberRole, platformRole, orgId, user } = auth.access;
+  if (memberRole !== "client_owner" && platformRole !== "platform_admin") {
+    return fail(
+      "Apenas o dono da empresa ou um administrador pode fechar o período",
+      "PERMISSION_DENIED",
+    );
+  }
 
-  // Busca período + org via join
-  const { data: current, error: fetchError } = await supabase
+  const admin = await createAdminClient();
+  const { data: current } = await admin
     .from("periodos_dados")
-    .select("id, status, cliente_id, clientes!inner(org_id)")
+    .select("status, closed_at")
     .eq("id", periodId)
     .single();
+  if (!current) return fail("Período não encontrado", "NOT_FOUND");
 
-  if (fetchError || !current) {
-    return fail("Período não encontrado", "NOT_FOUND");
-  }
-
-  // Join dinâmico do Supabase — type cast explícito
-  const clienteJoin = current.clientes as
-    { org_id: string } | { org_id: string }[] | null;
-  const orgId: string | undefined = Array.isArray(clienteJoin)
-    ? clienteJoin[0]?.org_id
-    : clienteJoin?.org_id;
-  if (!orgId) {
-    return fail("Organização do período não encontrada", "NOT_FOUND");
-  }
-
-  // Verifica permissão: client_owner ou platform_admin
-  const isAdmin = await isPlatformAdmin(supabase);
-
-  if (!isAdmin) {
-    const { data: membership } = await supabase
-      .from("memberships")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("org_id", orgId)
-      .maybeSingle();
-
-    if (membership?.role !== "client_owner") {
-      return fail(
-        "Apenas client_owner ou platform_admin podem fechar período",
-        "PERMISSION_DENIED",
-      );
-    }
-  }
-
-  // Idempotência
   if (current.status === "fechado") {
-    // Já está fechado — retorna o closed_at existente
-    const { data: existing } = await supabase
-      .from("periodos_dados")
-      .select("closed_at")
-      .eq("id", periodId)
-      .single();
-
     return ok({
       periodId,
       status: "fechado",
-      closedAt: existing?.closed_at ?? new Date().toISOString(),
+      closedAt:
+        (current.closed_at as string | null) ?? new Date().toISOString(),
     });
   }
 
-  // Pré-condição: status deve ser em_coleta ou pronto_para_analise
   if (
     current.status !== "em_coleta" &&
     current.status !== "pronto_para_analise"
@@ -518,28 +391,23 @@ export async function closePeriod(
     );
   }
 
-  // Conta coleções e evidências para o audit
   const [{ count: colecoesCount }, { count: evidenciasCount }] =
     await Promise.all([
-      supabase
+      admin
         .from("colecoes")
         .select("*", { count: "exact", head: true })
         .eq("periodo_id", periodId)
         .neq("status", "descartado"),
-      supabase
+      admin
         .from("evidencias")
         .select("*", { count: "exact", head: true })
         .eq("periodo_id", periodId),
     ]);
 
-  // Fecha
   const now = new Date().toISOString();
-  const { data: updated, error: updateError } = await supabase
+  const { data: updated, error: updateError } = await admin
     .from("periodos_dados")
-    .update({
-      status: "fechado",
-      closed_at: now,
-    })
+    .update({ status: "fechado", closed_at: now })
     .eq("id", periodId)
     .select("id, status, closed_at")
     .single();
@@ -551,10 +419,10 @@ export async function closePeriod(
     );
   }
 
-  await logAudit(supabase, {
+  await logAudit({
     orgId,
+    userId: user.id,
     action: "close",
-    resourceType: "periodo_dados",
     resourceId: periodId,
     metadata: {
       colecoes: colecoesCount ?? 0,
@@ -566,6 +434,6 @@ export async function closePeriod(
   return ok({
     periodId,
     status: "fechado",
-    closedAt: updated.closed_at ?? now,
+    closedAt: (updated.closed_at as string | null) ?? now,
   });
 }

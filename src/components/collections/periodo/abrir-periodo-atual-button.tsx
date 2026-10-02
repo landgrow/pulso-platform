@@ -9,17 +9,19 @@ import { Button } from "@/components/ui/button";
 
 interface AbrirPeriodoAtualButtonProps {
   slug: string;
+  orgId: string;
 }
 
 export function AbrirPeriodoAtualButton({
   slug,
+  orgId,
 }: AbrirPeriodoAtualButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function handleClick() {
     setLoading(true);
-    const result = await getOrCreateCurrentPeriod();
+    const result = await getOrCreateCurrentPeriod(orgId);
     setLoading(false);
     if (!result.success) {
       toast.error("Erro ao abrir período", { description: result.error });

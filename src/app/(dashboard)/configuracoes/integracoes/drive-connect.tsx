@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { disconnectDrive } from "@/app/actions/drive";
 
 export function DriveConnect({
@@ -17,8 +18,16 @@ export function DriveConnect({
   accountEmail: string | null;
 }): JSX.Element {
   const [loading, setLoading] = useState(false);
+  const [confirmNode, confirm] = useConfirm();
 
   async function disconnect(): Promise<void> {
+    const ok = await confirm({
+      title: "Desligar o Google Drive?",
+      description:
+        "O PULSO para de acessar o Drive conectado. Os arquivos no Drive continuam lá; para voltar, é preciso ligar e autorizar a conta de novo.",
+      confirmLabel: "Desligar Drive",
+    });
+    if (!ok) return;
     setLoading(true);
     const result = await disconnectDrive();
     setLoading(false);
@@ -47,6 +56,7 @@ export function DriveConnect({
         >
           Desligar
         </Button>
+        {confirmNode}
       </div>
     );
   }

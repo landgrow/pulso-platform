@@ -13,6 +13,7 @@ import {
 import type { Evidencia } from "@/types/collections";
 import { deleteEvidencia } from "@/app/actions/evidencias";
 import { deleteFromStorage, getSignedDownloadUrl } from "@/lib/storage/upload";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { PdfPreview } from "./pdf-preview";
 import { ExcelPreview } from "./excel-preview";
 
@@ -54,6 +55,7 @@ export function FileList({
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmNode, confirm] = useConfirm();
 
   if (evidencias.length === 0) {
     return (
@@ -92,13 +94,13 @@ export function FileList({
   }
 
   async function handleDelete(evidencia: Evidencia) {
-    if (
-      !window.confirm(
-        `Excluir "${evidencia.nome_original}"? Essa ação não pode ser desfeita.`,
-      )
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      title: `Excluir "${evidencia.nome_original}"?`,
+      description:
+        "O arquivo sai deste período para todo mundo e é apagado do armazenamento. Não dá para desfazer.",
+      confirmLabel: "Excluir arquivo",
+    });
+    if (!ok) return;
     setDeletingId(evidencia.id);
     const result = await deleteEvidencia({ evidenciaId: evidencia.id });
     if (!result.success) {
@@ -228,6 +230,7 @@ export function FileList({
           })()}
         </div>
       )}
+      {confirmNode}
     </div>
   );
 }

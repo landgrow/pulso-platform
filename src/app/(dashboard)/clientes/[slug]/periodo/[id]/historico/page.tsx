@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { getPeriod } from "@/app/actions/periods";
 import { listColecaoRevisions } from "@/app/actions/revisions";
-import { requireOrganization } from "@/lib/supabase/organization-server";
-import { createClient } from "@/lib/supabase/server";
+import { authorizeClientSlug, authorizePeriodo } from "@/lib/auth/org-access";
 import { Timeline } from "@/components/collections/historico/timeline";
 import { History } from "lucide-react";
 
@@ -15,9 +14,11 @@ export default async function HistoricoPage({
 }: HistoricoPageProps): Promise<JSX.Element> {
   const { slug, id } = await params;
 
-  const orgCtx = await requireOrganization().catch(() => null);
-  if (!orgCtx) notFound();
-  if (orgCtx.org.slug !== slug) notFound();
+  const auth = await authorizeClientSlug(slug);
+  if (!auth.ok) notFound();
+  const orgCtx = { org: auth.org };
+  const periodAuth = await authorizePeriodo(id);
+  if (!periodAuth.ok || periodAuth.access.orgId !== auth.org.id) notFound();
 
   const periodDetail = await getPeriod({ periodId: id });
   if (!periodDetail.success) {
@@ -33,17 +34,14 @@ export default async function HistoricoPage({
 
   const canRestore = periodDetail.data.period.canEdit;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = auth.access.user;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
       <div className="space-y-1">
         <div className="mb-2 flex items-center gap-3 text-sm text-muted-foreground">
           <a
-            href={`/clientes/${slug}`}
+            href={`/clientes/${slug}/coleta`}
             className="transition-colors hover:text-foreground"
           >
             {orgCtx.org.name}

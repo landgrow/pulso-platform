@@ -3,7 +3,11 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireCapability } from "@/lib/supabase/platform-role-server";
+import {
+  isPlatformAdmin,
+  requireCapability,
+  requirePlatformAdmin,
+} from "@/lib/supabase/platform-role-server";
 import {
   accessEmailToast,
   sendAccessEmail,
@@ -121,10 +125,18 @@ export async function addPlatformTeamMember(
     }
 
     const { name, role, capabilities } = parsed.data;
+    // Consultor com "equipe" pode convidar consultores, nunca criar admin —
+    // senão ele mesmo se promove convidando um email que controla.
+    if (role === "platform_admin" && !(await isPlatformAdmin(supabase))) {
+      return {
+        success: false,
+        error: "Só administradores podem adicionar outro administrador.",
+      };
+    }
     const email = parsed.data.email.trim().toLowerCase();
     const admin = await createAdminClient();
 
-    const { data: existingId } = await supabase.rpc("find_user_id_by_email", {
+    const { data: existingId } = await admin.rpc("find_user_id_by_email", {
       p_email: email,
     });
 
@@ -242,6 +254,12 @@ export async function removePlatformTeamMember(
     }
 
     if (target.role === "platform_admin") {
+      if (!(await isPlatformAdmin(supabase))) {
+        return {
+          success: false,
+          error: "Só administradores podem remover um administrador.",
+        };
+      }
       const { count } = await admin
         .from("platform_roles")
         .select("user_id", { count: "exact", head: true })
@@ -331,7 +349,9 @@ export async function setConsultantCapability(
 ): Promise<Result<{ saved: true }>> {
   try {
     const supabase = await createClient();
-    await requireCapability(supabase, "equipe");
+    // Mudar funções de consultor é só admin — senão um consultor com
+    // "equipe" concede qualquer função pra si mesmo.
+    await requirePlatformAdmin(supabase);
     if (!isStaffCapabilityId(capability)) {
       return { success: false, error: "Função inválida." };
     }

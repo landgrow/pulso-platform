@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   getBoardById,
   listAutomations,
@@ -37,6 +38,7 @@ export function AutomationsPanel({
   const [newColumnId, setNewColumnId] = useState("");
   const [newPrioridade, setNewPrioridade] = useState<Prioridade | "">("");
   const [newResponsavelId, setNewResponsavelId] = useState("");
+  const [confirmNode, confirm] = useConfirm();
 
   async function refresh(id: string): Promise<void> {
     setLoading(true);
@@ -97,6 +99,13 @@ export function AutomationsPanel({
   }
 
   async function handleDelete(id: string): Promise<void> {
+    const ok = await confirm({
+      title: "Excluir esta automação?",
+      description:
+        "Os cards que entrarem nesta coluna deixam de receber prioridade ou responsável automaticamente. Para só pausar, desmarque a caixa ao lado. Não dá para desfazer.",
+      confirmLabel: "Excluir automação",
+    });
+    if (!ok) return;
     const result = await deleteAutomation(id);
     if (!result.success) toast.error(result.error);
     else void refresh(boardId);
@@ -106,6 +115,7 @@ export function AutomationsPanel({
 
   return (
     <div className="space-y-4 max-w-2xl">
+      {confirmNode}
       <div>
         <h2 className="text-lg font-semibold">Automações</h2>
         <p className="text-sm text-text-2">

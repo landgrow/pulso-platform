@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/card";
 import { signIn } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/client";
-import { hasAuthHash } from "@/lib/auth/invite-callback";
+import { hasAuthHash, safeCallbackNext } from "@/lib/auth/invite-callback";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
@@ -97,9 +97,7 @@ function LoginFormContent(): JSX.Element {
       const dest =
         result.redirectTo !== "/dashboard"
           ? result.redirectTo
-          : next && next.startsWith("/") && !next.startsWith("//")
-            ? next
-            : "/dashboard";
+          : safeCallbackNext(next);
       router.push(dest);
       router.refresh();
     } catch {

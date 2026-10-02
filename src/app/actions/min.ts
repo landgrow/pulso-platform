@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformRole } from "@/lib/supabase/platform-role-server";
+import { authorizeOrg } from "@/lib/auth/org-access";
 import {
   minBlockByNome,
   minBlockLabel,
@@ -37,17 +38,21 @@ export interface MinInboxItem {
 }
 
 async function requireAdminOrConsultant(): Promise<
-  { ok: true } | { ok: false; error: string }
+  | { ok: true; role: "platform_admin" | "consultant"; userId: string }
+  | { ok: false; error: string }
 > {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const role = await getPlatformRole(supabase);
-  if (!role) {
+  if (!role || !user) {
     return {
       ok: false,
       error: "Acesso negado. Apenas administradores da plataforma.",
     };
   }
-  return { ok: true };
+  return { ok: true, role, userId: user.id };
 }
 
 function asRecords(
@@ -67,8 +72,8 @@ function asRecords(
 export async function getMinSummaryForOrg(
   orgId: string,
 ): Promise<Result<MinSummary>> {
-  const gate = await requireAdminOrConsultant();
-  if (!gate.ok) return { success: false, error: gate.error };
+  const access = await authorizeOrg(orgId);
+  if (!access.ok) return { success: false, error: access.error };
 
   const db = await createAdminClient();
 
@@ -90,11 +95,12 @@ export async function getMinSummaryForOrg(
     };
   }
 
-  const { data: blocos } = await db
+  const { data: blocos, error: blocosError } = await db
     .from("min_blocos")
     .select("bloco, conteudo, updated_at")
     .eq("cliente_id", cliente.id)
     .order("updated_at", { ascending: false });
+  if (blocosError) return { success: false, error: blocosError.message };
 
   const records = asRecords(blocos);
   return {
@@ -143,6 +149,17 @@ export async function listRecentMinBlocks(): Promise<Result<MinInboxItem[]>> {
     if (orgId) orgIds.add(orgId);
   }
 
+  if (gate.role === "consultant") {
+    const { data: assigned } = await db
+      .from("consultant_assignments")
+      .select("org_id")
+      .eq("consultant_id", gate.userId);
+    const allowed = new Set(
+      (assigned ?? []).map((r: { org_id: string }) => r.org_id),
+    );
+    for (const id of [...orgIds]) if (!allowed.has(id)) orgIds.delete(id);
+  }
+
   const orgById = new Map<string, { name: string; slug: string }>();
   if (orgIds.size > 0) {
     const { data: orgs } = await db
@@ -164,7 +181,7 @@ export async function listRecentMinBlocks(): Promise<Result<MinInboxItem[]>> {
       id: row.id,
       orgName: org.name,
       orgSlug: org.slug,
-      href: `/admin/clientes/${org.slug}`,
+      href: `/admin/clientes/${org.slug}?tab=min`,
       nome: minBlockLabel(row.bloco),
       updatedAt: row.updated_at,
       perguntas,
@@ -196,20 +213,11 @@ export async function submitMinFromClient(input: {
     return { success: false, error: "O bloco chegou sem respostas." };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return {
-      success: false,
-      error: "Entre no PULSO para o envio chegar no HQ.",
-    };
+  if (JSON.stringify(perguntas).length > 100_000) {
+    return { success: false, error: "Respostas grandes demais." };
   }
 
-  const role = await getPlatformRole(supabase);
-  const admin = await createAdminClient();
-  const db = role ? admin : supabase;
+  const db = await createAdminClient();
 
   const { data: org } = await db
     .from("organizations")
@@ -224,16 +232,15 @@ export async function submitMinFromClient(input: {
     };
   }
 
-  if (!role) {
-    const { data: member } = await supabase
-      .from("memberships")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .eq("org_id", org.id)
-      .maybeSingle();
-    if (!member) {
-      return { success: false, error: "Sem acesso a esta organização." };
-    }
+  const auth = await authorizeOrg(org.id, { write: true });
+  if (!auth.ok) {
+    return {
+      success: false,
+      error:
+        auth.error === "Não autenticado"
+          ? "Entre no PULSO para o envio chegar no HQ."
+          : auth.error,
+    };
   }
 
   const { data: cliente } = await db

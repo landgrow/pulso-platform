@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { encerrarCliente, reativarCliente } from "@/app/actions/clientes";
 import { toast } from "sonner";
 import { Loader2, PauseCircle, PlayCircle } from "lucide-react";
@@ -18,12 +19,25 @@ export function ToggleClienteStatusButton({
 }): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const [confirmNode, confirm] = useConfirm();
 
   const handleClick = async (): Promise<void> => {
-    const confirmMsg = isEncerrado
-      ? `Reativar ${orgName}? O time volta a ter acesso.`
-      : `Encerrar ${orgName}? Todo o time perde acesso ao sistema imediatamente.`;
-    if (!confirm(confirmMsg)) return;
+    const ok = await confirm(
+      isEncerrado
+        ? {
+            title: `Reativar ${orgName}?`,
+            description: "O time do cliente volta a ter acesso ao sistema.",
+            confirmLabel: "Reativar cliente",
+            destructive: false,
+          }
+        : {
+            title: `Encerrar ${orgName}?`,
+            description:
+              "Todo o time do cliente perde acesso ao sistema na hora. Dá para reativar depois.",
+            confirmLabel: "Encerrar cliente",
+          },
+    );
+    if (!ok) return;
 
     setIsLoading(true);
     try {
@@ -44,21 +58,24 @@ export function ToggleClienteStatusButton({
   };
 
   return (
-    <Button
-      type="button"
-      variant={isEncerrado ? "outline" : "destructive"}
-      size="sm"
-      onClick={handleClick}
-      disabled={isLoading}
-    >
-      {isLoading ? (
-        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-      ) : isEncerrado ? (
-        <PlayCircle className="mr-1.5 h-3.5 w-3.5" />
-      ) : (
-        <PauseCircle className="mr-1.5 h-3.5 w-3.5" />
-      )}
-      {isEncerrado ? "Reativar cliente" : "Encerrar cliente"}
-    </Button>
+    <>
+      <Button
+        type="button"
+        variant={isEncerrado ? "outline" : "destructive"}
+        size="sm"
+        onClick={handleClick}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+        ) : isEncerrado ? (
+          <PlayCircle className="mr-1.5 h-3.5 w-3.5" />
+        ) : (
+          <PauseCircle className="mr-1.5 h-3.5 w-3.5" />
+        )}
+        {isEncerrado ? "Reativar cliente" : "Encerrar cliente"}
+      </Button>
+      {confirmNode}
+    </>
   );
 }

@@ -3,7 +3,8 @@
 import { z } from "zod";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { authorizeOrg, type OrgAccess } from "@/lib/auth/org-access";
 import type { ChecklistItem, Meeting } from "@/types/meetings";
 import {
   meetingFromRow,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/meetings/promote-checklist";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
+type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
 
 const orgIdSchema = z.object({
   orgId: z.string().uuid("Organização inválida"),
@@ -32,18 +34,43 @@ const toggleChecklistSchema = z.object({
   removeId: z.string().optional(),
 });
 
+const meetingIdSchema = z.string().uuid();
+
 const MEETING_SELECT =
   "id, org_id, titulo, data, participantes, resumo, topicos, checklist, created_at";
+
+/** Resolve a org dona da reunião (via admin) e autoriza o usuário nela. */
+async function authorizeMeeting(
+  meetingId: string,
+  opts: { write?: boolean } = {},
+): Promise<
+  | { ok: true; admin: AdminClient; access: OrgAccess }
+  | { ok: false; error: string }
+> {
+  const admin = await createAdminClient();
+  const { data } = await admin
+    .from("meetings")
+    .select("org_id")
+    .eq("id", meetingId)
+    .maybeSingle();
+  if (!data?.org_id) return { ok: false, error: "Reunião não encontrada" };
+  const auth = await authorizeOrg(data.org_id as string, opts);
+  if (!auth.ok) return auth;
+  return { ok: true, admin, access: auth.access };
+}
 
 export async function listMeetings(orgId: string): Promise<Result<Meeting[]>> {
   const parsed = orgIdSchema.safeParse({ orgId });
   if (!parsed.success) return { success: false, error: "Organização inválida" };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const auth = await authorizeOrg(parsed.data.orgId);
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const admin = await createAdminClient();
+  const { data, error } = await admin
     .from("meetings")
     .select(MEETING_SELECT)
-    .eq("org_id", orgId)
+    .eq("org_id", parsed.data.orgId)
     .order("data", { ascending: false });
 
   if (error) return { success: false, error: error.message };
@@ -68,12 +95,12 @@ export async function createMeeting(
     resumo,
     topicos,
   } = parsed.data;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
+  const auth = await authorizeOrg(orgId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const admin = await createAdminClient();
+  const { data, error } = await admin
     .from("meetings")
     .insert({
       org_id: orgId,
@@ -82,7 +109,7 @@ export async function createMeeting(
       participantes,
       resumo: resumo || null,
       topicos: topicos || null,
-      created_by: user?.id ?? null,
+      created_by: auth.access.user.id,
     })
     .select("id")
     .single();
@@ -90,18 +117,26 @@ export async function createMeeting(
   if (error || !data)
     return { success: false, error: error?.message ?? "Erro ao criar reunião" };
   revalidatePath("/admin/atividades");
-  return { success: true, data: { id: data.id } };
+  return { success: true, data: { id: data.id as string } };
 }
 
 export async function deleteMeeting(
   meetingId: string,
 ): Promise<Result<{ removed: true }>> {
-  const supabase = await createClient();
-  const { error } = await supabase
+  const parsed = meetingIdSchema.safeParse(meetingId);
+  if (!parsed.success) return { success: false, error: "Reunião inválida" };
+
+  const auth = await authorizeMeeting(parsed.data, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { data, error } = await auth.admin
     .from("meetings")
     .delete()
-    .eq("id", meetingId);
+    .eq("id", parsed.data)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   return { success: true, data: { removed: true } };
 }
@@ -113,9 +148,12 @@ export async function toggleChecklistItem(
   const parsed = toggleChecklistSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: "Dados inválidos" };
   const { meetingId, itemId, texto, removeId } = parsed.data;
-  const supabase = await createClient();
 
-  const { data: meeting, error: fetchError } = await supabase
+  const auth = await authorizeMeeting(meetingId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin } = auth;
+
+  const { data: meeting, error: fetchError } = await admin
     .from("meetings")
     .select("checklist")
     .eq("id", meetingId)
@@ -137,25 +175,25 @@ export async function toggleChecklistItem(
     checklist = [...checklist, { id: randomUUID(), texto, done: false }];
   }
 
-  const { error } = await supabase
+  const { data: updated, error } = await admin
     .from("meetings")
     .update({ checklist })
-    .eq("id", meetingId);
+    .eq("id", meetingId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!updated || updated.length === 0)
+    return { success: false, error: "Não encontrado" };
 
-  const { data: full } = await supabase
+  const { data: full } = await admin
     .from("meetings")
     .select("id, org_id, titulo, data, checklist")
     .eq("id", meetingId)
     .single();
   if (full) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
     await promoteMeetingChecklist(
-      supabase,
+      admin,
       meetingFromRow(full as Parameters<typeof meetingFromRow>[0]),
-      user?.id ?? null,
+      auth.access.user.id,
     );
   }
 
@@ -166,10 +204,13 @@ export async function toggleChecklistItem(
 export async function generateCardsFromMeeting(
   meetingId: string,
 ): Promise<Result<{ created: number; skippedClientOps: number }>> {
-  const parsed = z.string().uuid().safeParse(meetingId);
+  const parsed = meetingIdSchema.safeParse(meetingId);
   if (!parsed.success) return { success: false, error: "Reunião inválida" };
-  const supabase = await createClient();
-  const { data: full, error } = await supabase
+
+  const auth = await authorizeMeeting(parsed.data, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { data: full, error } = await auth.admin
     .from("meetings")
     .select("id, org_id, titulo, data, checklist")
     .eq("id", parsed.data)
@@ -180,13 +221,10 @@ export async function generateCardsFromMeeting(
       error: error?.message ?? "Reunião não encontrada",
     };
   }
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
   const result = await promoteMeetingChecklist(
-    supabase,
+    auth.admin,
     meetingFromRow(full as Parameters<typeof meetingFromRow>[0]),
-    user?.id ?? null,
+    auth.access.user.id,
   );
   revalidatePath("/admin/atividades");
   return {

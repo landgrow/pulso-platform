@@ -37,6 +37,7 @@ import { MenuSelect } from "@/components/ui/menu-select";
 import { Badge } from "@/components/ui/badge";
 import { TaskModal } from "@/components/ui/task-modal";
 import { FadeSwap } from "@/components/ui/fade-swap";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { parse5h2wNotes } from "@/lib/worksmart/cascade";
 import {
   createCard,
@@ -516,6 +517,7 @@ function CardDetail({
   const [converting, setConverting] = useState(false);
   const [driveLink, setDriveLink] = useState("");
   const [fileBusy, setFileBusy] = useState(false);
+  const [confirmNode, confirm] = useConfirm();
 
   useEffect(() => {
     void listTeamMembers().then((result) => {
@@ -625,6 +627,13 @@ function CardDetail({
   }
 
   async function handleDeleteCard(): Promise<void> {
+    const ok = await confirm({
+      title: "Excluir esta tarefa?",
+      description:
+        "A tarefa, as subtarefas e os comentários somem para todo mundo. Não dá para desfazer.",
+      confirmLabel: "Excluir tarefa",
+    });
+    if (!ok) return;
     const result = await deleteCard(card.id);
     if (!result.success) {
       toast.error(result.error);
@@ -640,6 +649,7 @@ function CardDetail({
 
   return (
     <div className="flex h-full min-h-0 flex-1">
+      {confirmNode}
       <div className="min-w-0 flex-1 overflow-y-auto px-7 py-6 pr-8 space-y-6">
         <div>
           <h2 className="sr-only">{titulo || "Tarefa"}</h2>
@@ -877,9 +887,17 @@ function CardDetail({
                 type="button"
                 aria-label="Remover arquivo"
                 onClick={() => {
-                  void deleteCardFile(file.id).then((result) => {
-                    if (!result.success) toast.error(result.error);
-                    else onChanged();
+                  void confirm({
+                    title: `Remover "${file.name}" desta tarefa?`,
+                    description:
+                      "O vínculo com a tarefa some para todo mundo. O arquivo continua no Google Drive.",
+                    confirmLabel: "Remover arquivo",
+                  }).then((ok) => {
+                    if (!ok) return;
+                    void deleteCardFile(file.id).then((result) => {
+                      if (!result.success) toast.error(result.error);
+                      else onChanged();
+                    });
                   });
                 }}
               >

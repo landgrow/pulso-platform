@@ -13,6 +13,10 @@ import {
   Share2,
   Users,
   Wallet,
+  Briefcase,
+  BarChart3,
+  Sparkles,
+  FolderOpen,
 } from "lucide-react";
 import { getMyPlatformRole } from "@/app/actions/me";
 import {
@@ -26,6 +30,7 @@ import {
 import type { StaffCapabilityId } from "@/lib/auth/staff-access";
 import {
   COMMAND_OPEN_EVENT,
+  clientNav,
   filterHqNav,
   HQ_NAV,
   NAV_GROUP_LABEL,
@@ -43,6 +48,10 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   home: Home,
   wallet: Wallet,
   radar: Radar,
+  briefcase: Briefcase,
+  "bar-chart": BarChart3,
+  sparkles: Sparkles,
+  folder: FolderOpen,
 };
 
 const GROUP_ORDER: NavGroup[] = ["mesa", "trabalho", "carteira", "sistema"];
@@ -56,6 +65,7 @@ export function CommandPalette(): JSX.Element {
   >(null);
   const [capabilities, setCapabilities] = useState<StaffCapabilityId[]>([]);
   const [inClientWorkspace, setInClientWorkspace] = useState(false);
+  const [clientSlug, setClientSlug] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +75,7 @@ export function CommandPalette(): JSX.Element {
       setPlatformRole(next.role);
       setCapabilities(next.capabilities);
       setInClientWorkspace(next.inClientWorkspace);
+      setClientSlug(next.clientSlug);
     })();
     return () => {
       cancelled = true;
@@ -89,18 +100,47 @@ export function CommandPalette(): JSX.Element {
     };
   }, []);
 
-  const visible = filterHqNav(HQ_NAV, {
-    capabilities,
-    inClientWorkspace,
-    onHqRoute: pathname.startsWith("/admin"),
-    platformRole,
-  });
+  const urlSlug = /^\/clientes\/([^/]+)/.exec(pathname)?.[1] ?? null;
+  const slug = urlSlug ?? clientSlug;
+  const clientItems =
+    slug && (platformRole === null || inClientWorkspace || urlSlug)
+      ? clientNav(slug)
+      : [];
+  const visible =
+    platformRole === null
+      ? []
+      : filterHqNav(HQ_NAV, {
+          capabilities,
+          inClientWorkspace,
+          onHqRoute: pathname.startsWith("/admin"),
+          platformRole,
+        });
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput placeholder="Ir para… Dashboard, cliente, dinheiro" />
       <CommandList>
         <CommandEmpty>Nada com esse nome.</CommandEmpty>
+        {clientItems.length > 0 ? (
+          <CommandGroup heading="Empresa">
+            {clientItems.map((item) => {
+              const Icon = iconMap[item.icon] ?? LayoutDashboard;
+              return (
+                <CommandItem
+                  key={`empresa-${item.href}`}
+                  value={`${item.label} ${item.href}`}
+                  onSelect={() => {
+                    setOpen(false);
+                    router.push(item.href);
+                  }}
+                >
+                  <Icon />
+                  {item.label}
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        ) : null}
         {GROUP_ORDER.map((group) => {
           const items = visible.filter((item) => item.group === group);
           if (items.length === 0) return null;

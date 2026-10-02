@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { ACTIVE_ORG_COOKIE, resolveHomePath } from "@/lib/auth/client-portal";
 
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   // `res` precisa ser reatribuível (let, não const) — o setAll abaixo troca a
   // resposta inteira por uma nova toda vez que o Supabase escreve cookies de
   // sessão (login, refresh de token). Um Object.assign(res.cookies, ...) em

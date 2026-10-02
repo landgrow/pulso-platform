@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { isPlatformStaff } from "@/lib/supabase/platform-role-server";
+import { isPlatformAdmin } from "@/lib/supabase/platform-role-server";
 import { driveOAuthConfigured, googleAuthUrl } from "@/lib/google/oauth";
 
 export async function GET(): Promise<NextResponse> {
@@ -16,9 +16,9 @@ export async function GET(): Promise<NextResponse> {
       ),
     );
   }
-  if (!(await isPlatformStaff(supabase))) {
+  if (!(await isPlatformAdmin(supabase))) {
     return NextResponse.json(
-      { error: "Só a equipe Land Grow liga o Drive." },
+      { error: "Só administradores ligam o Drive." },
       { status: 403 },
     );
   }

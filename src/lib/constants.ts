@@ -12,29 +12,6 @@ export const SIDEBAR_WIDTH = {
 
 export const HEADER_HEIGHT = "3.75rem"; // 60px
 
-export const NAV_ITEMS = [
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-    icon: "layout-dashboard",
-  },
-  {
-    href: "/colecoes",
-    label: "Coleções",
-    icon: "layers",
-  },
-  {
-    href: "/bin",
-    label: "BIN",
-    icon: "radar",
-  },
-  {
-    href: "/programa",
-    label: "Programa",
-    icon: "target",
-  },
-] as const;
-
 export const FOOTER_NAV = [
   {
     href: "/configuracoes",

@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
-import { getOrCreateCurrentPeriod, getPeriod } from "@/app/actions/periods";
-import { getColecao } from "@/app/actions/colecoes";
-import { requireOrganization } from "@/lib/supabase/organization-server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { authorizeClientSlug } from "@/lib/auth/org-access";
+import { resolveBinPeriod } from "@/lib/collections/bin-period";
 import { BinWorkspace } from "@/components/bin/bin-workspace";
+import { PageHeader } from "@/components/ui/page-header";
 import type { BinAnswers } from "@/lib/bin-v2";
 
 interface BinPageProps {
@@ -13,41 +14,45 @@ export default async function ClienteBinPage({
   params,
 }: BinPageProps): Promise<JSX.Element> {
   const { slug } = await params;
-  const orgCtx = await requireOrganization().catch(() => null);
-  if (!orgCtx || orgCtx.org.slug !== slug) notFound();
+  const auth = await authorizeClientSlug(slug);
+  if (!auth.ok) notFound();
 
-  const periodResult = await getOrCreateCurrentPeriod();
-  if (!periodResult.success) {
+  const period = await resolveBinPeriod(auth.org.id, { create: true });
+  if (!period) {
     return (
-      <div className="p-6 text-destructive">
-        Erro ao abrir o diagnóstico: {periodResult.error}
+      <div className="rounded-lg border border-border bg-surface-1 p-6 text-sm text-error">
+        Não foi possível abrir o diagnóstico desta empresa. Fale com a Land
+        Grow.
       </div>
     );
   }
-  const { periodId } = periodResult.data;
-  const periodDetail = await getPeriod({ periodId });
-  const isReadOnly = !periodDetail.success || !periodDetail.data.period.canEdit;
-  const colecaoResult = await getColecao(periodId, "formulario");
-  const colecao =
-    colecaoResult.success && colecaoResult.data.colecao
-      ? colecaoResult.data.colecao
-      : null;
-  const initialPayload: Partial<BinAnswers> = colecao
-    ? (colecao.payload as Partial<BinAnswers>)
-    : {};
+
+  const admin = await createAdminClient();
+  const { data: colecao } = await admin
+    .from("colecoes")
+    .select("payload, metadata")
+    .eq("periodo_id", period.periodId)
+    .eq("tipo", "formulario")
+    .neq("status", "descartado")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const closed = period.status === "fechado" || period.status === "analisado";
+  const isReadOnly = closed || !auth.access.canWrite;
+  const initialPayload = (colecao?.payload ?? {}) as Partial<BinAnswers>;
+  const metadata = colecao?.metadata as Record<string, unknown> | undefined;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <p className="text-sm text-muted-foreground">{orgCtx.org.name}</p>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Business Insights Navigator
-        </h1>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Diagnóstico BIN"
+        description={`${auth.org.name} · Responda o diagnóstico geral e depois os setores. Tudo é salvo automaticamente.`}
+      />
       <BinWorkspace
-        periodoId={periodId}
+        periodoId={period.periodId}
         initialPayload={initialPayload}
-        {...(colecao?.metadata ? { initialMetadata: colecao.metadata } : {})}
+        {...(metadata ? { initialMetadata: metadata } : {})}
         readOnly={isReadOnly}
       />
     </div>

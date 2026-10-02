@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { getOrCreateCurrentPeriod, getPeriod } from "@/app/actions/periods";
-import { requireOrganization } from "@/lib/supabase/organization-server";
-import { createClient } from "@/lib/supabase/server";
+import { authorizeClientSlug } from "@/lib/auth/org-access";
 import { UploadQueue } from "@/components/collections/upload/upload-queue";
 import { Badge } from "@/components/ui/badge";
 import { UploadCloud } from "lucide-react";
@@ -15,11 +14,11 @@ export default async function UploadPage({
 }: UploadPageProps): Promise<JSX.Element> {
   const { slug } = await params;
 
-  const orgCtx = await requireOrganization().catch(() => null);
-  if (!orgCtx) notFound();
-  if (orgCtx.org.slug !== slug) notFound();
+  const auth = await authorizeClientSlug(slug);
+  if (!auth.ok) notFound();
+  const orgCtx = { org: auth.org };
 
-  const periodResult = await getOrCreateCurrentPeriod();
+  const periodResult = await getOrCreateCurrentPeriod(auth.org.id);
   if (!periodResult.success) {
     return (
       <div className="p-6 text-destructive">
@@ -41,17 +40,14 @@ export default async function UploadPage({
   const isReadOnly = !periodDetail.data.period.canEdit;
   const canDeleteAny = periodDetail.data.period.role === "platform_admin";
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = auth.access.user;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
       <div className="space-y-1">
         <div className="mb-2 flex items-center gap-3 text-sm text-muted-foreground">
           <a
-            href={`/clientes/${slug}`}
+            href={`/clientes/${slug}/coleta`}
             className="transition-colors hover:text-foreground"
           >
             {orgCtx.org.name}

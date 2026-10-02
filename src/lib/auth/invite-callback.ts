@@ -42,10 +42,15 @@ export function passwordResetRedirectTo(
     return fallback;
   }
 
+  // Em produção Origin/x-forwarded-host vêm do cliente e podem ser forjados:
+  // só o APP_URL oficial vale. Fora de produção aceita o próprio host/local.
+  const trustRequestHost = process.env.NODE_ENV !== "production";
   const host = (requestHost ?? "").split(",")[0]?.trim() ?? "";
-  const sameHost = host.length > 0 && originUrl.host === host;
+  const sameHost =
+    trustRequestHost && host.length > 0 && originUrl.host === host;
   const local =
-    originUrl.hostname === "localhost" || originUrl.hostname === "127.0.0.1";
+    trustRequestHost &&
+    (originUrl.hostname === "localhost" || originUrl.hostname === "127.0.0.1");
   const app = resolveAppUrl(appUrl);
   let appOrigin = "";
   try {
@@ -60,11 +65,19 @@ export function passwordResetRedirectTo(
   return fallback;
 }
 
+/** Só aceita caminho interno; bloqueia "//host" e "/\host" (open redirect). */
+export function isSafeInternalPath(next: string | null | undefined): boolean {
+  return (
+    !!next &&
+    next.startsWith("/") &&
+    !next.startsWith("//") &&
+    !next.startsWith("/\\") &&
+    !/[\r\n]/.test(next)
+  );
+}
+
 export function safeCallbackNext(next: string | null): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) {
-    return "/dashboard";
-  }
-  return next;
+  return isSafeInternalPath(next) ? (next as string) : "/dashboard";
 }
 
 export function isPasswordSetupType(type: string | null): boolean {

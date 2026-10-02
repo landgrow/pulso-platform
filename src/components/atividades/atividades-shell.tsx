@@ -33,7 +33,13 @@ type Nav =
   | { kind: "automations" };
 
 /** Shell de Atividades: WorkSmart (objetivo → SMART → KR → 5H2W) + Plano de Ação. Sem BIN por enquanto. */
-export function AtividadesShell({ orgId }: { orgId: string }): JSX.Element {
+export function AtividadesShell({
+  orgId,
+  variant = "staff",
+}: {
+  orgId: string;
+  variant?: "staff" | "client";
+}): JSX.Element {
   const {
     boards,
     activeBoardId,
@@ -145,19 +151,23 @@ export function AtividadesShell({ orgId }: { orgId: string }): JSX.Element {
                 active={nav.kind === "import"}
                 onClick={() => setNav({ kind: "import" })}
               />
-              <NavButton
-                icon={<Zap className="h-4 w-4" />}
-                label="Automações"
-                active={nav.kind === "automations"}
-                onClick={() => setNav({ kind: "automations" })}
-              />
-              <Link
-                href="/admin/equipe"
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text-1"
-              >
-                <Lock className="h-4 w-4 shrink-0" />
-                <span>Permissões</span>
-              </Link>
+              {variant === "staff" ? (
+                <>
+                  <NavButton
+                    icon={<Zap className="h-4 w-4" />}
+                    label="Automações"
+                    active={nav.kind === "automations"}
+                    onClick={() => setNav({ kind: "automations" })}
+                  />
+                  <Link
+                    href="/admin/equipe"
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text-1"
+                  >
+                    <Lock className="h-4 w-4 shrink-0" />
+                    <span>Permissões</span>
+                  </Link>
+                </>
+              ) : null}
             </nav>
           </div>
         </aside>
@@ -173,7 +183,9 @@ export function AtividadesShell({ orgId }: { orgId: string }): JSX.Element {
           )}
           {nav.kind === "meetings" && <MeetingsPanel orgId={orgId} />}
           {nav.kind === "import" && <ImportPanel boards={boards} />}
-          {nav.kind === "automations" && <AutomationsPanel boards={boards} />}
+          {nav.kind === "automations" && variant === "staff" && (
+            <AutomationsPanel boards={boards} />
+          )}
           {nav.kind === "board" &&
             (loading ? (
               <div className="flex items-center justify-center py-16 text-text-2">

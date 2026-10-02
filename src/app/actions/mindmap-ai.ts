@@ -8,14 +8,18 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { authorizeOrg } from "@/lib/auth/org-access";
 import type { MindMapNode } from "@/types/mindmaps";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
 
 const generateSchema = z.object({
   orgId: z.string().uuid(),
-  text: z.string().min(1, "Cole um texto pra gerar o mapa"),
+  text: z
+    .string()
+    .min(1, "Cole um texto pra gerar o mapa")
+    .max(20000, "Texto muito longo — use até 20 mil caracteres"),
 });
 
 const GeneratedMapSchema = z4.object({
@@ -54,6 +58,10 @@ export async function generateMindMapFromText(
     };
   }
   const { orgId, text } = parsed.data;
+
+  // Autoriza ANTES de chamar a IA — a chamada custa crédito.
+  const auth = await authorizeOrg(orgId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return {
@@ -114,19 +122,15 @@ export async function generateMindMapFromText(
     }),
   };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data, error } = await supabase
+  const admin = await createAdminClient();
+  const { data, error } = await admin
     .from("mind_maps")
     .insert({
       org_id: orgId,
       name: generated.title,
       tree,
       layout: generated.layout,
-      created_by: user?.id ?? null,
+      created_by: auth.access.user.id,
     })
     .select("id")
     .single();

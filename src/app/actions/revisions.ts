@@ -1,7 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { authorizePeriodo } from "@/lib/auth/org-access";
 import type {
   ColecaoTipo,
   Result,
@@ -62,11 +63,9 @@ export async function listColecaoRevisions(
   }
   const { periodoId } = parsed.data;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
+  const auth = await authorizePeriodo(periodoId);
+  if (!auth.ok) return fail(auth.error, "PERMISSION_DENIED");
+  const supabase = await createAdminClient();
 
   const { data: colecoesData, error: cError } = await supabase
     .from("colecoes")

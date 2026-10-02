@@ -2,7 +2,9 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isPlatformAdmin } from "@/lib/supabase/platform-role-server";
+import { authorizePeriodo } from "@/lib/auth/org-access";
 import type { Colecao, Result, ErrorCode } from "@/types/collections";
 
 function fail<T>(error: string, code: ErrorCode): Result<T> {
@@ -14,18 +16,20 @@ function ok<T>(data: T): Result<T> {
 
 // ─── Schema ─────────────────────────────────────────────────────────────────
 
+const MAX_PAYLOAD_CHARS = 200_000;
+
 const upsertColecaoSchema = z.object({
   periodoId: z.string().uuid("ID de período inválido"),
   tipo: z.enum(["formulario", "texto_livre", "transcricao_audio"]),
-  payload: z.record(z.unknown()),
+  payload: z
+    .record(z.unknown())
+    .refine((p) => JSON.stringify(p).length <= MAX_PAYLOAD_CHARS, {
+      message: "Conteúdo grande demais",
+    }),
   metadata: z.record(z.unknown()).optional(),
 });
 
-const deleteColecaoSchema = z.object({
-  colecaoId: z.string().uuid("ID de coleção inválido"),
-});
-
-const discardColecaoSchema = z.object({
+const colecaoIdSchema = z.object({
   colecaoId: z.string().uuid("ID de coleção inválido"),
 });
 
@@ -34,29 +38,71 @@ const restoreColecaoSchema = z.object({
   revNumber: z.number().int().positive("Número de revisão inválido"),
 });
 
-// ─── Audit log helper ─────────────────────────────────────────────────────
+type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 async function logAudit(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  db: AdminClient,
   args: {
     orgId: string;
+    userId: string;
     action: string;
-    resourceType: string;
     resourceId: string;
     metadata?: Record<string, unknown>;
   },
 ): Promise<void> {
-  try {
-    await supabase.from("audit_log").insert({
-      org_id: args.orgId,
-      action: args.action,
-      resource_type: args.resourceType,
-      resource_id: args.resourceId,
-      metadata: args.metadata ?? {},
-    });
-  } catch (err) {
-    console.error("[audit] Falha ao registrar:", err);
+  const { error } = await db.from("audit_log").insert({
+    org_id: args.orgId,
+    user_id: args.userId,
+    action: args.action,
+    resource_type: "colecao",
+    resource_id: args.resourceId,
+    metadata: args.metadata ?? {},
+  });
+  if (error) console.error("[audit] Falha ao registrar:", error.message);
+}
+
+/** Acha a coleção (via admin) e autoriza o usuário na org do período dela. */
+async function loadColecao(
+  colecaoId: string,
+  opts: { write?: boolean } = {},
+): Promise<
+  | {
+      ok: true;
+      admin: AdminClient;
+      periodoId: string;
+      orgId: string;
+      userId: string;
+      periodoStatus: string | undefined;
+    }
+  | { ok: false; error: string; code: ErrorCode }
+> {
+  const admin = await createAdminClient();
+  const { data: colecao } = await admin
+    .from("colecoes")
+    .select("id, periodo_id")
+    .eq("id", colecaoId)
+    .maybeSingle();
+  if (!colecao) {
+    return { ok: false, error: "Coleção não encontrada", code: "NOT_FOUND" };
   }
+  const auth = await authorizePeriodo(colecao.periodo_id as string, opts);
+  if (!auth.ok) {
+    return { ok: false, error: auth.error, code: "PERMISSION_DENIED" };
+  }
+  return {
+    ok: true,
+    admin,
+    periodoId: colecao.periodo_id as string,
+    orgId: auth.access.orgId,
+    userId: auth.access.user.id,
+    periodoStatus: auth.periodoStatus,
+  };
+}
+
+function isClosed(status: string | undefined): boolean {
+  return status === "fechado" || status === "analisado";
 }
 
 // ─── upsertColecao ────────────────────────────────────────────────────────
@@ -67,9 +113,8 @@ export type UpsertColecaoResult = Result<{
 }>;
 
 /**
- * Cria ou atualiza uma coleção para um período.
- * Se já existe uma coleção do mesmo tipo para o período, atualiza (upsert via (periodo_id, tipo)).
- * Recusa se o período estiver fechado.
+ * Cria ou atualiza a coleção de um tipo num período (a mais recente, se
+ * houver duplicata antiga). Recusa período fechado e acesso somente leitura.
  */
 export async function upsertColecao(
   raw: unknown,
@@ -83,54 +128,40 @@ export async function upsertColecao(
   }
   const { periodoId, tipo, payload, metadata } = parsed.data;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
-
-  // Busca período + org para checar status e permissões
-  const { data: periodo, error: pError } = await supabase
-    .from("periodos_dados")
-    .select("id, status, cliente_id, clientes!inner(org_id)")
-    .eq("id", periodoId)
-    .single();
-
-  if (pError || !periodo) {
-    return fail("Período não encontrado", "NOT_FOUND");
+  const auth = await authorizePeriodo(periodoId, { write: true });
+  if (!auth.ok) {
+    return fail(
+      auth.error,
+      auth.error === "Período não encontrado"
+        ? "NOT_FOUND"
+        : "PERMISSION_DENIED",
+    );
   }
+  const { user, orgId } = auth.access;
 
-  const clienteJoin = periodo.clientes as { org_id: string } | null;
-  const orgId: string | null = Array.isArray(clienteJoin)
-    ? (clienteJoin[0]?.org_id ?? null)
-    : (clienteJoin?.org_id ?? null);
-
-  if (!orgId) return fail("Organização não encontrada", "NOT_FOUND");
-
-  // Recusa se fechado
-  if (periodo.status === "fechado" || periodo.status === "analisado") {
+  if (isClosed(auth.periodoStatus)) {
     return fail("Período está fechado", "PERIOD_CLOSED");
   }
 
-  // Verifica se já existe coleção do mesmo tipo
-  const { data: existing } = await supabase
+  const admin = await createAdminClient();
+  const { data: existing } = await admin
     .from("colecoes")
     .select("id")
     .eq("periodo_id", periodoId)
     .eq("tipo", tipo)
+    .neq("status", "descartado")
+    .order("updated_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
-  let colecaoId: string;
-  let created: boolean;
-
   if (existing) {
-    // Atualiza existente
-    const { data: updated, error: updateError } = await supabase
+    const { data: updated, error: updateError } = await admin
       .from("colecoes")
       .update({
         payload,
         metadata: metadata ?? {},
         updated_at: new Date().toISOString(),
+        updated_by: user.id,
       })
       .eq("id", existing.id)
       .select("id")
@@ -142,55 +173,51 @@ export async function upsertColecao(
         "INTERNAL_ERROR",
       );
     }
-    colecaoId = updated.id;
-    created = false;
-  } else {
-    // Cria nova
-    const { data: created2, error: insertError } = await supabase
-      .from("colecoes")
-      .insert({
-        periodo_id: periodoId,
-        tipo,
-        payload,
-        metadata: metadata ?? {},
-        created_by: user.id,
-        status: "rascunho",
-      })
-      .select("id")
-      .single();
-
-    if (insertError || !created2) {
-      return fail(
-        `Erro ao criar coleção: ${insertError?.message ?? "desconhecido"}`,
-        "INTERNAL_ERROR",
-      );
-    }
-    colecaoId = created2.id;
-    created = true;
+    return ok({ colecaoId: updated.id as string, created: false });
   }
 
-  await logAudit(supabase, {
+  const { data: inserted, error: insertError } = await admin
+    .from("colecoes")
+    .insert({
+      periodo_id: periodoId,
+      tipo,
+      payload,
+      metadata: metadata ?? {},
+      created_by: user.id,
+      updated_by: user.id,
+      status: "rascunho",
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !inserted) {
+    return fail(
+      `Erro ao criar coleção: ${insertError?.message ?? "desconhecido"}`,
+      "INTERNAL_ERROR",
+    );
+  }
+
+  // Autosave grava a cada 1,5s — só audita a criação, não cada tecla.
+  await logAudit(admin, {
     orgId,
-    action: created ? "create" : "update",
-    resourceType: "colecao",
-    resourceId: colecaoId,
+    userId: user.id,
+    action: "create",
+    resourceId: inserted.id as string,
     metadata: { tipo, periodo_id: periodoId },
   });
 
-  return ok({ colecaoId, created });
+  return ok({ colecaoId: inserted.id as string, created: true });
 }
 
 // ─── deleteColecao ────────────────────────────────────────────────────────
 
 export type DeleteColecaoResult = Result<{ deleted: boolean }>;
 
-/**
- * Deleta uma coleção (apenas platform_admin ou client_owner podem deletar coleções).
- */
+/** Exclusão definitiva — só platform_admin. */
 export async function deleteColecao(
   raw: unknown,
 ): Promise<DeleteColecaoResult> {
-  const parsed = deleteColecaoSchema.safeParse(raw);
+  const parsed = colecaoIdSchema.safeParse(raw);
   if (!parsed.success) {
     return fail(
       parsed.error.errors[0]?.message ?? "ID inválido",
@@ -200,34 +227,6 @@ export async function deleteColecao(
   const { colecaoId } = parsed.data;
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
-
-  // Busca coleção + org
-  const { data: colecao, error: cError } = await supabase
-    .from("colecoes")
-    .select(
-      "id, periodo_id, periodos_dados!inner(cliente_id, clientes!inner(org_id))",
-    )
-    .eq("id", colecaoId)
-    .single();
-
-  if (cError || !colecao) return fail("Coleção não encontrada", "NOT_FOUND");
-
-  const periodoJoin = colecao.periodos_dados as
-    | { clientes: { org_id: string } | { org_id: string }[] }
-    | { clientes: { org_id: string } | { org_id: string }[] }[]
-    | null;
-  const periodoObj = Array.isArray(periodoJoin) ? periodoJoin[0] : periodoJoin;
-  const clienteJoin = periodoObj?.clientes;
-  const orgId = Array.isArray(clienteJoin)
-    ? clienteJoin[0]?.org_id
-    : clienteJoin?.org_id;
-  if (!orgId) return fail("Org não encontrada", "NOT_FOUND");
-
-  // Só platform_admin pode deletar
   if (!(await isPlatformAdmin(supabase))) {
     return fail(
       "Apenas administradores podem excluir coleções",
@@ -235,19 +234,21 @@ export async function deleteColecao(
     );
   }
 
-  const { error: deleteError } = await supabase
+  const loaded = await loadColecao(colecaoId, { write: true });
+  if (!loaded.ok) return fail(loaded.error, loaded.code);
+
+  const { error: deleteError } = await loaded.admin
     .from("colecoes")
     .delete()
     .eq("id", colecaoId);
-
   if (deleteError) {
     return fail(`Erro ao deletar: ${deleteError.message}`, "INTERNAL_ERROR");
   }
 
-  await logAudit(supabase, {
-    orgId,
+  await logAudit(loaded.admin, {
+    orgId: loaded.orgId,
+    userId: loaded.userId,
     action: "delete",
-    resourceType: "colecao",
     resourceId: colecaoId,
   });
 
@@ -258,14 +259,11 @@ export async function deleteColecao(
 
 export type DiscardColecaoResult = Result<{ colecaoId: string }>;
 
-/**
- * Marca uma coleção como descartada (soft-delete).
- * Qualquer client_member+ pode fazer.
- */
+/** Soft-delete (status descartado). Qualquer membro com escrita. */
 export async function discardColecao(
   raw: unknown,
 ): Promise<DiscardColecaoResult> {
-  const parsed = discardColecaoSchema.safeParse(raw);
+  const parsed = colecaoIdSchema.safeParse(raw);
   if (!parsed.success) {
     return fail(
       parsed.error.errors[0]?.message ?? "ID inválido",
@@ -274,49 +272,29 @@ export async function discardColecao(
   }
   const { colecaoId } = parsed.data;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
+  const loaded = await loadColecao(colecaoId, { write: true });
+  if (!loaded.ok) return fail(loaded.error, loaded.code);
+  if (isClosed(loaded.periodoStatus)) {
+    return fail("Período está fechado", "PERIOD_CLOSED");
+  }
 
-  const { data: colecao, error: cError } = await supabase
-    .from("colecoes")
-    .select(
-      "id, periodo_id, periodos_dados!inner(cliente_id, clientes!inner(org_id))",
-    )
-    .eq("id", colecaoId)
-    .single();
-
-  if (cError || !colecao) return fail("Coleção não encontrada", "NOT_FOUND");
-
-  const periodoJoin = colecao.periodos_dados as
-    | { clientes: { org_id: string } | { org_id: string }[] }
-    | { clientes: { org_id: string } | { org_id: string }[] }[]
-    | null;
-  const periodoObj = Array.isArray(periodoJoin) ? periodoJoin[0] : periodoJoin;
-  const clienteJoin = periodoObj?.clientes;
-  const orgId = Array.isArray(clienteJoin)
-    ? clienteJoin[0]?.org_id
-    : clienteJoin?.org_id;
-
-  const { error: updateError } = await supabase
+  const { data: updated, error: updateError } = await loaded.admin
     .from("colecoes")
     .update({ status: "descartado", updated_at: new Date().toISOString() })
-    .eq("id", colecaoId);
+    .eq("id", colecaoId)
+    .select("id")
+    .maybeSingle();
 
-  if (updateError) {
+  if (updateError)
     return fail(`Erro: ${updateError.message}`, "INTERNAL_ERROR");
-  }
+  if (!updated) return fail("Coleção não encontrada", "NOT_FOUND");
 
-  if (orgId) {
-    await logAudit(supabase, {
-      orgId,
-      action: "discard",
-      resourceType: "colecao",
-      resourceId: colecaoId,
-    });
-  }
+  await logAudit(loaded.admin, {
+    orgId: loaded.orgId,
+    userId: loaded.userId,
+    action: "discard",
+    resourceId: colecaoId,
+  });
 
   return ok({ colecaoId });
 }
@@ -329,18 +307,28 @@ export async function getColecao(
   periodoId: string,
   tipo: Colecao["tipo"],
 ): Promise<GetColecaoResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
+  if (!z.string().uuid().safeParse(periodoId).success) {
+    return fail("ID de período inválido", "INVALID_INPUT");
+  }
+  const auth = await authorizePeriodo(periodoId);
+  if (!auth.ok) {
+    return fail(
+      auth.error,
+      auth.error === "Período não encontrado"
+        ? "NOT_FOUND"
+        : "PERMISSION_DENIED",
+    );
+  }
 
-  const { data: colecao, error } = await supabase
+  const admin = await createAdminClient();
+  const { data: colecao, error } = await admin
     .from("colecoes")
     .select("*")
     .eq("periodo_id", periodoId)
     .eq("tipo", tipo)
     .neq("status", "descartado")
+    .order("updated_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (error) return fail(`Erro: ${error.message}`, "INTERNAL_ERROR");
@@ -354,10 +342,8 @@ export async function getColecao(
 export type RestoreColecaoResult = Result<{ colecaoId: string }>;
 
 /**
- * Restaura uma coleção para uma revision anterior. Não é destrutivo: aplica
- * o payload antigo via UPDATE normal, o que faz o trigger `trg_colecoes_archive`
- * arquivar a versão atual (pré-restore) como uma nova revision antes de
- * sobrescrever — nada em `colecao_revisions` é apagado ou reordenado.
+ * Restaura uma revision anterior via UPDATE normal — o trigger
+ * `trg_colecoes_archive` arquiva a versão atual antes de sobrescrever.
  */
 export async function restoreColecao(
   raw: unknown,
@@ -371,56 +357,34 @@ export async function restoreColecao(
   }
   const { colecaoId, revNumber } = parsed.data;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Não autenticado", "PERMISSION_DENIED");
-
-  const { data: colecao, error: cError } = await supabase
-    .from("colecoes")
-    .select(
-      "id, periodo_id, periodos_dados!inner(status, cliente_id, clientes!inner(org_id))",
-    )
-    .eq("id", colecaoId)
-    .single();
-
-  if (cError || !colecao) return fail("Coleção não encontrada", "NOT_FOUND");
-
-  const periodoJoin = colecao.periodos_dados as
-    | { status: string; clientes: { org_id: string } | { org_id: string }[] }
-    | { status: string; clientes: { org_id: string } | { org_id: string }[] }[]
-    | null;
-  const periodoObj = Array.isArray(periodoJoin) ? periodoJoin[0] : periodoJoin;
-  const clienteJoin = periodoObj?.clientes;
-  const orgId = Array.isArray(clienteJoin)
-    ? clienteJoin[0]?.org_id
-    : clienteJoin?.org_id;
-
-  if (periodoObj?.status === "fechado" || periodoObj?.status === "analisado") {
+  const loaded = await loadColecao(colecaoId, { write: true });
+  if (!loaded.ok) return fail(loaded.error, loaded.code);
+  if (isClosed(loaded.periodoStatus)) {
     return fail("Período está fechado", "PERIOD_CLOSED");
   }
 
-  const { data: revision, error: revError } = await supabase
+  const { data: revision, error: revError } = await loaded.admin
     .from("colecao_revisions")
     .select("payload, metadata")
     .eq("colecao_id", colecaoId)
     .eq("rev_number", revNumber)
     .maybeSingle();
 
-  if (revError)
+  if (revError) {
     return fail(
       `Erro ao buscar revisão: ${revError.message}`,
       "INTERNAL_ERROR",
     );
+  }
   if (!revision) return fail("Revisão não encontrada", "NOT_FOUND");
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await loaded.admin
     .from("colecoes")
     .update({
       payload: revision.payload,
       metadata: revision.metadata,
       updated_at: new Date().toISOString(),
+      updated_by: loaded.userId,
     })
     .eq("id", colecaoId);
 
@@ -428,15 +392,13 @@ export async function restoreColecao(
     return fail(`Erro ao restaurar: ${updateError.message}`, "INTERNAL_ERROR");
   }
 
-  if (orgId) {
-    await logAudit(supabase, {
-      orgId,
-      action: "restore",
-      resourceType: "colecao",
-      resourceId: colecaoId,
-      metadata: { rev_number: revNumber },
-    });
-  }
+  await logAudit(loaded.admin, {
+    orgId: loaded.orgId,
+    userId: loaded.userId,
+    action: "restore",
+    resourceId: colecaoId,
+    metadata: { rev_number: revNumber },
+  });
 
   return ok({ colecaoId });
 }

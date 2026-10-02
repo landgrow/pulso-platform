@@ -80,7 +80,7 @@ export function UploadItem({ item, onRemove }: UploadItemProps) {
           <span
             className={cn(
               isFailed && "text-destructive",
-              isDone && "text-green-600",
+              isDone && "text-success",
             )}
           >
             {STATUS_LABEL[item.status]}
@@ -95,7 +95,7 @@ export function UploadItem({ item, onRemove }: UploadItemProps) {
         />
       )}
       {isDone && (
-        <Check className="size-4 shrink-0 text-green-600" aria-hidden="true" />
+        <Check className="size-4 shrink-0 text-success" aria-hidden="true" />
       )}
       {isFailed && onRemove && (
         <button

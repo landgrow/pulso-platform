@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { getOrCreateCurrentPeriod, getPeriod } from "@/app/actions/periods";
 import { listTextoLivre } from "@/app/actions/texto";
-import { requireOrganization } from "@/lib/supabase/organization-server";
-import { createClient } from "@/lib/supabase/server";
+import { authorizeClientSlug } from "@/lib/auth/org-access";
 import { TextoPageClient } from "@/components/collections/texto/texto-page-client";
 import { Badge } from "@/components/ui/badge";
 import { NotebookPen } from "lucide-react";
@@ -16,11 +15,11 @@ export default async function TextoPage({
 }: TextoPageProps): Promise<JSX.Element> {
   const { slug } = await params;
 
-  const orgCtx = await requireOrganization().catch(() => null);
-  if (!orgCtx) notFound();
-  if (orgCtx.org.slug !== slug) notFound();
+  const auth = await authorizeClientSlug(slug);
+  if (!auth.ok) notFound();
+  const orgCtx = { org: auth.org };
 
-  const periodResult = await getOrCreateCurrentPeriod();
+  const periodResult = await getOrCreateCurrentPeriod(auth.org.id);
   if (!periodResult.success) {
     return (
       <div className="p-6 text-destructive">
@@ -45,17 +44,14 @@ export default async function TextoPage({
   const textosResult = await listTextoLivre({ periodoId: periodId });
   const initialTextos = textosResult.success ? textosResult.data.textos : [];
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = auth.access.user;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
       <div className="space-y-1">
         <div className="mb-2 flex items-center gap-3 text-sm text-muted-foreground">
           <a
-            href={`/clientes/${slug}`}
+            href={`/clientes/${slug}/coleta`}
             className="transition-colors hover:text-foreground"
           >
             {orgCtx.org.name}

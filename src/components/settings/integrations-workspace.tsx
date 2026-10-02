@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { DriveConnect } from "@/app/(dashboard)/configuracoes/integracoes/drive-connect";
 import { GoogleConnectButton } from "@/app/(dashboard)/configuracoes/integracoes/google-connect-button";
 import {
@@ -60,6 +61,7 @@ export function IntegrationsWorkspace(): JSX.Element {
     useState<(typeof AUTOMATION_TRIGGERS)[number]>("prazo");
   const [autoChannel, setAutoChannel] = useState<"email" | "webhook">("email");
   const [autoWebhook, setAutoWebhook] = useState("");
+  const [confirmNode, confirm] = useConfirm();
 
   async function refresh(): Promise<void> {
     setLoading(true);
@@ -145,6 +147,7 @@ export function IntegrationsWorkspace(): JSX.Element {
 
   return (
     <div className="space-y-10">
+      {confirmNode}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Conectores</h2>
         <p className="text-sm text-text-2">
@@ -238,12 +241,20 @@ export function IntegrationsWorkspace(): JSX.Element {
                     type="button"
                     aria-label="Remover"
                     onClick={() => {
-                      void deleteWorkspaceIntegration(item.id).then(
-                        (result) => {
-                          if (!result.success) toast.error(result.error);
-                          else void refresh();
-                        },
-                      );
+                      void confirm({
+                        title: `Excluir a integração "${item.name}"?`,
+                        description:
+                          "O PULSO deixa de usar este conector e a configuração dele é apagada. Não dá para desfazer.",
+                        confirmLabel: "Excluir integração",
+                      }).then((ok) => {
+                        if (!ok) return;
+                        void deleteWorkspaceIntegration(item.id).then(
+                          (result) => {
+                            if (!result.success) toast.error(result.error);
+                            else void refresh();
+                          },
+                        );
+                      });
                     }}
                   >
                     <Trash2 className="h-3.5 w-3.5 text-text-2 hover:text-error" />
@@ -338,9 +349,17 @@ export function IntegrationsWorkspace(): JSX.Element {
                 type="button"
                 aria-label="Excluir automação"
                 onClick={() => {
-                  void deleteWorkspaceAutomation(item.id).then((result) => {
-                    if (!result.success) toast.error(result.error);
-                    else void refresh();
+                  void confirm({
+                    title: `Excluir a automação "${item.name}"?`,
+                    description:
+                      "Quando o evento acontecer, o PULSO não manda mais o aviso. Para só pausar, desmarque a caixa ao lado. Não dá para desfazer.",
+                    confirmLabel: "Excluir automação",
+                  }).then((ok) => {
+                    if (!ok) return;
+                    void deleteWorkspaceAutomation(item.id).then((result) => {
+                      if (!result.success) toast.error(result.error);
+                      else void refresh();
+                    });
                   });
                 }}
               >

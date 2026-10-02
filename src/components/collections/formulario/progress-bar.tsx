@@ -10,18 +10,18 @@ interface ProgressBarProps {
 export function ProgressBar({ percent, className }: ProgressBarProps) {
   const color =
     percent >= 100
-      ? "bg-green-500"
+      ? "bg-success"
       : percent >= 60
-        ? "bg-blue-500"
+        ? "bg-info"
         : percent >= 30
-          ? "bg-yellow-500"
-          : "bg-muted";
+          ? "bg-warning"
+          : "bg-primary";
 
   return (
     <div className={cn("space-y-1", className)}>
       <div className="flex justify-between text-xs text-muted-foreground">
         <span>Progresso do formulário</span>
-        <span className={percent >= 100 ? "text-green-600 font-medium" : ""}>
+        <span className={percent >= 100 ? "text-success font-medium" : ""}>
           {percent}%
         </span>
       </div>

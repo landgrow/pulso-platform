@@ -25,7 +25,7 @@ export interface BinInboxItem {
 }
 
 function fichaHref(slug: string): string {
-  return `/admin/clientes/${slug}#bin`;
+  return `/admin/clientes/${slug}?tab=bin`;
 }
 
 export function binInboxItemsFromRows(rows: BinInboxRow[]): BinInboxItem[] {

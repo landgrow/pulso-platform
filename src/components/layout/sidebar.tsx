@@ -15,6 +15,10 @@ import {
   Home,
   Wallet,
   Radar,
+  Briefcase,
+  BarChart3,
+  Sparkles,
+  FolderOpen,
 } from "lucide-react";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
@@ -27,9 +31,9 @@ import { APP_NAME } from "@/lib/constants";
 import { getMyPlatformRole } from "@/app/actions/me";
 import type { StaffCapabilityId } from "@/lib/auth/staff-access";
 import {
-  filterHqNav,
-  HQ_NAV,
+  buildNav,
   requestCommandPalette,
+  type NavLink,
 } from "@/lib/nav/destinations";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -43,7 +47,21 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   home: Home,
   wallet: Wallet,
   radar: Radar,
+  briefcase: Briefcase,
+  "bar-chart": BarChart3,
+  sparkles: Sparkles,
+  folder: FolderOpen,
 };
+
+/** Raiz do portal (/clientes/x) só fica ativa na própria página, não nas filhas. */
+function isActiveLink(
+  pathname: string,
+  href: string,
+  exactHrefs: Set<string>,
+): boolean {
+  if (exactHrefs.has(href)) return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function Sidebar({
   variant = "rail",
@@ -59,6 +77,8 @@ export function Sidebar({
   >(null);
   const [capabilities, setCapabilities] = useState<StaffCapabilityId[]>([]);
   const [inClientWorkspace, setInClientWorkspace] = useState(false);
+  const [clientSlug, setClientSlug] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,25 +87,43 @@ export function Sidebar({
         role,
         capabilities: nextCaps,
         inClientWorkspace: nextClient,
+        clientSlug: nextSlug,
       } = await getMyPlatformRole();
       if (!cancelled) {
         setPlatformRole(role);
         setCapabilities(nextCaps);
         setInClientWorkspace(nextClient);
+        setClientSlug(nextSlug);
+        setLoaded(true);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+    // pathname: o seletor de org troca a org ativa e navega — relê o menu.
+  }, [pathname]);
 
   const onHqRoute = pathname.startsWith("/admin");
-  const visibleItems = filterHqNav(HQ_NAV, {
+  // Na URL /clientes/{slug}/… o slug da página manda (mesmo sem cookie).
+  const urlSlug = /^\/clientes\/([^/]+)/.exec(pathname)?.[1] ?? null;
+  const nav = buildNav({
     capabilities,
-    inClientWorkspace,
+    inClientWorkspace: inClientWorkspace || urlSlug !== null,
     onHqRoute,
     platformRole,
+    clientSlug: urlSlug ?? clientSlug,
   });
+  const exactHrefs = new Set(nav.client.slice(0, 1).map((i) => i.href));
+  const groups: { label: string | null; items: NavLink[] }[] = [
+    {
+      label: nav.hq.length > 0 && nav.client.length > 0 ? "Empresa" : null,
+      items: nav.client,
+    },
+    {
+      label: nav.client.length > 0 && nav.hq.length > 0 ? "Land Grow" : null,
+      items: nav.hq,
+    },
+  ].filter((g) => g.items.length > 0 && (loaded || urlSlug !== null));
 
   const isFull = variant === "full" || !isCollapsed;
 
@@ -129,46 +167,67 @@ export function Sidebar({
         )}
         aria-label={APP_NAME}
       >
-        {visibleItems.map((item) => {
-          const Icon = iconMap[item.icon] ?? LayoutDashboard;
-          const isActive =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
+        {!loaded && groups.length === 0 ? (
+          <div className="space-y-2 px-2 py-1" aria-hidden>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-8 animate-pulse rounded-lg bg-surface-2"
+              />
+            ))}
+          </div>
+        ) : null}
+        {groups.map((group, gi) => (
+          <div
+            key={group.label ?? gi}
+            className={cn(gi > 0 && "mt-3 border-t border-border pt-3")}
+          >
+            {group.label && isFull ? (
+              <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-text-3">
+                {group.label}
+              </p>
+            ) : null}
+            {group.items.map((item) => {
+              const Icon = iconMap[item.icon] ?? LayoutDashboard;
+              const isActive = isActiveLink(pathname, item.href, exactHrefs);
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onMobileClose}
-              title={item.label}
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "flex items-center transition-colors duration-150",
-                isFull
-                  ? cn(
-                      "gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
-                      isActive
-                        ? "bg-surface-2 text-text-1"
-                        : "text-text-2 hover:bg-surface-2 hover:text-text-1",
-                    )
-                  : cn(
-                      "flex-col gap-1 px-1 py-2.5",
-                      isActive
-                        ? "text-text-1"
-                        : "text-text-3 hover:text-text-1",
-                    ),
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {isFull ? (
-                <span className="truncate">{item.label}</span>
-              ) : (
-                <span className="text-[9px] font-medium leading-none tracking-wide">
-                  {item.short}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onMobileClose}
+                  title={item.label}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "flex items-center transition-colors duration-150",
+                    isFull
+                      ? cn(
+                          "gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
+                          isActive
+                            ? "bg-surface-2 text-text-1"
+                            : "text-text-2 hover:bg-surface-2 hover:text-text-1",
+                        )
+                      : cn(
+                          "flex-col gap-1 px-1 py-2.5",
+                          isActive
+                            ? "text-text-1"
+                            : "text-text-3 hover:text-text-1",
+                        ),
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {isFull ? (
+                    <span className="truncate">{item.label}</span>
+                  ) : (
+                    <span className="text-[10px] font-medium leading-none tracking-wide">
+                      {item.short}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div

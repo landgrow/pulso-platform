@@ -16,6 +16,7 @@ interface FormBlocoAreaProps {
   readOnly?: boolean;
   defaultOpen?: boolean;
   isVisible?: (id: string) => boolean;
+  numbered?: boolean;
 }
 
 export function FormBlocoArea({
@@ -26,6 +27,7 @@ export function FormBlocoArea({
   readOnly = false,
   defaultOpen = true,
   isVisible,
+  numbered = false,
 }: FormBlocoAreaProps) {
   const [open, setOpen] = useState(defaultOpen);
   const perguntas = bloco.perguntas.filter((p) =>
@@ -59,7 +61,7 @@ export function FormBlocoArea({
             {filled}/{total} campos
           </span>
           {isComplete && (
-            <span className="text-xs text-green-600 font-medium">Completo</span>
+            <span className="text-xs text-success font-medium">Completo</span>
           )}
         </div>
         <ChevronDown
@@ -72,10 +74,11 @@ export function FormBlocoArea({
 
       <CollapsibleContent>
         <div className="p-4 space-y-6">
-          {perguntas.map((campo) => (
+          {perguntas.map((campo, index) => (
             <FormField
               key={campo.id}
               campo={campo}
+              {...(numbered ? { number: index + 1 } : {})}
               value={values[campo.id]}
               error={errors[campo.id] ?? undefined}
               specifyValue={values[specifyKey(campo.id)]}

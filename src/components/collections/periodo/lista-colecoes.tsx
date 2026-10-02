@@ -16,10 +16,11 @@ const TIPO_LABEL: Record<ColecaoTipo, string> = {
   transcricao_audio: "Transcrição de áudio",
 };
 
-const TIPO_HREF: Record<ColecaoTipo, string> = {
+/** `null` = tela ainda não existe; o item aparece sem link, marcado "Em breve". */
+const TIPO_HREF: Record<ColecaoTipo, string | null> = {
   formulario: "coleta/formulario",
   texto_livre: "coleta/texto",
-  transcricao_audio: "coleta/audio",
+  transcricao_audio: null,
 };
 
 function formatDate(iso: string): string {
@@ -75,13 +76,10 @@ export function ListaColecoes({ colecoes, slug }: ListaColecoesProps) {
             ? (colecao.metadata.area as string)
             : null;
         const text = preview(colecao);
+        const href = TIPO_HREF[colecao.tipo];
 
-        return (
-          <Link
-            key={colecao.id}
-            href={`/clientes/${slug}/${TIPO_HREF[colecao.tipo]}`}
-            className="flex items-start gap-3 rounded-md border px-4 py-3 text-sm transition-colors hover:bg-muted/50"
-          >
+        const content = (
+          <>
             <Icon
               className="mt-0.5 size-4 shrink-0 text-muted-foreground"
               aria-hidden="true"
@@ -90,6 +88,11 @@ export function ListaColecoes({ colecoes, slug }: ListaColecoesProps) {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{TIPO_LABEL[colecao.tipo]}</span>
                 {area && <Badge variant="outline">{area}</Badge>}
+                {href === null && (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    Em breve
+                  </Badge>
+                )}
                 {colecao.tipo === "formulario" && (
                   <span className="text-xs text-muted-foreground">
                     {binProgressFromPayload(colecao.payload)}% preenchido
@@ -103,6 +106,27 @@ export function ListaColecoes({ colecoes, slug }: ListaColecoesProps) {
             <span className="shrink-0 text-xs text-muted-foreground">
               {formatDate(colecao.updated_at)}
             </span>
+          </>
+        );
+
+        if (href === null) {
+          return (
+            <div
+              key={colecao.id}
+              className="flex items-start gap-3 rounded-md border px-4 py-3 text-sm"
+            >
+              {content}
+            </div>
+          );
+        }
+
+        return (
+          <Link
+            key={colecao.id}
+            href={`/clientes/${slug}/${href}`}
+            className="flex items-start gap-3 rounded-md border px-4 py-3 text-sm transition-colors hover:bg-muted/50"
+          >
+            {content}
           </Link>
         );
       })}

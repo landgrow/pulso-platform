@@ -1,5 +1,6 @@
 import "server-only";
 import type { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   STAFF_CAPABILITY_IDS,
   type StaffCapabilityId,
@@ -23,7 +24,11 @@ export async function getPlatformRole(
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data } = await supabase
+  // user.id já foi validado pelo getUser() (JWT checado no Auth); a leitura
+  // do papel vai pelo admin pra não depender da RLS de platform_roles — se a
+  // policy falhar, um admin seria tratado como cliente silenciosamente.
+  const admin = await createAdminClient();
+  const { data } = await admin
     .from("platform_roles")
     .select("role")
     .eq("user_id", user.id)
@@ -44,7 +49,8 @@ export async function getStaffCapabilities(
   } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const { data, error } = await supabase
+  const admin = await createAdminClient();
+  const { data, error } = await admin
     .from("consultant_capabilities")
     .select("capability")
     .eq("consultant_id", user.id);

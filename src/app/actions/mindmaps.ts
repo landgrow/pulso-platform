@@ -2,11 +2,13 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { authorizeOrg, type OrgAccess } from "@/lib/auth/org-access";
 import { buildMindMapTemplate } from "@/lib/mindmap-templates";
 import type { MindMap, MindMapNode, MindMapSummary } from "@/types/mindmaps";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
+type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
 
 const orgIdSchema = z.object({
   orgId: z.string().uuid("Organização inválida"),
@@ -26,32 +28,57 @@ const saveTreeSchema = z.object({
 
 const mindMapIdSchema = z.object({ mindMapId: z.string().uuid() });
 
+/** Resolve a org dona do mapa (via admin) e autoriza o usuário nela. */
+async function authorizeMindMap(
+  mindMapId: string,
+  opts: { write?: boolean } = {},
+): Promise<
+  | { ok: true; admin: AdminClient; access: OrgAccess }
+  | { ok: false; error: string }
+> {
+  const admin = await createAdminClient();
+  const { data } = await admin
+    .from("mind_maps")
+    .select("org_id")
+    .eq("id", mindMapId)
+    .maybeSingle();
+  if (!data?.org_id) return { ok: false, error: "Mapa não encontrado" };
+  const auth = await authorizeOrg(data.org_id as string, opts);
+  if (!auth.ok) return auth;
+  return { ok: true, admin, access: auth.access };
+}
+
 export async function listMindMaps(
   orgId: string,
 ): Promise<Result<MindMapSummary[]>> {
   const parsed = orgIdSchema.safeParse({ orgId });
   if (!parsed.success) return { success: false, error: "Organização inválida" };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const auth = await authorizeOrg(parsed.data.orgId);
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const admin = await createAdminClient();
+  const { data, error } = await admin
     .from("mind_maps")
     .select("id, name, updated_at")
-    .eq("org_id", orgId)
+    .eq("org_id", parsed.data.orgId)
     .order("updated_at", { ascending: false });
 
   if (error) return { success: false, error: error.message };
-  return { success: true, data: data ?? [] };
+  return { success: true, data: (data ?? []) as MindMapSummary[] };
 }
 
 export async function getMindMap(mindMapId: string): Promise<Result<MindMap>> {
   const parsed = mindMapIdSchema.safeParse({ mindMapId });
   if (!parsed.success) return { success: false, error: "Mapa inválido" };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const auth = await authorizeMindMap(parsed.data.mindMapId);
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { data, error } = await auth.admin
     .from("mind_maps")
     .select("id, org_id, name, tree, layout")
-    .eq("id", mindMapId)
+    .eq("id", parsed.data.mindMapId)
     .single();
 
   if (error || !data)
@@ -81,20 +108,20 @@ export async function createMindMap(
     };
   }
   const { orgId, name, templateKey } = parsed.data;
-  const { tree, layout } = buildMindMapTemplate(templateKey);
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
+  const auth = await authorizeOrg(orgId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { tree, layout } = buildMindMapTemplate(templateKey);
+  const admin = await createAdminClient();
+  const { data, error } = await admin
     .from("mind_maps")
     .insert({
       org_id: orgId,
       name: name ?? tree.text,
       tree,
       layout,
-      created_by: user?.id ?? null,
+      created_by: auth.access.user.id,
     })
     .select("id")
     .single();
@@ -102,7 +129,7 @@ export async function createMindMap(
   if (error || !data)
     return { success: false, error: error?.message ?? "Erro ao criar mapa" };
   revalidatePath("/admin/mapa-mental");
-  return { success: true, data: { id: data.id } };
+  return { success: true, data: { id: data.id as string } };
 }
 
 /** Substitui a árvore inteira — mesma semântica do mmSave() do protótipo. */
@@ -112,14 +139,19 @@ export async function saveMindMapTree(
   const parsed = saveTreeSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: "Dados inválidos" };
   const { mindMapId, tree, layout } = parsed.data;
-  const supabase = await createClient();
 
-  const { error } = await supabase
+  const auth = await authorizeMindMap(mindMapId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { data, error } = await auth.admin
     .from("mind_maps")
     .update(layout ? { tree, layout } : { tree })
-    .eq("id", mindMapId);
+    .eq("id", mindMapId)
+    .select("id");
 
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/mapa-mental");
   return { success: true, data: { id: mindMapId } };
 }
@@ -130,12 +162,17 @@ export async function deleteMindMap(
   const parsed = mindMapIdSchema.safeParse({ mindMapId });
   if (!parsed.success) return { success: false, error: "Mapa inválido" };
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  const auth = await authorizeMindMap(parsed.data.mindMapId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { data, error } = await auth.admin
     .from("mind_maps")
     .delete()
-    .eq("id", mindMapId);
+    .eq("id", parsed.data.mindMapId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/mapa-mental");
   return { success: true, data: { removed: true } };
 }

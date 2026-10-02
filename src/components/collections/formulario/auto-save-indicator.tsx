@@ -15,7 +15,7 @@ const CONFIG: Record<
   },
   dirty: {
     label: "Alterações pendentes",
-    className: "text-yellow-600",
+    className: "text-warning",
     Icon: Loader2,
   },
   saving: {
@@ -25,7 +25,7 @@ const CONFIG: Record<
   },
   saved: {
     label: "Salvo",
-    className: "text-green-600",
+    className: "text-success",
     Icon: Check,
   },
   error: {

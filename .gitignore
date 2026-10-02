@@ -44,3 +44,24 @@ next-env.d.ts
 
 # graphify
 graphify-out/
+
+# Ferramentas locais (aiox) e estado do Supabase CLI
+.aiox-core/
+.aiox/
+/aiox-core/
+supabase/.temp/
+
+# Protótipo legado da raiz — NUNCA commitar. /api viraria função serverless
+# pública na Vercel com service role e sem login; /data tem dados de clientes.
+/api/
+/lib/
+/views/
+/data/
+/app.js
+/charts.js
+/store.js
+/styles.css
+/index.html
+/test-kanban.js
+/docker-compose.yml
+/fluent forms/

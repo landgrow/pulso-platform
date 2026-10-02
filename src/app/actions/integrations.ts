@@ -3,7 +3,10 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { isPlatformStaff } from "@/lib/supabase/platform-role-server";
+import {
+  isPlatformAdmin,
+  isPlatformStaff,
+} from "@/lib/supabase/platform-role-server";
 import {
   INTEGRATION_CATALOG,
   isAutomationTrigger,
@@ -44,6 +47,35 @@ async function requireStaff(): Promise<
     return { success: false, error: "Só a equipe Land Grow gerencia isso." };
   }
   return { success: true, data: supabase };
+}
+
+/** Criar/alterar conectores e webhooks recebe eventos de todas as orgs: só admin. */
+async function requireAdmin(): Promise<
+  Result<Awaited<ReturnType<typeof createClient>>>
+> {
+  const supabase = await createClient();
+  if (!(await isPlatformAdmin(supabase))) {
+    return { success: false, error: "Só administradores gerenciam isso." };
+  }
+  return { success: true, data: supabase };
+}
+
+const PRIVATE_HOST =
+  /^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.|\[?::1\]?$|172\.(1[6-9]|2\d|3[01])\.)/i;
+
+/** Webhook só HTTPS pra host público — evita o servidor postar em rede interna. */
+function validWebhookUrl(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:") return null;
+    if (PRIVATE_HOST.test(url.hostname) || url.hostname.endsWith(".internal")) {
+      return null;
+    }
+    return url.toString();
+  } catch {
+    return null;
+  }
 }
 
 function asConfig(raw: unknown): Record<string, string> {
@@ -182,7 +214,7 @@ export async function createWorkspaceIntegration(
   }
   const kind = parsed.data.kind;
   const info = INTEGRATION_CATALOG.find((item) => item.kind === kind);
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.success) return gate;
   const {
     data: { user },
@@ -191,7 +223,16 @@ export async function createWorkspaceIntegration(
   const config: Record<string, string> = {};
   if (parsed.data.from) config.from = parsed.data.from;
   if (parsed.data.phone) config.phone = parsed.data.phone;
-  if (parsed.data.webhookUrl) config.webhookUrl = parsed.data.webhookUrl;
+  if (parsed.data.webhookUrl) {
+    const safe = validWebhookUrl(parsed.data.webhookUrl);
+    if (!safe) {
+      return {
+        success: false,
+        error: "O webhook precisa ser uma URL https pública.",
+      };
+    }
+    config.webhookUrl = safe;
+  }
 
   if (kind === "webhook" && !config.webhookUrl) {
     return { success: false, error: "Cole a URL do webhook." };
@@ -256,7 +297,7 @@ export async function deleteWorkspaceIntegration(
 ): Promise<Result<{ removed: true }>> {
   const parsed = z.string().uuid().safeParse(id);
   if (!parsed.success) return { success: false, error: "Integração inválida." };
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.success) return gate;
   const { error } = await gate.data
     .from("workspace_integrations")
@@ -278,7 +319,14 @@ export async function createWorkspaceAutomation(
   if (parsed.data.channel === "webhook" && !parsed.data.webhookUrl) {
     return { success: false, error: "Webhook precisa de URL." };
   }
-  const gate = await requireStaff();
+  const safeUrl = validWebhookUrl(parsed.data.webhookUrl);
+  if (parsed.data.webhookUrl && !safeUrl) {
+    return {
+      success: false,
+      error: "O webhook precisa ser uma URL https pública.",
+    };
+  }
+  const gate = await requireAdmin();
   if (!gate.success) return gate;
   const {
     data: { user },
@@ -290,9 +338,7 @@ export async function createWorkspaceAutomation(
       trigger: parsed.data.trigger,
       channel: parsed.data.channel,
       enabled: true,
-      config: parsed.data.webhookUrl
-        ? { webhookUrl: parsed.data.webhookUrl }
-        : {},
+      config: safeUrl ? { webhookUrl: safeUrl } : {},
       created_by: user?.id ?? null,
     })
     .select("id")
@@ -313,7 +359,7 @@ export async function toggleWorkspaceAutomation(
 ): Promise<Result<{ ok: true }>> {
   const parsed = z.string().uuid().safeParse(id);
   if (!parsed.success) return { success: false, error: "Automação inválida." };
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.success) return gate;
   const { error } = await gate.data
     .from("workspace_event_automations")
@@ -329,7 +375,7 @@ export async function deleteWorkspaceAutomation(
 ): Promise<Result<{ removed: true }>> {
   const parsed = z.string().uuid().safeParse(id);
   if (!parsed.success) return { success: false, error: "Automação inválida." };
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.success) return gate;
   const { error } = await gate.data
     .from("workspace_event_automations")

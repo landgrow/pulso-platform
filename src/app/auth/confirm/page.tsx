@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { consumeAuthRedirect } from "@/lib/auth/consume-auth-redirect";
-import { isPasswordSetupType } from "@/lib/auth/invite-callback";
+import {
+  isPasswordSetupType,
+  safeCallbackNext,
+} from "@/lib/auth/invite-callback";
 import { Loader2 } from "lucide-react";
 
 /**
@@ -33,9 +36,7 @@ function AuthConfirmContent(): JSX.Element {
       const dest =
         isPasswordSetupType(type) || next.startsWith("/reset-password")
           ? "/reset-password"
-          : next.startsWith("/")
-            ? next
-            : "/dashboard";
+          : safeCallbackNext(next);
       router.replace(dest);
     })();
   }, [router, searchParams]);

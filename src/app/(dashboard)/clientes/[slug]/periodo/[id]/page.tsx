@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getPeriod } from "@/app/actions/periods";
-import { requireOrganization } from "@/lib/supabase/organization-server";
-import { createClient } from "@/lib/supabase/server";
+import { authorizeClientSlug, authorizePeriodo } from "@/lib/auth/org-access";
 import { binProgressFromPayload } from "@/lib/bin-v2";
 import { StatusBadge } from "@/components/collections/periodo/status-badge";
 import { CardColetaTipo } from "@/components/collections/periodo/card-coleta-tipo";
@@ -32,9 +31,12 @@ export default async function PeriodoPage({
 }: PeriodoPageProps): Promise<JSX.Element> {
   const { slug, id } = await params;
 
-  const orgCtx = await requireOrganization().catch(() => null);
-  if (!orgCtx) notFound();
-  if (orgCtx.org.slug !== slug) notFound();
+  const auth = await authorizeClientSlug(slug);
+  if (!auth.ok) notFound();
+  const orgCtx = { org: auth.org };
+  // O período da URL tem que ser desta org (não de outra que o usuário acesse).
+  const periodAuth = await authorizePeriodo(id);
+  if (!periodAuth.ok || periodAuth.access.orgId !== auth.org.id) notFound();
 
   const periodDetail = await getPeriod({ periodId: id });
   if (!periodDetail.success) {
@@ -47,10 +49,7 @@ export default async function PeriodoPage({
   const { periodo, colecoes, evidencias, canEdit, role } =
     periodDetail.data.period;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = auth.access.user;
 
   const formularioColecao = colecoes.find(
     (c) => c.tipo === "formulario" && c.status !== "descartado",
@@ -90,7 +89,7 @@ export default async function PeriodoPage({
       <div className="space-y-3">
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <Link
-            href={`/clientes/${slug}`}
+            href={`/clientes/${slug}/coleta`}
             className="transition-colors hover:text-foreground"
           >
             {orgCtx.org.name}

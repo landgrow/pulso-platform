@@ -153,6 +153,23 @@
   --color-chart-out: var(--chart-out);
   --color-chart-net: var(--chart-net);
   --color-chart-tax: var(--chart-tax);
+  /* Aliases shadcn → tokens PULSO. Sem eles o Tailwind v4 não gera essas
+     classes e erro, texto secundário, hover e foco ficam invisíveis. */
+  --color-primary-hover: var(--primary-hover);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--text-2);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--text-1);
+  --color-accent: var(--surface-2);
+  --color-accent-foreground: var(--text-1);
+  --color-card: var(--surface-1);
+  --color-card-foreground: var(--text-1);
+  --color-popover: var(--surface-1);
+  --color-popover-foreground: var(--text-1);
+  --color-destructive: var(--error);
+  --color-destructive-foreground: #ffffff;
+  --color-input: var(--border);
+  --color-ring: var(--primary);
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);

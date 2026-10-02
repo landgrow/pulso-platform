@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Radar } from "lucide-react";
 import { toast } from "sonner";
 import { notifyBinSubmission } from "@/app/actions/bin";
@@ -108,7 +108,13 @@ export function BinWorkspace({
     debounceMs: 1500,
   });
 
+  // Só grava depois que o cliente mexe — abrir a tela não é uma edição.
+  const touchedRef = useRef(false);
   useEffect(() => {
+    if (!touchedRef.current) {
+      touchedRef.current = true;
+      return;
+    }
     if (!readOnly) save(answers);
   }, [answers, readOnly, save]);
 
@@ -254,6 +260,7 @@ export function BinWorkspace({
           percent={total === 0 ? 0 : Math.round((filled / total) * 100)}
         />
         <FormBlocoArea
+          numbered
           bloco={bloco}
           values={answers}
           errors={errors}

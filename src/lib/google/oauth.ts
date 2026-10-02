@@ -1,4 +1,4 @@
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 const SCOPES = [
   "https://www.googleapis.com/auth/drive.file",
@@ -14,11 +14,11 @@ function clientSecret(): string {
 }
 
 function signingSecret(): string {
-  return (
-    process.env.GOOGLE_DRIVE_CLIENT_SECRET ||
-    process.env.CRON_SECRET ||
-    "pulso-drive"
-  );
+  const secret =
+    process.env.GOOGLE_DRIVE_CLIENT_SECRET || process.env.CRON_SECRET;
+  // Sem segredo não assina nada — um fallback fixo deixaria forjar o state.
+  if (!secret) throw new Error("Integração Google sem segredo configurado.");
+  return secret;
 }
 
 export function driveOAuthConfigured(): boolean {
@@ -45,10 +45,17 @@ export function readOAuthState(state: string): string | null {
   const [userId, expRaw, sig] = parts;
   if (!userId || !expRaw || !sig) return null;
   const payload = `${userId}.${expRaw}`;
-  const expected = createHmac("sha256", signingSecret())
-    .update(payload)
-    .digest("hex");
-  if (expected !== sig) return null;
+  let expected: string;
+  try {
+    expected = createHmac("sha256", signingSecret())
+      .update(payload)
+      .digest("hex");
+  } catch {
+    return null;
+  }
+  const a = Buffer.from(expected);
+  const b = Buffer.from(sig);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   if (Number.parseInt(expRaw, 10) < Date.now()) return null;
   return userId;
 }

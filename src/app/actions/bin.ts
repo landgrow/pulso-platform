@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformRole } from "@/lib/supabase/platform-role-server";
+import { authorizeOrg, authorizePeriodo } from "@/lib/auth/org-access";
+import { resolveBinPeriod } from "@/lib/collections/bin-period";
 import { dispatchBinEvent } from "@/lib/notify/dispatch-bin";
 import {
   BIN_V2_INSTRUMENT,
@@ -37,18 +39,38 @@ export interface BinSummary {
 export type { BinInboxItem };
 
 async function requireAdminOrConsultant(): Promise<
-  { ok: true } | { ok: false; error: string }
+  | { ok: true; role: "platform_admin" | "consultant"; userId: string }
+  | { ok: false; error: string }
 > {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const role = await getPlatformRole(supabase);
-  if (!role) {
+  if (!role || !user) {
     return {
       ok: false,
       error: "Acesso negado. Apenas administradores da plataforma.",
     };
   }
-  return { ok: true };
+  return { ok: true, role, userId: user.id };
 }
+
+/** Orgs que um consultor pode ver; null = todas (platform_admin). */
+async function visibleOrgIds(gate: {
+  role: "platform_admin" | "consultant";
+  userId: string;
+}): Promise<Set<string> | null> {
+  if (gate.role === "platform_admin") return null;
+  const admin = await createAdminClient();
+  const { data } = await admin
+    .from("consultant_assignments")
+    .select("org_id")
+    .eq("consultant_id", gate.userId);
+  return new Set((data ?? []).map((r: { org_id: string }) => r.org_id));
+}
+
+const MAX_ANSWERS_BYTES = 200_000;
 
 function appUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(
@@ -58,7 +80,7 @@ function appUrl(): string {
 }
 
 function fichaHref(slug: string): string {
-  return `/admin/clientes/${slug}#bin`;
+  return `/admin/clientes/${slug}?tab=bin`;
 }
 
 /**
@@ -71,6 +93,8 @@ export async function getBinSummaryForOrg(
 ): Promise<Result<BinSummary>> {
   const gate = await requireAdminOrConsultant();
   if (!gate.ok) return { success: false, error: gate.error };
+  const access = await authorizeOrg(orgId);
+  if (!access.ok) return { success: false, error: access.error };
 
   const empty: BinSummary = {
     clienteId: null,
@@ -83,38 +107,38 @@ export async function getBinSummaryForOrg(
 
   const db = await createAdminClient();
 
-  const { data: cliente } = await db
-    .from("clientes")
-    .select("id")
-    .eq("org_id", orgId)
-    .maybeSingle();
-
-  if (!cliente) {
-    return { success: true, data: empty };
+  const bin = await resolveBinPeriod(orgId, { create: false });
+  if (!bin) {
+    const { data: cliente } = await db
+      .from("clientes")
+      .select("id")
+      .eq("org_id", orgId)
+      .maybeSingle();
+    return {
+      success: true,
+      data: {
+        ...empty,
+        clienteId: (cliente?.id as string | undefined) ?? null,
+      },
+    };
   }
 
   const { data: periodo } = await db
     .from("periodos_dados")
     .select("id, mes, ano")
-    .eq("cliente_id", cliente.id)
-    .order("ano", { ascending: false })
-    .order("mes", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!periodo) {
-    return {
-      success: true,
-      data: { ...empty, clienteId: cliente.id },
-    };
-  }
+    .eq("id", bin.periodId)
+    .single();
 
   const { data: colecao } = await db
     .from("colecoes")
     .select("payload, metadata")
-    .eq("periodo_id", periodo.id)
+    .eq("periodo_id", bin.periodId)
     .eq("tipo", "formulario")
+    .neq("status", "descartado")
+    .order("updated_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
+  const cliente = { id: bin.clienteId };
 
   const payload = (colecao?.payload as Partial<BinAnswers>) ?? null;
   const metadata = (colecao?.metadata ?? undefined) as
@@ -125,7 +149,9 @@ export async function getBinSummaryForOrg(
     success: true,
     data: {
       clienteId: cliente.id,
-      periodoLabel: `${String(periodo.mes).padStart(2, "0")}/${periodo.ano}`,
+      periodoLabel: periodo
+        ? `${String(periodo.mes).padStart(2, "0")}/${periodo.ano}`
+        : null,
       progresso: payload ? binProgressFromPayload(payload) : null,
       payload,
       route: resolveBinRoute(answers),
@@ -194,10 +220,12 @@ export async function listRecentBinEvents(): Promise<Result<BinInboxItem[]>> {
     orgs = (orgRes.data ?? []) as OrgRow[];
   }
 
+  const allowed = await visibleOrgIds(gate);
   const orgById = new Map(orgs.map((org) => [org.id, org]));
   const inboxRows = rows.flatMap((raw, index) => {
     const org = orgById.get(orgIdByRow[index] ?? "");
     if (!org) return [];
+    if (allowed && !allowed.has(org.id)) return [];
     return [
       {
         metadata: raw.metadata,
@@ -218,30 +246,13 @@ export async function notifyBinSubmission(input: {
   kind: BinEventKind;
   sectionId?: string;
 }): Promise<Result<{ emailed: boolean }>> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "Não autenticado" };
+  const auth = await authorizePeriodo(input.periodoId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const user = auth.access.user;
+  const cliente = { org_id: auth.access.orgId };
+  const admin = await createAdminClient();
 
-  const { data: periodo, error } = await supabase
-    .from("periodos_dados")
-    .select("id, clientes!inner(org_id)")
-    .eq("id", input.periodoId)
-    .maybeSingle();
-
-  if (error || !periodo) {
-    return { success: false, error: "Período não encontrado" };
-  }
-
-  const clienteJoin = periodo.clientes as
-    { org_id: string } | Array<{ org_id: string }> | null;
-  const cliente = Array.isArray(clienteJoin) ? clienteJoin[0] : clienteJoin;
-  if (!cliente?.org_id) {
-    return { success: false, error: "Organização não encontrada" };
-  }
-
-  const { data: org } = await supabase
+  const { data: org } = await admin
     .from("organizations")
     .select("id, name, slug")
     .eq("id", cliente.org_id)
@@ -250,7 +261,7 @@ export async function notifyBinSubmission(input: {
     return { success: false, error: "Organização não encontrada" };
   }
 
-  const { data: colecao } = await supabase
+  const { data: colecao } = await admin
     .from("colecoes")
     .select("payload, metadata")
     .eq("periodo_id", input.periodoId)
@@ -289,20 +300,12 @@ export async function submitBinFromClient(input: {
   answers: BinAnswers;
   event?: { kind: BinEventKind; sectionId?: string };
 }): Promise<Result<{ orgSlug: string; periodId: string }>> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return {
-      success: false,
-      error: "Entre no PULSO para o envio chegar no HQ.",
-    };
+  if (JSON.stringify(input.answers ?? {}).length > MAX_ANSWERS_BYTES) {
+    return { success: false, error: "Respostas grandes demais." };
   }
 
-  const role = await getPlatformRole(supabase);
   const admin = await createAdminClient();
-  const db = role ? admin : supabase;
+  const db = admin;
 
   const { data: org } = await db
     .from("organizations")
@@ -317,17 +320,17 @@ export async function submitBinFromClient(input: {
     };
   }
 
-  if (!role) {
-    const { data: member } = await supabase
-      .from("memberships")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .eq("org_id", org.id)
-      .maybeSingle();
-    if (!member) {
-      return { success: false, error: "Sem acesso a esta organização." };
-    }
+  const auth = await authorizeOrg(org.id, { write: true });
+  if (!auth.ok) {
+    return {
+      success: false,
+      error:
+        auth.error === "Não autenticado"
+          ? "Entre no PULSO para o envio chegar no HQ."
+          : auth.error,
+    };
   }
+  const user = auth.access.user;
 
   const { data: cliente } = await db
     .from("clientes")
@@ -341,43 +344,20 @@ export async function submitBinFromClient(input: {
     };
   }
 
-  const now = new Date();
-  const mes = now.getMonth() + 1;
-  const ano = now.getFullYear();
-  const { data: existingPeriod } = await db
-    .from("periodos_dados")
-    .select("id")
-    .eq("cliente_id", cliente.id)
-    .eq("mes", mes)
-    .eq("ano", ano)
-    .maybeSingle();
-
-  let periodId = existingPeriod?.id ?? null;
-  if (!periodId) {
-    const created = await db
-      .from("periodos_dados")
-      .insert({
-        cliente_id: cliente.id,
-        mes,
-        ano,
-        status: "em_coleta",
-      })
-      .select("id")
-      .single();
-    if (created.error || !created.data) {
-      return {
-        success: false,
-        error: created.error?.message ?? "Não deu para abrir o período.",
-      };
-    }
-    periodId = created.data.id;
+  const bin = await resolveBinPeriod(org.id, { create: true });
+  if (!bin) {
+    return { success: false, error: "Não deu para abrir o período." };
   }
+  const periodId = bin.periodId;
 
   const { data: colecao } = await db
     .from("colecoes")
     .select("id, metadata")
     .eq("periodo_id", periodId)
     .eq("tipo", "formulario")
+    .neq("status", "descartado")
+    .order("updated_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   const answers = pruneHiddenAnswers(input.answers);

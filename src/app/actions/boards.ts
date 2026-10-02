@@ -3,7 +3,9 @@
 import { z } from "zod";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import type { User } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { authorizeOrg, type OrgAccess } from "@/lib/auth/org-access";
 import {
   BUILTIN_FIELDS,
   type Board,
@@ -32,6 +34,7 @@ import {
 } from "@/lib/boards/plano-de-acao-template";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
+type AdminClient = Awaited<ReturnType<typeof createAdminClient>>;
 
 const BUILTIN_FIELD_KEYS = BUILTIN_FIELDS.map((f) => f.key);
 
@@ -180,6 +183,13 @@ const reorderFieldsSchema = z.object({
     .min(1),
 });
 
+const idSchema = z.string().uuid();
+
+const toggleAutomationSchema = z.object({
+  automationId: z.string().uuid(),
+  ativo: z.boolean(),
+});
+
 const convertCardToClientSchema = z.object({
   cardId: z.string().uuid(),
   ownerEmail: z.string().email("Email inválido"),
@@ -299,11 +309,227 @@ function mapBoard(row: RawBoardRow): Board {
   };
 }
 
+// ─── Autorização ─────────────────────────────────────────────────────────────
+
+interface BoardRef {
+  id: string;
+  org_id: string;
+  kind: "standard" | "admin_only";
+  module: "atividades" | "crm";
+}
+
+type BoardAuth =
+  | { ok: true; admin: AdminClient; access: OrgAccess; board: BoardRef }
+  | { ok: false; error: string };
+
+const BOARD_NOT_FOUND = "Kanban não encontrado";
+const STAFF_ONLY = "Acesso restrito à equipe Land Grow";
+
+/** Mesma regra do can_access_board: admin_only é só do platform_admin (consultor e cliente nunca veem). */
+function canSeeAdminOnly(access: OrgAccess): boolean {
+  return access.platformRole === "platform_admin";
+}
+
+function actorName(user: User): string {
+  return (user.user_metadata?.full_name as string | undefined) ?? "Cliente";
+}
+
+/** Resolve a org dona do board (via admin) e autoriza o usuário nela. */
+async function authorizeBoard(
+  boardId: string,
+  opts: { write?: boolean } = {},
+): Promise<BoardAuth> {
+  const admin = await createAdminClient();
+  // "*" porque bancos sem a 0021 não têm a coluna kind.
+  const { data } = await admin
+    .from("boards")
+    .select("*")
+    .eq("id", boardId)
+    .maybeSingle();
+  const row = data as {
+    id: string;
+    org_id: string;
+    kind?: string | null;
+    module: "atividades" | "crm";
+  } | null;
+  if (!row?.org_id) return { ok: false, error: BOARD_NOT_FOUND };
+
+  const auth = await authorizeOrg(row.org_id, opts);
+  if (!auth.ok) return auth;
+
+  const board: BoardRef = {
+    id: row.id,
+    org_id: row.org_id,
+    kind: row.kind === "admin_only" ? "admin_only" : "standard",
+    module: row.module,
+  };
+  if (board.kind === "admin_only" && !canSeeAdminOnly(auth.access)) {
+    return { ok: false, error: BOARD_NOT_FOUND };
+  }
+  return { ok: true, admin, access: auth.access, board };
+}
+
+/** Acha o board_id de uma linha filha (card/coluna/propriedade/automação) e autoriza pelo board. */
+async function authorizeBoardChild(
+  table:
+    "board_cards" | "board_columns" | "board_properties" | "board_automations",
+  id: string,
+  notFound: string,
+  opts: { write?: boolean } = {},
+): Promise<BoardAuth> {
+  const admin = await createAdminClient();
+  const { data } = await admin
+    .from(table)
+    .select("board_id")
+    .eq("id", id)
+    .maybeSingle();
+  const boardId = (data as { board_id: string | null } | null)?.board_id;
+  if (!boardId) return { ok: false, error: notFound };
+  const auth = await authorizeBoard(boardId, opts);
+  if (!auth.ok && auth.error === BOARD_NOT_FOUND) {
+    return { ok: false, error: notFound };
+  }
+  return auth;
+}
+
+function authorizeCardById(
+  cardId: string,
+  opts: { write?: boolean } = {},
+): Promise<BoardAuth> {
+  return authorizeBoardChild(
+    "board_cards",
+    cardId,
+    "Card não encontrado",
+    opts,
+  );
+}
+
+async function columnBelongsToBoard(
+  admin: AdminClient,
+  columnId: string,
+  boardId: string,
+): Promise<boolean> {
+  const { data } = await admin
+    .from("board_columns")
+    .select("id")
+    .eq("id", columnId)
+    .eq("board_id", boardId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+/** Port do RPC get_or_create_default_board para o client admin (o RPC depende de auth.uid()). */
+async function getOrCreateDefaultBoardId(
+  admin: AdminClient,
+  orgId: string,
+  userId: string,
+): Promise<{ id: string } | { error: string }> {
+  const { data: existing, error: findError } = await admin
+    .from("boards")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("module", "atividades")
+    .eq("kind", "standard")
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (findError) return { error: findError.message };
+
+  let boardId = (existing as { id: string } | null)?.id ?? null;
+  if (!boardId) {
+    const { data: created, error: createError } = await admin
+      .from("boards")
+      .insert({
+        org_id: orgId,
+        name: "Plano de Ação",
+        module: "atividades",
+        kind: "standard",
+        created_by: userId,
+        field_config: defaultAtividadesFieldConfig(),
+      })
+      .select("id")
+      .single();
+    if (createError || !created) {
+      return { error: createError?.message ?? "Erro ao carregar board" };
+    }
+    boardId = created.id as string;
+
+    const { error: colError } = await admin.from("board_columns").insert(
+      PLANO_DE_ACAO_COLUMNS.map((c, i) => ({
+        board_id: boardId,
+        label: c.label,
+        color: c.color,
+        position: i,
+      })),
+    );
+    if (colError) return { error: colError.message };
+
+    await admin.from("board_properties").insert({
+      board_id: boardId,
+      key: URGENCIA_PROPERTY.key,
+      label: URGENCIA_PROPERTY.label,
+      type: URGENCIA_PROPERTY.type,
+      options: URGENCIA_PROPERTY.options,
+      position: 0,
+      visible: true,
+    });
+  }
+
+  const { data: org } = await admin
+    .from("organizations")
+    .select("is_internal")
+    .eq("id", orgId)
+    .maybeSingle();
+  if ((org as { is_internal: boolean | null } | null)?.is_internal) {
+    const { data: adminBoard } = await admin
+      .from("boards")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("kind", "admin_only")
+      .eq("module", "atividades")
+      .limit(1)
+      .maybeSingle();
+    if (!adminBoard) {
+      const { data: createdAdmin } = await admin
+        .from("boards")
+        .insert({
+          org_id: orgId,
+          name: "Tarefas administrativas",
+          module: "atividades",
+          kind: "admin_only",
+          icon: "🔒",
+          color: "#64748B",
+          position: 1000,
+        })
+        .select("id")
+        .single();
+      if (createdAdmin) {
+        await admin.from("board_columns").insert(
+          [
+            { label: "A FAZER", color: "#94A3B8" },
+            { label: "EM ANDAMENTO", color: "#6366F1" },
+            { label: "REVISÃO INTERNA", color: "#EAB308" },
+            { label: "Concluído", color: "#22C55E" },
+          ].map((c, i) => ({
+            board_id: createdAdmin.id as string,
+            label: c.label,
+            color: c.color,
+            position: i,
+          })),
+        );
+      }
+    }
+  }
+
+  return { id: boardId };
+}
+
 async function fetchBoardById(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  admin: AdminClient,
   boardId: string,
 ): Promise<Result<Board>> {
-  const first = await supabase
+  const first = await admin
     .from("boards")
     .select(BOARD_SELECT)
     .eq("id", boardId)
@@ -316,7 +542,7 @@ async function fetchBoardById(
     };
   }
 
-  const fallback = await supabase
+  const fallback = await admin
     .from("boards")
     .select(BOARD_SELECT_NO_FILES)
     .eq("id", boardId)
@@ -342,25 +568,27 @@ export async function getBoard(orgId: string): Promise<Result<Board>> {
   const parsed = orgIdSchema.safeParse({ orgId });
   if (!parsed.success) return { success: false, error: "Organização inválida" };
 
-  const supabase = await createClient();
+  const auth = await authorizeOrg(parsed.data.orgId);
+  if (!auth.ok) return { success: false, error: auth.error };
 
-  const { data: boardId, error: rpcError } = await supabase.rpc(
-    "get_or_create_default_board",
-    { p_org_id: orgId },
+  const admin = await createAdminClient();
+  const ensured = await getOrCreateDefaultBoardId(
+    admin,
+    parsed.data.orgId,
+    auth.access.user.id,
   );
-  if (rpcError || !boardId) {
-    return {
-      success: false,
-      error: rpcError?.message ?? "Erro ao carregar board",
-    };
-  }
+  if ("error" in ensured) return { success: false, error: ensured.error };
 
-  return fetchBoardById(supabase, boardId);
+  return fetchBoardById(admin, ensured.id);
 }
 
 export async function getBoardById(boardId: string): Promise<Result<Board>> {
-  const supabase = await createClient();
-  return fetchBoardById(supabase, boardId);
+  const parsed = idSchema.safeParse(boardId);
+  if (!parsed.success) return { success: false, error: "Kanban inválido" };
+
+  const auth = await authorizeBoard(parsed.data);
+  if (!auth.ok) return { success: false, error: auth.error };
+  return fetchBoardById(auth.admin, auth.board.id);
 }
 
 /** Lista todos os kanbans (boards) de um módulo da org — pra montar o seletor de vários kanbans. */
@@ -381,8 +609,12 @@ export async function listBoards(
   const parsed = listBoardsSchema.safeParse({ orgId, module });
   if (!parsed.success) return { success: false, error: "Organização inválida" };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const auth = await authorizeOrg(parsed.data.orgId);
+  if (!auth.ok) return { success: false, error: auth.error };
+  const showAdminOnly = canSeeAdminOnly(auth.access);
+
+  const admin = await createAdminClient();
+  const { data, error } = await admin
     .from("boards")
     .select("id, name, icon, color, kind")
     .eq("org_id", parsed.data.orgId)
@@ -392,7 +624,7 @@ export async function listBoards(
 
   if (error) {
     if (error.message.toLowerCase().includes("kind")) {
-      const fallback = await supabase
+      const fallback = await admin
         .from("boards")
         .select("id, name, icon, color")
         .eq("org_id", parsed.data.orgId)
@@ -415,21 +647,23 @@ export async function listBoards(
   }
   return {
     success: true,
-    data: (data ?? []).map(
-      (row: {
+    data: (
+      (data ?? []) as {
         id: string;
         name: string;
         icon: string;
         color: string;
         kind: string | null;
-      }) => ({
+      }[]
+    )
+      .map((row) => ({
         ...row,
         kind:
           row.kind === "admin_only"
             ? ("admin_only" as const)
             : ("standard" as const),
-      }),
-    ),
+      }))
+      .filter((row) => showAdminOnly || row.kind !== "admin_only"),
   };
 }
 
@@ -445,12 +679,12 @@ export async function createBoard(
     };
   }
   const { orgId, name, module } = parsed.data;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  const { count } = await supabase
+  const auth = await authorizeOrg(orgId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const admin = await createAdminClient();
+  const { count } = await admin
     .from("boards")
     .select("id", { count: "exact", head: true })
     .eq("org_id", orgId)
@@ -459,14 +693,15 @@ export async function createBoard(
   const columns =
     module === "atividades" ? PLANO_DE_ACAO_COLUMNS : DEFAULT_COLUMNS;
 
-  const { data: board, error: boardError } = await supabase
+  const { data: board, error: boardError } = await admin
     .from("boards")
     .insert({
       org_id: orgId,
       name,
       module,
+      kind: "standard",
       position: count ?? 0,
-      created_by: user?.id ?? null,
+      created_by: auth.access.user.id,
       field_config:
         module === "atividades" ? defaultAtividadesFieldConfig() : {},
     })
@@ -479,7 +714,7 @@ export async function createBoard(
       error: boardError?.message ?? "Erro ao criar kanban",
     };
 
-  const { error: colError } = await supabase.from("board_columns").insert(
+  const { error: colError } = await admin.from("board_columns").insert(
     columns.map((c, i) => ({
       board_id: board.id,
       label: c.label,
@@ -491,7 +726,7 @@ export async function createBoard(
   if (colError) return { success: false, error: colError.message };
 
   if (module === "atividades") {
-    await supabase.from("board_properties").insert({
+    await admin.from("board_properties").insert({
       board_id: board.id,
       key: URGENCIA_PROPERTY.key,
       label: URGENCIA_PROPERTY.label,
@@ -503,27 +738,21 @@ export async function createBoard(
   }
 
   revalidatePath(module === "crm" ? "/admin/crm" : "/admin/atividades");
-  return { success: true, data: { id: board.id } };
+  return { success: true, data: { id: board.id as string } };
 }
 
 /** Completa um kanban existente com as colunas e o campo Urgência do Plano de Ação. */
 export async function applyPlanoDeAcaoTemplate(
   boardId: string,
 ): Promise<Result<{ addedColumns: number }>> {
-  const parsed = z.string().uuid().safeParse(boardId);
+  const parsed = idSchema.safeParse(boardId);
   if (!parsed.success) return { success: false, error: "Kanban inválido" };
 
-  const supabase = await createClient();
-  const { data: board, error } = await supabase
-    .from("boards")
-    .select("id, module")
-    .eq("id", parsed.data)
-    .single();
-  if (error || !board) {
-    return { success: false, error: error?.message ?? "Kanban não encontrado" };
-  }
+  const auth = await authorizeBoard(parsed.data, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin, board } = auth;
 
-  const { data: existingCols } = await supabase
+  const { data: existingCols } = await admin
     .from("board_columns")
     .select("id, label, position")
     .eq("board_id", board.id)
@@ -536,7 +765,7 @@ export async function applyPlanoDeAcaoTemplate(
   );
 
   if (missing.length > 0) {
-    const { error: colError } = await supabase.from("board_columns").insert(
+    const { error: colError } = await admin.from("board_columns").insert(
       missing.map((c, i) => ({
         board_id: board.id,
         label: c.label,
@@ -547,7 +776,7 @@ export async function applyPlanoDeAcaoTemplate(
     if (colError) return { success: false, error: colError.message };
   }
 
-  const { data: existingProps } = await supabase
+  const { data: existingProps } = await admin
     .from("board_properties")
     .select("key")
     .eq("board_id", board.id);
@@ -556,7 +785,7 @@ export async function applyPlanoDeAcaoTemplate(
       p.key === URGENCIA_PROPERTY.key || p.key.toLowerCase().includes("urgenc"),
   );
   if (!hasUrgencia) {
-    await supabase.from("board_properties").insert({
+    await admin.from("board_properties").insert({
       board_id: board.id,
       key: URGENCIA_PROPERTY.key,
       label: URGENCIA_PROPERTY.label,
@@ -567,10 +796,14 @@ export async function applyPlanoDeAcaoTemplate(
     });
   }
 
-  await supabase
+  const { data: updated, error: updateError } = await admin
     .from("boards")
     .update({ field_config: defaultAtividadesFieldConfig() })
-    .eq("id", board.id);
+    .eq("id", board.id)
+    .select("id");
+  if (updateError) return { success: false, error: updateError.message };
+  if (!updated || updated.length === 0)
+    return { success: false, error: "Não encontrado" };
 
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
@@ -588,12 +821,17 @@ export async function renameBoard(
       error: parsed.error.errors[0]?.message ?? "Dados inválidos",
     };
   }
-  const supabase = await createClient();
-  const { error } = await supabase
+  const auth = await authorizeBoard(parsed.data.boardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { data, error } = await auth.admin
     .from("boards")
     .update({ name: parsed.data.name })
-    .eq("id", parsed.data.boardId);
+    .eq("id", parsed.data.boardId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { id: parsed.data.boardId } };
@@ -611,18 +849,24 @@ export async function updateBoardAppearance(
     };
   }
   const { boardId, icon, color } = parsed.data;
+
+  const auth = await authorizeBoard(boardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+
   const patch: Record<string, string> = {};
   if (icon !== undefined) patch.icon = icon;
   if (color !== undefined) patch.color = color;
   if (Object.keys(patch).length === 0)
     return { success: true, data: { id: boardId } };
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await auth.admin
     .from("boards")
     .update(patch)
-    .eq("id", boardId);
+    .eq("id", boardId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { id: boardId } };
@@ -631,21 +875,34 @@ export async function updateBoardAppearance(
 export async function deleteBoard(
   boardId: string,
 ): Promise<Result<{ removed: true }>> {
-  const supabase = await createClient();
-  const { data: existing } = await supabase
-    .from("boards")
-    .select("kind")
-    .eq("id", boardId)
-    .maybeSingle();
-  if (existing?.kind === "admin_only") {
+  const parsed = idSchema.safeParse(boardId);
+  if (!parsed.success) return { success: false, error: "Kanban inválido" };
+
+  const auth = await authorizeBoard(parsed.data, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  if (auth.board.kind === "admin_only") {
     return {
       success: false,
       error:
         "O kanban de tarefas administrativas é fixo e não pode ser excluído.",
     };
   }
-  const { error } = await supabase.from("boards").delete().eq("id", boardId);
+  // Mesma regra da RLS boards_delete: só platform_admin exclui kanban.
+  if (auth.access.platformRole !== "platform_admin") {
+    return {
+      success: false,
+      error: "Apenas administradores da plataforma podem excluir kanbans.",
+    };
+  }
+
+  const { data, error } = await auth.admin
+    .from("boards")
+    .delete()
+    .eq("id", parsed.data)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { removed: true } };
@@ -653,11 +910,11 @@ export async function deleteBoard(
 
 /** Se a coluna tiver uma automação ativa, aplica prioridade/responsável no card — avaliada de forma síncrona ao criar ou mover um card, sem cron nem webhook. */
 async function applyAutomation(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  admin: AdminClient,
   columnId: string,
   cardId: string,
 ): Promise<void> {
-  const { data: automation } = await supabase
+  const { data: automation } = await admin
     .from("board_automations")
     .select("set_prioridade, set_responsavel_id")
     .eq("column_id", columnId)
@@ -670,7 +927,7 @@ async function applyAutomation(
   if (automation.set_responsavel_id)
     patch.responsavel_id = automation.set_responsavel_id;
   if (Object.keys(patch).length > 0) {
-    await supabase.from("board_cards").update(patch).eq("id", cardId);
+    await admin.from("board_cards").update(patch).eq("id", cardId);
   }
 }
 
@@ -692,12 +949,26 @@ export async function createCard(
     sourceMeetingId,
     sourceChecklistItemId,
   } = parsed.data;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  const { count } = await supabase
+  const auth = await authorizeBoard(boardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin, access, board } = auth;
+
+  if (!(await columnBelongsToBoard(admin, columnId, boardId))) {
+    return { success: false, error: "Coluna não encontrada" };
+  }
+  if (sourceMeetingId) {
+    const { data: meeting } = await admin
+      .from("meetings")
+      .select("org_id")
+      .eq("id", sourceMeetingId)
+      .maybeSingle();
+    if ((meeting as { org_id: string } | null)?.org_id !== board.org_id) {
+      return { success: false, error: "Reunião não encontrada" };
+    }
+  }
+
+  const { count } = await admin
     .from("board_cards")
     .select("id", { count: "exact", head: true })
     .eq("column_id", columnId);
@@ -707,7 +978,7 @@ export async function createCard(
     column_id: columnId,
     titulo,
     position: count ?? 0,
-    created_by: user?.id ?? null,
+    created_by: access.user.id,
   };
   if (observacoes !== undefined) insert.observacoes = observacoes;
   if (sourceMeetingId) insert.source_meeting_id = sourceMeetingId;
@@ -715,7 +986,7 @@ export async function createCard(
     insert.source_checklist_item_id = sourceChecklistItemId;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("board_cards")
     .insert(insert)
     .select("id")
@@ -723,16 +994,17 @@ export async function createCard(
 
   if (error || !data)
     return { success: false, error: error?.message ?? "Erro ao criar card" };
-  await applyAutomation(supabase, columnId, data.id);
+  const cardId = data.id as string;
+  await applyAutomation(admin, columnId, cardId);
   void notifyClientCardChange(
-    data.id,
-    user?.id ?? null,
-    (user?.user_metadata?.full_name as string | undefined) ?? "Cliente",
+    cardId,
+    access.user.id,
+    actorName(access.user),
     `criou o card "${titulo}"`,
   );
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
-  return { success: true, data: { id: data.id } };
+  return { success: true, data: { id: cardId } };
 }
 
 export async function updateCard(
@@ -746,10 +1018,19 @@ export async function updateCard(
     };
   }
   const { cardId, ...rest } = parsed.data;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+
+  const auth = await authorizeCardById(cardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin, access, board } = auth;
+
+  // Cliente só vincula o card à própria org — o nome da org vinculada aparece no card.
+  if (
+    access.platformRole === null &&
+    rest.relatedOrgId &&
+    rest.relatedOrgId !== board.org_id
+  ) {
+    return { success: false, error: "Sem acesso a esta organização" };
+  }
 
   const patch: Record<string, unknown> = {};
   if (rest.titulo !== undefined) patch.titulo = rest.titulo;
@@ -760,16 +1041,21 @@ export async function updateCard(
   if (rest.prazo !== undefined) patch.prazo = rest.prazo || null;
   if (rest.relatedOrgId !== undefined) patch.related_org_id = rest.relatedOrgId;
   if (rest.observacoes !== undefined) patch.observacoes = rest.observacoes;
+  if (Object.keys(patch).length === 0)
+    return { success: true, data: { id: cardId } };
 
-  const { error } = await supabase
+  const { data, error } = await admin
     .from("board_cards")
     .update(patch)
-    .eq("id", cardId);
+    .eq("id", cardId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   void notifyClientCardChange(
     cardId,
-    user?.id ?? null,
-    (user?.user_metadata?.full_name as string | undefined) ?? "Cliente",
+    access.user.id,
+    actorName(access.user),
     "atualizou o card",
   );
   revalidatePath("/admin/atividades");
@@ -780,12 +1066,20 @@ export async function updateCard(
 export async function deleteCard(
   cardId: string,
 ): Promise<Result<{ removed: true }>> {
-  const supabase = await createClient();
-  const { error } = await supabase
+  const parsed = idSchema.safeParse(cardId);
+  if (!parsed.success) return { success: false, error: "Card inválido" };
+
+  const auth = await authorizeCardById(parsed.data, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { data, error } = await auth.admin
     .from("board_cards")
     .delete()
-    .eq("id", cardId);
+    .eq("id", parsed.data)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { removed: true } };
@@ -795,15 +1089,25 @@ export async function moveCard(raw: unknown): Promise<Result<{ id: string }>> {
   const parsed = moveCardSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: "Dados inválidos" };
   const { cardId, columnId, position } = parsed.data;
-  const supabase = await createClient();
 
-  const { error } = await supabase
+  const auth = await authorizeCardById(cardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin, board } = auth;
+
+  if (!(await columnBelongsToBoard(admin, columnId, board.id))) {
+    return { success: false, error: "Coluna não encontrada" };
+  }
+
+  const { data, error } = await admin
     .from("board_cards")
     .update({ column_id: columnId, position })
-    .eq("id", cardId);
+    .eq("id", cardId)
+    .select("id");
 
   if (error) return { success: false, error: error.message };
-  await applyAutomation(supabase, columnId, cardId);
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
+  await applyAutomation(admin, columnId, cardId);
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { id: cardId } };
@@ -820,14 +1124,17 @@ export async function createColumn(
     };
   }
   const { boardId, label, color } = parsed.data;
-  const supabase = await createClient();
 
-  const { count } = await supabase
+  const auth = await authorizeBoard(boardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin } = auth;
+
+  const { count } = await admin
     .from("board_columns")
     .select("id", { count: "exact", head: true })
     .eq("board_id", boardId);
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("board_columns")
     .insert({ board_id: boardId, label, color, position: count ?? 0 })
     .select("id")
@@ -837,7 +1144,7 @@ export async function createColumn(
     return { success: false, error: error?.message ?? "Erro ao criar coluna" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
-  return { success: true, data: { id: data.id } };
+  return { success: true, data: { id: data.id as string } };
 }
 
 /** Alterna (ou adiciona/remove) uma sub-tarefa — lê, muta o array jsonb e regrava. */
@@ -847,9 +1154,12 @@ export async function toggleSubtarefa(
   const parsed = toggleSubtarefaSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: "Dados inválidos" };
   const { cardId, subtarefaId, texto, removeId } = parsed.data;
-  const supabase = await createClient();
 
-  const { data: card, error: fetchError } = await supabase
+  const auth = await authorizeCardById(cardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin } = auth;
+
+  const { data: card, error: fetchError } = await admin
     .from("board_cards")
     .select("subtarefas")
     .eq("id", cardId)
@@ -871,11 +1181,14 @@ export async function toggleSubtarefa(
     subtarefas = [...subtarefas, { id: randomUUID(), texto, done: false }];
   }
 
-  const { error } = await supabase
+  const { data, error } = await admin
     .from("board_cards")
     .update({ subtarefas })
-    .eq("id", cardId);
+    .eq("id", cardId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { id: cardId } };
@@ -892,20 +1205,20 @@ export async function addComentario(
     };
   }
   const { cardId, texto } = parsed.data;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  const { data: profile } = user
-    ? await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .maybeSingle()
-    : { data: null };
+  const auth = await authorizeCardById(cardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin, access } = auth;
 
-  const { data: card, error: fetchError } = await supabase
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("full_name")
+    .eq("id", access.user.id)
+    .maybeSingle();
+  const autorNome =
+    (profile as { full_name: string | null } | null)?.full_name ?? null;
+
+  const { data: card, error: fetchError } = await admin
     .from("board_cards")
     .select("comentarios")
     .eq("id", cardId)
@@ -920,25 +1233,28 @@ export async function addComentario(
     ...((card.comentarios ?? []) as Comentario[]),
     {
       id: randomUUID(),
-      autor_id: user?.id ?? null,
-      autor_nome: profile?.full_name ?? "—",
+      autor_id: access.user.id,
+      autor_nome: autorNome ?? "—",
       texto,
       created_at: new Date().toISOString(),
     },
   ];
 
-  const { error } = await supabase
+  const { data: updated, error } = await admin
     .from("board_cards")
     .update({ comentarios })
-    .eq("id", cardId);
+    .eq("id", cardId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!updated || updated.length === 0)
+    return { success: false, error: "Não encontrado" };
 
   const ctx = await loadCardEventContext(cardId);
   if (ctx) {
     void dispatchCardEvent({
       ...ctx,
-      actorId: user?.id ?? null,
-      actorName: profile?.full_name ?? "Alguém",
+      actorId: access.user.id,
+      actorName: autorNome ?? "Alguém",
       kind: "comentario",
       detail: texto,
       entityKey: comentarios[comentarios.length - 1]?.id ?? cardId,
@@ -962,15 +1278,18 @@ export async function createProperty(
     };
   }
   const { boardId, label, type, options } = parsed.data;
-  const supabase = await createClient();
+
+  const auth = await authorizeBoard(boardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin } = auth;
   const key = `custom_${Date.now()}`;
 
-  const { count } = await supabase
+  const { count } = await admin
     .from("board_properties")
     .select("id", { count: "exact", head: true })
     .eq("board_id", boardId);
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("board_properties")
     .insert({
       board_id: boardId,
@@ -991,18 +1310,34 @@ export async function createProperty(
     };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
-  return { success: true, data: { id: data.id, key: data.key } };
+  return {
+    success: true,
+    data: { id: data.id as string, key: data.key as string },
+  };
 }
 
 export async function deleteProperty(
   propertyId: string,
 ): Promise<Result<{ removed: true }>> {
-  const supabase = await createClient();
-  const { error } = await supabase
+  const parsed = idSchema.safeParse(propertyId);
+  if (!parsed.success) return { success: false, error: "Propriedade inválida" };
+
+  const auth = await authorizeBoardChild(
+    "board_properties",
+    parsed.data,
+    "Propriedade não encontrada",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { data, error } = await auth.admin
     .from("board_properties")
     .delete()
-    .eq("id", propertyId);
+    .eq("id", parsed.data)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { removed: true } };
@@ -1020,23 +1355,34 @@ export async function updateProperty(
     };
   }
   const { propertyId, ...rest } = parsed.data;
-  const supabase = await createClient();
+
+  const auth = await authorizeBoardChild(
+    "board_properties",
+    propertyId,
+    "Propriedade não encontrada",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
 
   const patch: Record<string, unknown> = {};
   if (rest.label !== undefined) patch.label = rest.label;
   if (rest.visible !== undefined) patch.visible = rest.visible;
+  if (Object.keys(patch).length === 0)
+    return { success: true, data: { id: propertyId } };
 
-  const { error } = await supabase
+  const { data, error } = await auth.admin
     .from("board_properties")
     .update(patch)
-    .eq("id", propertyId);
+    .eq("id", propertyId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { id: propertyId } };
 }
 
-/** Regrava a posição de todas as propriedades a partir da ordem recebida. */
 /** Mostra/oculta um campo FIXO do card (título/status/prioridade/etc) — propriedades personalizadas usam updateProperty. */
 export async function updateFieldVisibility(
   raw: unknown,
@@ -1044,9 +1390,12 @@ export async function updateFieldVisibility(
   const parsed = updateFieldVisibilitySchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: "Dados inválidos" };
   const { boardId, fieldKey, visible } = parsed.data;
-  const supabase = await createClient();
 
-  const { data: boardRow, error: fetchError } = await supabase
+  const auth = await authorizeBoard(boardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin } = auth;
+
+  const { data: boardRow, error: fetchError } = await admin
     .from("boards")
     .select("field_config")
     .eq("id", boardId)
@@ -1064,11 +1413,14 @@ export async function updateFieldVisibility(
     visible,
   };
 
-  const { error } = await supabase
+  const { data, error } = await admin
     .from("boards")
     .update({ field_config: config })
-    .eq("id", boardId);
+    .eq("id", boardId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { ok: true } };
@@ -1081,9 +1433,12 @@ export async function reorderBoardFields(
   const parsed = reorderFieldsSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: "Dados inválidos" };
   const { boardId, order } = parsed.data;
-  const supabase = await createClient();
 
-  const { data: boardRow, error: fetchError } = await supabase
+  const auth = await authorizeBoard(boardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin } = auth;
+
+  const { data: boardRow, error: fetchError } = await admin
     .from("boards")
     .select("field_config")
     .eq("id", boardId)
@@ -1109,17 +1464,24 @@ export async function reorderBoardFields(
   });
 
   const [boardResult, ...propResults] = await Promise.all([
-    supabase.from("boards").update({ field_config: config }).eq("id", boardId),
+    admin
+      .from("boards")
+      .update({ field_config: config })
+      .eq("id", boardId)
+      .select("id"),
     ...customUpdates.map((u) =>
-      supabase
+      admin
         .from("board_properties")
         .update({ position: u.position })
         .eq("board_id", boardId)
-        .eq("key", u.key),
+        .eq("key", u.key)
+        .select("id"),
     ),
   ]);
   if (boardResult.error)
     return { success: false, error: boardResult.error.message };
+  if (!boardResult.data || boardResult.data.length === 0)
+    return { success: false, error: "Não encontrado" };
   const failed = propResults.find((r) => r.error);
   if (failed?.error) return { success: false, error: failed.error.message };
 
@@ -1138,12 +1500,22 @@ export async function renameColumn(
       error: parsed.error.errors[0]?.message ?? "Dados inválidos",
     };
   }
-  const supabase = await createClient();
-  const { error } = await supabase
+  const auth = await authorizeBoardChild(
+    "board_columns",
+    parsed.data.columnId,
+    "Coluna não encontrada",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { data, error } = await auth.admin
     .from("board_columns")
     .update({ label: parsed.data.label })
-    .eq("id", parsed.data.columnId);
+    .eq("id", parsed.data.columnId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { id: parsed.data.columnId } };
@@ -1153,12 +1525,29 @@ export async function renameColumn(
 export async function deleteColumn(
   columnId: string,
 ): Promise<Result<{ removed: true }>> {
-  const supabase = await createClient();
+  const parsed = idSchema.safeParse(columnId);
+  if (!parsed.success) return { success: false, error: "Coluna inválida" };
 
-  const { count } = await supabase
+  const auth = await authorizeBoardChild(
+    "board_columns",
+    parsed.data,
+    "Coluna não encontrada",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
+  // Mesma regra da RLS board_columns_delete: só platform_admin.
+  if (auth.access.platformRole !== "platform_admin") {
+    return {
+      success: false,
+      error: "Apenas administradores da plataforma podem excluir colunas.",
+    };
+  }
+  const { admin } = auth;
+
+  const { count } = await admin
     .from("board_cards")
     .select("id", { count: "exact", head: true })
-    .eq("column_id", columnId);
+    .eq("column_id", parsed.data);
   if ((count ?? 0) > 0) {
     return {
       success: false,
@@ -1166,11 +1555,14 @@ export async function deleteColumn(
     };
   }
 
-  const { error } = await supabase
+  const { data, error } = await admin
     .from("board_columns")
     .delete()
-    .eq("id", columnId);
+    .eq("id", parsed.data)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { removed: true } };
@@ -1182,12 +1574,29 @@ export async function reorderColumns(
 ): Promise<Result<{ ok: true }>> {
   const parsed = reorderColumnsSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: "Dados inválidos" };
-  const { orderedIds } = parsed.data;
-  const supabase = await createClient();
+  const { boardId, orderedIds } = parsed.data;
+
+  const auth = await authorizeBoard(boardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin } = auth;
+
+  const { data: cols, error: colsError } = await admin
+    .from("board_columns")
+    .select("id")
+    .eq("board_id", boardId);
+  if (colsError) return { success: false, error: colsError.message };
+  const own = new Set(((cols ?? []) as { id: string }[]).map((c) => c.id));
+  if (orderedIds.some((id) => !own.has(id))) {
+    return { success: false, error: "Coluna não encontrada" };
+  }
 
   const results = await Promise.all(
     orderedIds.map((id, position) =>
-      supabase.from("board_columns").update({ position }).eq("id", id),
+      admin
+        .from("board_columns")
+        .update({ position })
+        .eq("id", id)
+        .eq("board_id", boardId),
     ),
   );
   const failed = results.find((r) => r.error);
@@ -1201,13 +1610,20 @@ export async function reorderColumns(
 export async function listAutomations(
   boardId: string,
 ): Promise<Result<BoardAutomation[]>> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const parsed = idSchema.safeParse(boardId);
+  if (!parsed.success) return { success: false, error: "Kanban inválido" };
+
+  const auth = await authorizeBoard(parsed.data);
+  if (!auth.ok) return { success: false, error: auth.error };
+  if (auth.access.platformRole === null)
+    return { success: false, error: STAFF_ONLY };
+
+  const { data, error } = await auth.admin
     .from("board_automations")
     .select(
       "id, board_id, column_id, set_prioridade, set_responsavel_id, ativo, responsavel:profiles!board_automations_set_responsavel_id_fkey ( full_name )",
     )
-    .eq("board_id", boardId)
+    .eq("board_id", parsed.data)
     .order("created_at", { ascending: true });
 
   if (error) return { success: false, error: error.message };
@@ -1241,9 +1657,18 @@ export async function createAutomation(
   const parsed = createAutomationSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: "Dados inválidos" };
   const { boardId, columnId, setPrioridade, setResponsavelId } = parsed.data;
-  const supabase = await createClient();
 
-  const { data, error } = await supabase
+  const auth = await authorizeBoard(boardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  if (auth.access.platformRole === null)
+    return { success: false, error: STAFF_ONLY };
+  const { admin } = auth;
+
+  if (!(await columnBelongsToBoard(admin, columnId, boardId))) {
+    return { success: false, error: "Coluna não encontrada" };
+  }
+
+  const { data, error } = await admin
     .from("board_automations")
     .insert({
       board_id: boardId,
@@ -1261,33 +1686,63 @@ export async function createAutomation(
     };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
-  return { success: true, data: { id: data.id } };
+  return { success: true, data: { id: data.id as string } };
 }
 
 export async function toggleAutomation(
   automationId: string,
   ativo: boolean,
 ): Promise<Result<{ id: string }>> {
-  const supabase = await createClient();
-  const { error } = await supabase
+  const parsed = toggleAutomationSchema.safeParse({ automationId, ativo });
+  if (!parsed.success) return { success: false, error: "Dados inválidos" };
+
+  const auth = await authorizeBoardChild(
+    "board_automations",
+    parsed.data.automationId,
+    "Automação não encontrada",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
+  if (auth.access.platformRole === null)
+    return { success: false, error: STAFF_ONLY };
+
+  const { data, error } = await auth.admin
     .from("board_automations")
-    .update({ ativo })
-    .eq("id", automationId);
+    .update({ ativo: parsed.data.ativo })
+    .eq("id", parsed.data.automationId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
-  return { success: true, data: { id: automationId } };
+  return { success: true, data: { id: parsed.data.automationId } };
 }
 
 export async function deleteAutomation(
   automationId: string,
 ): Promise<Result<{ removed: true }>> {
-  const supabase = await createClient();
-  const { error } = await supabase
+  const parsed = idSchema.safeParse(automationId);
+  if (!parsed.success) return { success: false, error: "Automação inválida" };
+
+  const auth = await authorizeBoardChild(
+    "board_automations",
+    parsed.data,
+    "Automação não encontrada",
+    { write: true },
+  );
+  if (!auth.ok) return { success: false, error: auth.error };
+  if (auth.access.platformRole === null)
+    return { success: false, error: STAFF_ONLY };
+
+  const { data, error } = await auth.admin
     .from("board_automations")
     .delete()
-    .eq("id", automationId);
+    .eq("id", parsed.data)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { removed: true } };
@@ -1300,24 +1755,28 @@ export async function bulkCreateCards(
   const parsed = bulkCreateCardsSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: "Dados inválidos" };
   const { boardId, columnId, titles } = parsed.data;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  const { count } = await supabase
+  const auth = await authorizeBoard(boardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin, access } = auth;
+
+  if (!(await columnBelongsToBoard(admin, columnId, boardId))) {
+    return { success: false, error: "Coluna não encontrada" };
+  }
+
+  const { count } = await admin
     .from("board_cards")
     .select("id", { count: "exact", head: true })
     .eq("column_id", columnId);
   const base = count ?? 0;
 
-  const { error } = await supabase.from("board_cards").insert(
+  const { error } = await admin.from("board_cards").insert(
     titles.map((titulo, i) => ({
       board_id: boardId,
       column_id: columnId,
       titulo,
       position: base + i,
-      created_by: user?.id ?? null,
+      created_by: access.user.id,
     })),
   );
 
@@ -1326,6 +1785,15 @@ export async function bulkCreateCards(
   revalidatePath("/admin/crm");
   return { success: true, data: { count: titles.length } };
 }
+
+type DashboardCardRow = {
+  column_id: string;
+  prazo: string | null;
+  setor: string | null;
+  responsavel_id: string | null;
+};
+
+const DASHBOARD_PAGE = 1000;
 
 /** Resumo agregado dos cards de um módulo (Atividades ou CRM) da org (total, concluídos, atrasados, por setor, por responsável). */
 export async function getAtividadesDashboard(
@@ -1343,24 +1811,119 @@ export async function getAtividadesDashboard(
   const parsed = listBoardsSchema.safeParse({ orgId, module });
   if (!parsed.success) return { success: false, error: "Organização inválida" };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("admin_atividades_dashboard", {
-    p_org_id: parsed.data.orgId,
-    p_module: parsed.data.module,
-  });
-  if (error) return { success: false, error: error.message };
+  const auth = await authorizeOrg(parsed.data.orgId);
+  if (!auth.ok) return { success: false, error: auth.error };
 
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row) return { success: false, error: "Erro ao carregar dashboard" };
+  const admin = await createAdminClient();
+  let boardsQuery = admin
+    .from("boards")
+    .select("id")
+    .eq("org_id", parsed.data.orgId)
+    .eq("module", parsed.data.module);
+  if (!canSeeAdminOnly(auth.access)) {
+    boardsQuery = boardsQuery.neq("kind", "admin_only");
+  }
+  const { data: boards, error: boardsError } = await boardsQuery;
+  if (boardsError) return { success: false, error: boardsError.message };
+  const boardIds = ((boards ?? []) as { id: string }[]).map((b) => b.id);
+
+  const empty = {
+    total_cards: 0,
+    concluidos: 0,
+    atrasados: 0,
+    por_setor: {},
+    por_responsavel: {},
+  };
+  if (boardIds.length === 0) return { success: true, data: empty };
+
+  // Paginado: o PostgREST corta em 1000 linhas por request.
+  const cards: DashboardCardRow[] = [];
+  for (let from = 0; ; from += DASHBOARD_PAGE) {
+    const { data, error } = await admin
+      .from("board_cards")
+      .select("column_id, prazo, setor, responsavel_id")
+      .in("board_id", boardIds)
+      .order("id", { ascending: true })
+      .range(from, from + DASHBOARD_PAGE - 1);
+    if (error) return { success: false, error: error.message };
+    const page = (data ?? []) as DashboardCardRow[];
+    cards.push(...page);
+    if (page.length < DASHBOARD_PAGE) break;
+  }
+  if (cards.length === 0) return { success: true, data: empty };
+
+  const { data: columns, error: columnsError } = await admin
+    .from("board_columns")
+    .select("id, label")
+    .in("board_id", boardIds);
+  if (columnsError) return { success: false, error: columnsError.message };
+  const labelById = new Map(
+    ((columns ?? []) as { id: string; label: string }[]).map((c) => [
+      c.id,
+      c.label,
+    ]),
+  );
+
+  const responsavelIds = [
+    ...new Set(
+      cards
+        .map((c) => c.responsavel_id)
+        .filter((id): id is string => id !== null),
+    ),
+  ];
+  const nameById = new Map<string, string | null>();
+  if (responsavelIds.length > 0) {
+    const { data: profiles, error: profilesError } = await admin
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", responsavelIds);
+    if (profilesError) return { success: false, error: profilesError.message };
+    for (const p of (profiles ?? []) as {
+      id: string;
+      full_name: string | null;
+    }[]) {
+      nameById.set(p.id, p.full_name);
+    }
+  }
+
+  // current_date do Postgres (UTC no Supabase).
+  const today = new Date().toISOString().slice(0, 10);
+  let concluidos = 0;
+  let atrasados = 0;
+  const porSetor: Record<string, number> = {};
+  const porResponsavel: Record<string, number> = {};
+
+  for (const card of cards) {
+    // Mesmo INNER JOIN do RPC: card sem coluna existente não conta.
+    const label = labelById.get(card.column_id);
+    if (label === undefined) continue;
+    if (/conclu/i.test(label)) concluidos += 1;
+    if (
+      card.prazo &&
+      card.prazo.slice(0, 10) < today &&
+      !/conclu|cancel/i.test(label)
+    ) {
+      atrasados += 1;
+    }
+    if (card.setor !== null) {
+      porSetor[card.setor] = (porSetor[card.setor] ?? 0) + 1;
+    }
+    const nome =
+      (card.responsavel_id ? nameById.get(card.responsavel_id) : null) ??
+      "Sem responsável";
+    porResponsavel[nome] = (porResponsavel[nome] ?? 0) + 1;
+  }
+
+  const total = cards.filter((c) => labelById.has(c.column_id)).length;
 
   return {
     success: true,
     data: {
-      total_cards: Number(row.total_cards ?? 0),
-      concluidos: Number(row.concluidos ?? 0),
-      atrasados: Number(row.atrasados ?? 0),
-      por_setor: (row.por_setor ?? {}) as Record<string, number>,
-      por_responsavel: (row.por_responsavel ?? {}) as Record<string, number>,
+      total_cards: total,
+      concluidos,
+      atrasados,
+      por_setor: porSetor,
+      por_responsavel: porResponsavel,
     },
   };
 }
@@ -1372,9 +1935,12 @@ export async function updateCardCustomValue(
   const parsed = updateCardCustomValueSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: "Dados inválidos" };
   const { cardId, propertyKey, value } = parsed.data;
-  const supabase = await createClient();
 
-  const { data: card, error: fetchError } = await supabase
+  const auth = await authorizeCardById(cardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin } = auth;
+
+  const { data: card, error: fetchError } = await admin
     .from("board_cards")
     .select("custom_values")
     .eq("id", cardId)
@@ -1390,11 +1956,14 @@ export async function updateCardCustomValue(
     [propertyKey]: value,
   };
 
-  const { error } = await supabase
+  const { data, error } = await admin
     .from("board_cards")
     .update({ custom_values: customValues })
-    .eq("id", cardId);
+    .eq("id", cardId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { id: cardId } };
@@ -1407,9 +1976,12 @@ export async function updateBoardViewConfig(
   const parsed = updateViewConfigSchema.safeParse(raw);
   if (!parsed.success) return { success: false, error: "Dados inválidos" };
   const { boardId, patch } = parsed.data;
-  const supabase = await createClient();
 
-  const { data: boardRow, error: fetchError } = await supabase
+  const auth = await authorizeBoard(boardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin } = auth;
+
+  const { data: boardRow, error: fetchError } = await admin
     .from("boards")
     .select("view_config")
     .eq("id", boardId)
@@ -1425,11 +1997,14 @@ export async function updateBoardViewConfig(
   );
   const next: BoardViewConfig = { ...current, ...patch } as BoardViewConfig;
 
-  const { error } = await supabase
+  const { data, error } = await admin
     .from("boards")
     .update({ view_config: next })
-    .eq("id", boardId);
+    .eq("id", boardId)
+    .select("id");
   if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0)
+    return { success: false, error: "Não encontrado" };
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { ok: true } };
@@ -1447,9 +2022,14 @@ export async function convertCardToClient(
     };
   }
   const { cardId, ownerEmail } = parsed.data;
-  const supabase = await createClient();
 
-  const { data: card, error: cardError } = await supabase
+  const auth = await authorizeCardById(cardId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  if (auth.access.platformRole === null)
+    return { success: false, error: STAFF_ONLY };
+  const { admin } = auth;
+
+  const { data: card, error: cardError } = await admin
     .from("board_cards")
     .select("titulo")
     .eq("id", cardId)
@@ -1468,14 +2048,15 @@ export async function convertCardToClient(
   });
   if (!result.success) return { success: false, error: result.error };
 
-  const { error: updateError } = await supabase
+  const { data: linked, error: updateError } = await admin
     .from("board_cards")
     .update({ related_org_id: result.orgId })
-    .eq("id", cardId);
-  if (updateError) {
+    .eq("id", cardId)
+    .select("id");
+  if (updateError || !linked || linked.length === 0) {
     return {
       success: false,
-      error: `Cliente criado, mas falhou ao vincular o card: ${updateError.message}`,
+      error: `Cliente criado, mas falhou ao vincular o card: ${updateError?.message ?? "Não encontrado"}`,
     };
   }
 

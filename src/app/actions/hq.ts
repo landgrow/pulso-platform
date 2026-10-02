@@ -7,6 +7,7 @@ import {
   isActiveOrgInternal,
   setActiveOrganizationCookie,
 } from "@/lib/supabase/organization-server";
+import { safeCallbackNext } from "@/lib/auth/invite-callback";
 
 /**
  * Volta a sessão para a org interna da Land Grow (HQ).
@@ -28,5 +29,5 @@ export async function returnToLandGrowHq(
   if (!data?.id) return { restored: false };
 
   await setActiveOrganizationCookie(data.id);
-  redirect(redirectTo.startsWith("/") ? redirectTo : "/dashboard");
+  redirect(safeCallbackNext(redirectTo));
 }

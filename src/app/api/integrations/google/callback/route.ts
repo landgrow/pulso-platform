@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { isPlatformAdmin } from "@/lib/supabase/platform-role-server";
 import {
   exchangeCode,
   googleAccountEmail,
@@ -27,6 +29,15 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   const userId = readOAuthState(state);
   if (!userId) {
+    return NextResponse.redirect(`${integracoes}?drive=estado`);
+  }
+  // O state só vale pra quem iniciou o fluxo neste navegador — impede que um
+  // link de callback de outra pessoa troque a conta do Drive.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || user.id !== userId || !(await isPlatformAdmin(supabase))) {
     return NextResponse.redirect(`${integracoes}?drive=estado`);
   }
 
