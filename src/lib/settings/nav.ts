@@ -17,7 +17,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   {
     href: "/configuracoes/aparencia",
     label: "Aparência",
-    description: "Tema claro, escuro ou o do sistema.",
+    description: "Tema claro ou o do sistema.",
     group: "conta",
   },
   {

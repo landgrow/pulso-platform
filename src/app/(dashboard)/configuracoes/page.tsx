@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SignOutButton } from "@/components/auth/signout-button";
 import { ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -29,8 +30,7 @@ export default async function ConfiguracoesPage(): Promise<JSX.Element> {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
         <p className="text-text-2">
-          Conta, aparência, avisos e segurança. Clientes e equipe continuam nos
-          menus Organizações e Equipe — daqui não se gerencia carteira.
+          Sua conta, aparência, avisos e privacidade.
         </p>
       </div>
 
@@ -60,6 +60,20 @@ export default async function ConfiguracoesPage(): Promise<JSX.Element> {
           </section>
         );
       })}
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-text-2">Sessão</h2>
+        <div className="flex items-center gap-4 rounded-lg border border-border bg-surface-1 p-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-text-1">Sair da conta</p>
+            <p className="text-sm text-text-2">
+              Encerra o acesso neste navegador. Para entrar de novo, use seu
+              e-mail e senha.
+            </p>
+          </div>
+          <SignOutButton />
+        </div>
+      </section>
     </div>
   );
 }
