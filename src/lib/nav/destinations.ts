@@ -156,10 +156,6 @@ export const NAV_GROUP_LABEL: Record<NavGroup, string> = {
 
 export const COMMAND_OPEN_EVENT = "pulso:command";
 
-export function requestCommandPalette(): void {
-  window.dispatchEvent(new Event(COMMAND_OPEN_EVENT));
-}
-
 /**
  * O que a sidebar mostra. Cliente: só o menu do portal. Equipe dentro do
  * espaço de um cliente ("Entrar como membro"): menu do portal + o do HQ.

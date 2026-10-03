@@ -30,11 +30,7 @@ import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import { getMyPlatformRole } from "@/app/actions/me";
 import type { StaffCapabilityId } from "@/lib/auth/staff-access";
-import {
-  buildNav,
-  requestCommandPalette,
-  type NavLink,
-} from "@/lib/nav/destinations";
+import { buildNav, type NavLink } from "@/lib/nav/destinations";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "layout-dashboard": LayoutDashboard,
@@ -238,20 +234,7 @@ export function Sidebar({
             : "flex flex-col items-center gap-1 py-2",
         )}
       >
-        <button
-          type="button"
-          onClick={requestCommandPalette}
-          title="Ir para (Ctrl K)"
-          aria-label="Ir para"
-          className={cn(
-            "text-[10px] font-medium tracking-wide text-text-3 transition-colors hover:text-text-1",
-            isFull
-              ? "mr-auto px-2 py-1.5"
-              : "flex h-8 w-8 items-center justify-center",
-          )}
-        >
-          {isFull ? "Ctrl K" : "K"}
-        </button>
+        {isFull ? <span className="mr-auto" /> : null}
         <ThemeToggle placement="rail" />
         <UserDropdown user={user} placement="rail" />
       </div>
