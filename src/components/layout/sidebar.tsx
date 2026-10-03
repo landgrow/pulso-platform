@@ -26,6 +26,7 @@ import { NavCollapseButton } from "@/components/layout/nav-collapse";
 import { useSidebar } from "@/components/layout/sidebar-context";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserDropdown } from "@/components/layout/user-dropdown";
+import { SidebarSignOut } from "@/components/layout/sidebar-signout";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import { getMyPlatformRole } from "@/app/actions/me";
@@ -234,7 +235,7 @@ export function Sidebar({
             : "flex flex-col items-center gap-1 py-2",
         )}
       >
-        {isFull ? <span className="mr-auto" /> : null}
+        <SidebarSignOut full={isFull} />
         <ThemeToggle placement="rail" />
         <UserDropdown user={user} placement="rail" />
       </div>
