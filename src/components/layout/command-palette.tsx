@@ -17,6 +17,8 @@ import {
   BarChart3,
   Sparkles,
   FolderOpen,
+  Target,
+  CalendarDays,
 } from "lucide-react";
 import type { MeInfo } from "@/app/actions/me";
 import {
@@ -51,6 +53,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "bar-chart": BarChart3,
   sparkles: Sparkles,
   folder: FolderOpen,
+  target: Target,
+  calendar: CalendarDays,
 };
 
 const GROUP_ORDER: NavGroup[] = ["mesa", "trabalho", "carteira", "sistema"];

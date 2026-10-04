@@ -127,9 +127,12 @@ function ObjectiveChipList({
 export function WorksmartPanel({
   orgId,
   onOpenBoard,
+  hideTitle = false,
 }: {
   orgId: string;
   onOpenBoard?: ((boardId: string) => void) | undefined;
+  /** Página própria já mostra o título — aqui ficam só as ações. */
+  hideTitle?: boolean;
 }): JSX.Element {
   const [objectives, setObjectives] = useState<WorksmartObjective[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,8 +180,15 @@ export function WorksmartPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-text-1">Objetivos</h2>
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-3",
+          hideTitle ? "justify-end" : "justify-between",
+        )}
+      >
+        {hideTitle ? null : (
+          <h2 className="text-base font-semibold text-text-1">Objetivos</h2>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <PdfExportButton label="PDF" run={() => exportWorksmartPdf(orgId)} />
           <Button size="sm" onClick={() => setNewObjectiveOpen(true)}>
@@ -335,7 +345,7 @@ function ObjectiveDetail({
       return;
     }
     if (result.data.keyResults === 0 && result.data.cards === 0) {
-      toast.message("Este objetivo já tem percurso e cards no kanban.");
+      toast.message("Este objetivo já tem percurso e tarefas nas listas.");
     } else {
       toast.success(
         `Percurso gerado: ${result.data.keyResults} key result, ${result.data.cards} cards no Plano de Ação.`,
@@ -485,7 +495,7 @@ function ObjectiveDetail({
               <p className="text-sm text-text-1">
                 {objective.keyResults.length === 0
                   ? "SMART pronto. Gera o key result e os cards 5H2W no Plano de Ação."
-                  : "Há key result sem cards. Gera as atividades no kanban a partir do SMART."}
+                  : "Há key result sem tarefas. Gera as atividades nas listas a partir do SMART."}
               </p>
               <div className="max-w-xs space-y-1">
                 <p className="text-[11px] uppercase tracking-wide text-text-3">
@@ -674,8 +684,8 @@ function KeyResultCard({
           </div>
           <p className="text-xs text-text-2 mt-1">
             {kr.targetValue != null
-              ? `Acompanhe ${label}. Os cards no kanban mostram o que está em execução.`
-              : `${doneCards}/${totalCards} cards no kanban. Sem meta numérica — o progresso vem das atividades.`}
+              ? `Acompanhe ${label}. As tarefas nas listas mostram o que está em execução.`
+              : `${doneCards}/${totalCards} tarefas nas listas. Sem meta numérica — o progresso vem das atividades.`}
           </p>
         </div>
         <button
@@ -725,7 +735,7 @@ function KeyResultCard({
                     className="text-[11px] text-primary hover:underline"
                     onClick={() => onOpenBoard(action.boardId as string)}
                   >
-                    kanban
+                    ver na lista
                   </button>
                 ) : null}
                 <button
@@ -1099,7 +1109,7 @@ function NewActionSheet({
             onClick={() => void handleCreate()}
             disabled={saving || !oQue.trim()}
           >
-            Criar e mandar ao kanban
+            Criar e mandar à lista
           </Button>
         </div>
       </div>

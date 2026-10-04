@@ -92,7 +92,7 @@ export function useBoardList(
     const result = await createBoard({
       orgId,
       module,
-      name: name ?? `Kanban ${boards.length + 1}`,
+      name: name ?? `Lista ${boards.length + 1}`,
     });
     if (!result.success) {
       toast.error(result.error);
@@ -107,13 +107,13 @@ export function useBoardList(
     const target = boards.find((b) => b.id === id);
     if (target?.kind === "admin_only") {
       toast.error(
-        "O kanban de tarefas administrativas é fixo e não pode ser excluído.",
+        "A lista de tarefas administrativas é fixa e não pode ser excluída.",
       );
       return;
     }
     const standardCount = boards.filter((b) => b.kind !== "admin_only").length;
     if (module === "atividades" && standardCount <= 1) {
-      toast.error("Precisa manter pelo menos um kanban operacional.");
+      toast.error("Precisa manter pelo menos uma lista.");
       return;
     }
     const result = await deleteBoard(id);

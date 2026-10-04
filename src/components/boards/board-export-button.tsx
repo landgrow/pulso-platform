@@ -23,7 +23,7 @@ export function BoardExportButton({
       return;
     }
     downloadBase64File(result.filename, result.mime, result.base64);
-    toast.success("Relatório do kanban baixado.");
+    toast.success("Relatório da lista baixado.");
   }
 
   return (

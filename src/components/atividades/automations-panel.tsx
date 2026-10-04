@@ -125,7 +125,7 @@ export function AutomationsPanel({
       </div>
 
       <div className="space-y-1.5 max-w-xs">
-        <p className="text-xs text-text-2">Kanban</p>
+        <p className="text-xs text-text-2">Lista</p>
         <Select value={boardId} onChange={(e) => setBoardId(e.target.value)}>
           {boards.map((b) => (
             <option key={b.id} value={b.id}>

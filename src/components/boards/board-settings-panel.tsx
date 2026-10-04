@@ -301,7 +301,7 @@ export function BoardSettingsPanel({
                 <div className="space-y-2">
                   <h4 className="text-sm font-semibold">Ícone da base</h4>
                   <p className="text-xs text-text-2">
-                    Escolha um emoji para representar este kanban na lista.
+                    Escolha um emoji para representar esta lista no menu.
                   </p>
                   <div className="grid grid-cols-8 gap-1">
                     {ICON_OPTIONS.map((ic) => (
@@ -325,7 +325,7 @@ export function BoardSettingsPanel({
                 <div className="space-y-2 pt-4 border-t border-border">
                   <h4 className="text-sm font-semibold">Cor da capa</h4>
                   <p className="text-xs text-text-2">
-                    Cor usada no ícone deste kanban.
+                    Cor usada no ícone desta lista.
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {COLOR_OPTIONS.map((cl) => (
@@ -427,7 +427,7 @@ export function BoardSettingsPanel({
                 </div>
 
                 <div className="space-y-2 pt-4 border-t border-border">
-                  <h4 className="text-sm font-semibold">Colunas do Kanban</h4>
+                  <h4 className="text-sm font-semibold">Colunas (status)</h4>
                   <p className="text-xs text-text-2">
                     Gerencie as colunas do quadro.
                   </p>

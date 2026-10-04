@@ -6,7 +6,7 @@
     "Formulário coleta. Pontuação (teto, bloqueio, denominador) não roda aqui.",
     "Escape nunca esconde questão seguinte.",
     "G07 só aparece se G06 = faz mais de uma coisa.",
-    "Título de inovação no cliente: Novos serviços e mudanças."
+    "Título de inovação no cliente: Inovação."
   ],
   "visibility": [
     {
@@ -222,7 +222,7 @@
     {
       "id": "inovacao",
       "prefix": "I",
-      "title": "Novos serviços e mudanças",
+      "title": "Inovação",
       "color": "border-teal-500",
       "questionIds": [
         "I00",

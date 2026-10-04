@@ -15,10 +15,17 @@ import {
   generateCardsFromMeeting,
 } from "@/app/actions/meetings";
 import type { Meeting } from "@/types/meetings";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 /** Registro de reuniões internas — resumo, tópicos e checklist de atividades, mesmo formato do banco de Reuniões do Notion. */
-export function MeetingsPanel({ orgId }: { orgId: string }): JSX.Element {
+export function MeetingsPanel({
+  orgId,
+  hideTitle = false,
+}: {
+  orgId: string;
+  /** Página própria já mostra o título — aqui ficam só as ações. */
+  hideTitle?: boolean;
+}): JSX.Element {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -102,13 +109,21 @@ export function MeetingsPanel({ orgId }: { orgId: string }): JSX.Element {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Reuniões</h2>
-          <p className="text-sm text-text-2">
-            Resumo, tópicos e checklist. Item da Land Grow vira card no kanban.
-          </p>
-        </div>
+      <div
+        className={cn(
+          "flex items-center",
+          hideTitle ? "justify-end" : "justify-between",
+        )}
+      >
+        {hideTitle ? null : (
+          <div>
+            <h2 className="text-lg font-semibold">Reuniões</h2>
+            <p className="text-sm text-text-2">
+              Resumo, tópicos e checklist. Item da Land Grow vira tarefa na
+              lista.
+            </p>
+          </div>
+        )}
         <Button size="sm" onClick={() => setOpen(true)}>
           <Plus className="h-3.5 w-3.5 mr-1.5" />
           Nova reunião
@@ -188,7 +203,7 @@ export function MeetingsPanel({ orgId }: { orgId: string }): JSX.Element {
                             className="text-xs text-primary hover:underline"
                             onClick={() => void handleGenerateCards(m.id)}
                           >
-                            Gerar cards no kanban
+                            Gerar tarefas na lista
                           </button>
                         )}
                       </div>

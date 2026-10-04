@@ -15,6 +15,7 @@ export default async function ClienteAtividadesPage({
     <AtividadesShell
       orgId={auth.org.id}
       variant={auth.access.platformRole ? "staff" : "client"}
+      showWorksmart={false}
     />
   );
 }

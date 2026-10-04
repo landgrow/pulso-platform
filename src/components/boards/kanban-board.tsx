@@ -41,7 +41,7 @@ export function KanbanBoard({ orgId }: { orgId: string }): JSX.Element {
         items={boards}
         activeId={activeBoardId}
         icon={<LayoutGrid className="h-4 w-4" />}
-        createLabel="Novo kanban"
+        createLabel="Nova lista"
         onSelect={(id) => void openBoard(id)}
         onCreate={() => void handleNewBoard()}
         onDelete={(id) => void handleDeleteBoard(id)}

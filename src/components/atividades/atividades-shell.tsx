@@ -36,9 +36,12 @@ type Nav =
 export function AtividadesShell({
   orgId,
   variant = "staff",
+  showWorksmart = true,
 }: {
   orgId: string;
   variant?: "staff" | "client";
+  /** Objetivos e Reuniões no submenu — falso quando têm item próprio no menu lateral. */
+  showWorksmart?: boolean;
 }): JSX.Element {
   const {
     boards,
@@ -52,15 +55,20 @@ export function AtividadesShell({
     updateBoardOptimistic,
   } = useBoardList(orgId);
 
-  const [nav, setNav] = useState<Nav>({ kind: "worksmart" });
+  const [nav, setNav] = useState<Nav>(
+    showWorksmart ? { kind: "worksmart" } : { kind: "dashboard" },
+  );
 
-  // Só sincroniza o board ativo em segundo plano; a tela inicial é Objetivos.
+  // Com WorkSmart no submenu a tela inicial é Objetivos (a lista carrega em
+  // segundo plano); sem ele, abre direto a primeira lista.
   const initializedRef = useRef(false);
   useEffect(() => {
     if (initializedRef.current || !activeBoardId) return;
     initializedRef.current = true;
     void openBoard(activeBoardId);
-  }, [activeBoardId, openBoard]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- escolhe a tela inicial quando a lista padrão chega
+    if (!showWorksmart) setNav({ kind: "board", boardId: activeBoardId });
+  }, [activeBoardId, openBoard, showWorksmart]);
 
   function selectBoard(id: string): void {
     setNav({ kind: "board", boardId: id });
@@ -72,25 +80,29 @@ export function AtividadesShell({
       <CollapsibleSubnav storageKey="pulso-nav-atividades">
         <aside className="flex h-full min-h-[calc(100vh-9rem)] flex-col border-r border-border bg-surface-1">
           <div className="flex-1 overflow-y-auto p-2">
-            <p className="px-2 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-2">
-              WorkSmart
-            </p>
-            <nav className="space-y-0.5">
-              <NavButton
-                icon={<Target className="h-4 w-4" />}
-                label="Objetivos"
-                active={nav.kind === "worksmart"}
-                onClick={() => setNav({ kind: "worksmart" })}
-              />
-              <NavButton
-                icon={<Calendar className="h-4 w-4" />}
-                label="Reuniões"
-                active={nav.kind === "meetings"}
-                onClick={() => setNav({ kind: "meetings" })}
-              />
-            </nav>
+            {showWorksmart ? (
+              <>
+                <p className="px-2 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-2">
+                  WorkSmart
+                </p>
+                <nav className="space-y-0.5">
+                  <NavButton
+                    icon={<Target className="h-4 w-4" />}
+                    label="Objetivos"
+                    active={nav.kind === "worksmart"}
+                    onClick={() => setNav({ kind: "worksmart" })}
+                  />
+                  <NavButton
+                    icon={<Calendar className="h-4 w-4" />}
+                    label="Reuniões"
+                    active={nav.kind === "meetings"}
+                    onClick={() => setNav({ kind: "meetings" })}
+                  />
+                </nav>
 
-            <div className="h-px bg-border my-2" />
+                <div className="h-px bg-border my-2" />
+              </>
+            ) : null}
             <p className="px-2 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-2">
               Plano de Ação
             </p>
@@ -134,7 +146,7 @@ export function AtividadesShell({
               className="w-full mt-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text-1"
             >
               <Plus className="h-3.5 w-3.5" />
-              Novo kanban
+              Nova lista
             </button>
 
             <div className="h-px bg-border my-2" />

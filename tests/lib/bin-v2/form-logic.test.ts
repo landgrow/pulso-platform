@@ -22,7 +22,7 @@ describe("BIN Serviços v2 — instrumento", () => {
   it("injeta O00 e usa o título de inovação sem viés", () => {
     expect(getBinQuestion("O00")?.prompt).toMatch(/relação com essa área/i);
     const inovacao = binInstrument.sections.find((s) => s.id === "inovacao");
-    expect(inovacao?.title).toBe("Novos serviços e mudanças");
+    expect(inovacao?.title).toBe("Inovação");
   });
 
   it("G07 só aparece se a empresa faz mais de uma coisa", () => {

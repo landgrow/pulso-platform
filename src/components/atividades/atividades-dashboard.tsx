@@ -21,7 +21,7 @@ export function AtividadesDashboard({
   orgId,
   module = "atividades",
   title = "Dashboard",
-  subtitle = "Resumo de todos os kanbans do Plano de Ação interno.",
+  subtitle = "Resumo de todas as listas do Plano de Ação.",
 }: {
   orgId: string;
   module?: BoardModule;

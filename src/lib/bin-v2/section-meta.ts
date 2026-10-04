@@ -25,7 +25,7 @@ export function binSectionColor(section: BinSection): string {
     Administrativo: SETOR_COLORS.Administrativo,
     Estratégico: SETOR_COLORS.Estratégico,
     Vendas: SETOR_COLORS.Vendas,
-    "Novos serviços e mudanças": SETOR_COLORS.Inovação,
+    Inovação: SETOR_COLORS.Inovação,
     Jurídico: SETOR_COLORS.Jurídico,
     Liderança: SETOR_COLORS.Liderança,
   };

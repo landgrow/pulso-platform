@@ -51,6 +51,7 @@ import {
 } from "@/app/actions/boards";
 import {
   deleteCardFile,
+  getCardFileUrl,
   linkDriveFileToCard,
   openOrgDriveFolder,
   uploadCardFile,
@@ -381,6 +382,7 @@ export function BoardContent({
           <BoardTableView
             board={tableAndPanelBoard}
             onOpenCard={(card) => setSelectedCardId(card.id)}
+            onChanged={onChanged}
           />
         )}
         {view === "panel" && <BoardPanelView board={tableAndPanelBoard} />}
@@ -877,26 +879,47 @@ export function CardDetail({
         </div>
 
         <div className="space-y-2">
-          <p className="text-sm font-medium text-text-1">Arquivos no Drive</p>
+          <p className="text-sm font-medium text-text-1">Arquivos</p>
           {(card.arquivos ?? []).map((file) => (
             <div key={file.id} className="flex items-center gap-2 text-sm">
               <Paperclip className="h-3.5 w-3.5 shrink-0 text-text-2" />
-              <a
-                href={file.web_view_link}
-                target="_blank"
-                rel="noreferrer"
-                className="min-w-0 flex-1 truncate text-primary hover:underline"
-              >
-                {file.name}
-              </a>
+              {file.web_view_link.startsWith("storage://") ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void getCardFileUrl(file.id).then((result) => {
+                      if (!result.success) toast.error(result.error);
+                      else
+                        window.open(
+                          result.data.url,
+                          "_blank",
+                          "noopener,noreferrer",
+                        );
+                    });
+                  }}
+                  className="min-w-0 flex-1 truncate text-left text-primary hover:underline"
+                >
+                  {file.name}
+                </button>
+              ) : (
+                <a
+                  href={file.web_view_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="min-w-0 flex-1 truncate text-primary hover:underline"
+                >
+                  {file.name}
+                </a>
+              )}
               <button
                 type="button"
                 aria-label="Remover arquivo"
                 onClick={() => {
                   void confirm({
                     title: `Remover "${file.name}" desta tarefa?`,
-                    description:
-                      "O vínculo com a tarefa some para todo mundo. O arquivo continua no Google Drive.",
+                    description: file.web_view_link.startsWith("storage://")
+                      ? "O arquivo some desta tarefa para todo mundo. Não dá para desfazer."
+                      : "O link sai da tarefa para todo mundo. O arquivo continua no Google Drive.",
                     confirmLabel: "Remover arquivo",
                   }).then((ok) => {
                     if (!ok) return;

@@ -16,7 +16,6 @@ import {
   getDriveConnectionPublic,
   getDriveFileMeta,
   parseDriveFileId,
-  uploadBufferToDrive,
 } from "@/lib/google/drive";
 import { dispatchCardEvent, loadCardEventContext } from "@/lib/notify/dispatch";
 
@@ -189,6 +188,24 @@ export async function linkDriveFileToCard(
   return { success: true, data: { id: data.id } };
 }
 
+const STORAGE_BUCKET = "evidencias";
+const STORAGE_PREFIX = "storage://";
+
+function safeFileName(name: string): string {
+  const cleaned = name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(-120);
+  return cleaned || "arquivo";
+}
+
+/**
+ * Anexo de card vai pro Storage do Supabase (bucket privado), não pro Drive da
+ * Land Grow: o Drive dependia de conexão OAuth e o cliente não abriria os
+ * arquivos de lá. O download é por link assinado (getCardFileUrl).
+ */
 export async function uploadCardFile(
   formData: FormData,
 ): Promise<Result<{ id: string; url: string }>> {
@@ -200,6 +217,9 @@ export async function uploadCardFile(
   if (!(file instanceof File)) {
     return { success: false, error: "Escolha um arquivo" };
   }
+  if (file.size === 0) {
+    return { success: false, error: "O arquivo está vazio." };
+  }
   if (file.size > MAX_UPLOAD_BYTES) {
     return {
       success: false,
@@ -210,68 +230,84 @@ export async function uploadCardFile(
     return { success: false, error: "Esse tipo de arquivo não é permitido." };
   }
 
-  // Autoriza antes de qualquer chamada ao Drive (usa o token da Land Grow).
   const auth = await authorizeCard(cardId, { write: true });
   if (!auth.ok) return { success: false, error: auth.error };
   const user = auth.access.user;
-  const supabase = await createClient();
   const admin = await createAdminClient();
 
-  const ctx = await loadCardEventContext(cardId);
-  if (!ctx) return { success: false, error: "Card não encontrado" };
-
-  const { data: org } = await admin
-    .from("organizations")
-    .select("name")
-    .eq("id", ctx.orgId)
-    .maybeSingle();
-
-  try {
-    const folder = await ensureOrgFolder(ctx.orgId, org?.name ?? ctx.orgId);
-    const token = await accessToken();
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const uploaded = await uploadBufferToDrive({
-      token,
-      folderId: folder.folderId,
-      name: file.name,
-      mime: file.type || "application/octet-stream",
-      bytes,
+  const path = `${auth.access.orgId}/cards/${cardId}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const { error: uploadError } = await admin.storage
+    .from(STORAGE_BUCKET)
+    .upload(path, bytes, {
+      contentType: file.type || "application/octet-stream",
+      upsert: false,
     });
-
-    const { data, error } = await admin
-      .from("card_files")
-      .insert({
-        card_id: cardId,
-        drive_file_id: uploaded.id,
-        name: file.name,
-        mime_type: file.type || null,
-        web_view_link: uploaded.webViewLink,
-        uploaded_by: user.id,
-      })
-      .select("id")
-      .single();
-    if (error || !data) {
-      return {
-        success: false,
-        error:
-          error?.message ?? "Arquivo foi ao Drive, mas não gravei no card.",
-      };
-    }
-
-    const label = await actorName(supabase, user.id);
-    void notifyFile(cardId, user.id, label, file.name, data.id);
-    revalidatePath("/admin/atividades");
-    revalidatePath("/admin/crm");
-    return { success: true, data: { id: data.id, url: uploaded.webViewLink } };
-  } catch (error) {
+  if (uploadError) {
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Ligue o Drive em Configurações → Integrações.",
+      error: `Não consegui enviar o arquivo: ${uploadError.message}`,
     };
   }
+
+  const { data, error } = await admin
+    .from("card_files")
+    .insert({
+      card_id: cardId,
+      drive_file_id: null,
+      name: file.name,
+      mime_type: file.type || null,
+      web_view_link: `${STORAGE_PREFIX}${path}`,
+      uploaded_by: user.id,
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    await admin.storage.from(STORAGE_BUCKET).remove([path]);
+    return {
+      success: false,
+      error: error?.message ?? "Não consegui anexar o arquivo ao card.",
+    };
+  }
+
+  const supabase = await createClient();
+  const label = await actorName(supabase, user.id);
+  void notifyFile(cardId, user.id, label, file.name, data.id);
+  revalidatePath("/admin/atividades");
+  revalidatePath("/admin/crm");
+  return { success: true, data: { id: data.id as string, url: "" } };
+}
+
+/** Link de download (5 min) de um anexo guardado no Storage. */
+export async function getCardFileUrl(
+  fileId: string,
+): Promise<Result<{ url: string }>> {
+  if (!z.string().uuid().safeParse(fileId).success) {
+    return { success: false, error: "Arquivo inválido" };
+  }
+  const admin = await createAdminClient();
+  const { data: row } = await admin
+    .from("card_files")
+    .select("card_id, name, web_view_link")
+    .eq("id", fileId)
+    .maybeSingle();
+  if (!row) return { success: false, error: "Arquivo não encontrado" };
+  const auth = await authorizeCard(row.card_id as string);
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const link = row.web_view_link as string;
+  if (!link.startsWith(STORAGE_PREFIX)) {
+    return { success: true, data: { url: link } };
+  }
+  const { data, error } = await admin.storage
+    .from(STORAGE_BUCKET)
+    .createSignedUrl(link.slice(STORAGE_PREFIX.length), 300, {
+      download: row.name as string,
+    });
+  if (error || !data) {
+    return { success: false, error: error?.message ?? "Não gerei o link." };
+  }
+  return { success: true, data: { url: data.signedUrl } };
 }
 
 export async function deleteCardFile(
@@ -282,7 +318,7 @@ export async function deleteCardFile(
   const admin = await createAdminClient();
   const { data: row } = await admin
     .from("card_files")
-    .select("card_id")
+    .select("card_id, web_view_link")
     .eq("id", fileId)
     .maybeSingle();
   if (!row) return { success: false, error: "Arquivo não encontrado" };
@@ -290,6 +326,12 @@ export async function deleteCardFile(
   if (!auth.ok) return { success: false, error: auth.error };
   const { error } = await admin.from("card_files").delete().eq("id", fileId);
   if (error) return { success: false, error: error.message };
+  const link = row.web_view_link as string;
+  if (link.startsWith(STORAGE_PREFIX)) {
+    await admin.storage
+      .from(STORAGE_BUCKET)
+      .remove([link.slice(STORAGE_PREFIX.length)]);
+  }
   revalidatePath("/admin/atividades");
   revalidatePath("/admin/crm");
   return { success: true, data: { removed: true } };

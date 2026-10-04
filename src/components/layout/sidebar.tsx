@@ -18,6 +18,8 @@ import {
   BarChart3,
   Sparkles,
   FolderOpen,
+  Target,
+  CalendarDays,
 } from "lucide-react";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
@@ -46,6 +48,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "bar-chart": BarChart3,
   sparkles: Sparkles,
   folder: FolderOpen,
+  target: Target,
+  calendar: CalendarDays,
 };
 
 /** Raiz do portal (/clientes/x) só fica ativa na própria página, não nas filhas. */

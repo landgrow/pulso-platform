@@ -61,7 +61,7 @@ export default async function AdminAtividadesPage(): Promise<JSX.Element> {
         </Badge>
       </div>
 
-      <AtividadesShell orgId={internalOrg.id} />
+      <AtividadesShell orgId={internalOrg.id} showWorksmart={false} />
     </div>
   );
 }

@@ -322,7 +322,7 @@ type BoardAuth =
   | { ok: true; admin: AdminClient; access: OrgAccess; board: BoardRef }
   | { ok: false; error: string };
 
-const BOARD_NOT_FOUND = "Kanban não encontrado";
+const BOARD_NOT_FOUND = "Lista não encontrada";
 const STAFF_ONLY = "Acesso restrito à equipe Land Grow";
 
 /** Mesma regra do can_access_board: admin_only é só do platform_admin (consultor e cliente nunca veem). */
@@ -584,7 +584,7 @@ export async function getBoard(orgId: string): Promise<Result<Board>> {
 
 export async function getBoardById(boardId: string): Promise<Result<Board>> {
   const parsed = idSchema.safeParse(boardId);
-  if (!parsed.success) return { success: false, error: "Kanban inválido" };
+  if (!parsed.success) return { success: false, error: "Lista inválida" };
 
   const auth = await authorizeBoard(parsed.data);
   if (!auth.ok) return { success: false, error: auth.error };
@@ -711,7 +711,7 @@ export async function createBoard(
   if (boardError || !board)
     return {
       success: false,
-      error: boardError?.message ?? "Erro ao criar kanban",
+      error: boardError?.message ?? "Erro ao criar lista",
     };
 
   const { error: colError } = await admin.from("board_columns").insert(
@@ -746,7 +746,7 @@ export async function applyPlanoDeAcaoTemplate(
   boardId: string,
 ): Promise<Result<{ addedColumns: number }>> {
   const parsed = idSchema.safeParse(boardId);
-  if (!parsed.success) return { success: false, error: "Kanban inválido" };
+  if (!parsed.success) return { success: false, error: "Lista inválida" };
 
   const auth = await authorizeBoard(parsed.data, { write: true });
   if (!auth.ok) return { success: false, error: auth.error };
@@ -876,7 +876,7 @@ export async function deleteBoard(
   boardId: string,
 ): Promise<Result<{ removed: true }>> {
   const parsed = idSchema.safeParse(boardId);
-  if (!parsed.success) return { success: false, error: "Kanban inválido" };
+  if (!parsed.success) return { success: false, error: "Lista inválida" };
 
   const auth = await authorizeBoard(parsed.data, { write: true });
   if (!auth.ok) return { success: false, error: auth.error };
@@ -884,14 +884,14 @@ export async function deleteBoard(
     return {
       success: false,
       error:
-        "O kanban de tarefas administrativas é fixo e não pode ser excluído.",
+        "A lista de tarefas administrativas é fixa e não pode ser excluída.",
     };
   }
   // Mesma regra da RLS boards_delete: só platform_admin exclui kanban.
   if (auth.access.platformRole !== "platform_admin") {
     return {
       success: false,
-      error: "Apenas administradores da plataforma podem excluir kanbans.",
+      error: "Apenas administradores da plataforma podem excluir listas.",
     };
   }
 
@@ -1611,7 +1611,7 @@ export async function listAutomations(
   boardId: string,
 ): Promise<Result<BoardAutomation[]>> {
   const parsed = idSchema.safeParse(boardId);
-  if (!parsed.success) return { success: false, error: "Kanban inválido" };
+  if (!parsed.success) return { success: false, error: "Lista inválida" };
 
   const auth = await authorizeBoard(parsed.data);
   if (!auth.ok) return { success: false, error: auth.error };
