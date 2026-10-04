@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
@@ -29,8 +28,7 @@ import { UserDropdown } from "@/components/layout/user-dropdown";
 import { SidebarSignOut } from "@/components/layout/sidebar-signout";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
-import { getMyPlatformRole } from "@/app/actions/me";
-import type { StaffCapabilityId } from "@/lib/auth/staff-access";
+import type { MeInfo } from "@/app/actions/me";
 import { buildNav, type NavLink } from "@/lib/nav/destinations";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -63,42 +61,20 @@ function isActiveLink(
 export function Sidebar({
   variant = "rail",
   user = null,
+  me,
 }: {
   variant?: "rail" | "full";
   user?: User | null;
+  me: MeInfo;
 }): JSX.Element {
   const pathname = usePathname();
   const { isCollapsed, toggle, onMobileClose } = useSidebar();
-  const [platformRole, setPlatformRole] = useState<
-    "platform_admin" | "consultant" | null
-  >(null);
-  const [capabilities, setCapabilities] = useState<StaffCapabilityId[]>([]);
-  const [inClientWorkspace, setInClientWorkspace] = useState(false);
-  const [clientSlug, setClientSlug] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const {
-        role,
-        capabilities: nextCaps,
-        inClientWorkspace: nextClient,
-        clientSlug: nextSlug,
-      } = await getMyPlatformRole();
-      if (!cancelled) {
-        setPlatformRole(role);
-        setCapabilities(nextCaps);
-        setInClientWorkspace(nextClient);
-        setClientSlug(nextSlug);
-        setLoaded(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // pathname: o seletor de org troca a org ativa e navega — relê o menu.
-  }, [pathname]);
+  const {
+    role: platformRole,
+    capabilities,
+    inClientWorkspace,
+    clientSlug,
+  } = me;
 
   const onHqRoute = pathname.startsWith("/admin");
   // Na URL /clientes/{slug}/… o slug da página manda (mesmo sem cookie).
@@ -120,7 +96,7 @@ export function Sidebar({
       label: nav.client.length > 0 && nav.hq.length > 0 ? "Land Grow" : null,
       items: nav.hq,
     },
-  ].filter((g) => g.items.length > 0 && (loaded || urlSlug !== null));
+  ].filter((g) => g.items.length > 0);
 
   const isFull = variant === "full" || !isCollapsed;
 
@@ -164,16 +140,6 @@ export function Sidebar({
         )}
         aria-label={APP_NAME}
       >
-        {!loaded && groups.length === 0 ? (
-          <div className="space-y-2 px-2 py-1" aria-hidden>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-8 animate-pulse rounded-lg bg-surface-2"
-              />
-            ))}
-          </div>
-        ) : null}
         {groups.map((group, gi) => (
           <div
             key={group.label ?? gi}

@@ -1,6 +1,5 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import {
   getPlatformRole,
   getStaffCapabilities,
@@ -18,21 +17,24 @@ import type { StaffCapabilityId } from "@/lib/auth/staff-access";
  * próprio papel. Usado pela sidebar pra decidir o que mostrar.
  * `clientSlug` é a empresa do cliente ativa (null quando está no HQ).
  */
-export async function getMyPlatformRole(): Promise<{
+export interface MeInfo {
   role: PlatformRole | null;
   capabilities: StaffCapabilityId[];
   inClientWorkspace: boolean;
   clientSlug: string | null;
-}> {
-  const supabase = await createClient();
-  const role = await getPlatformRole(supabase);
-  const capabilities = await getStaffCapabilities(supabase);
-  const internal = await isActiveOrgInternal();
-  const inClientWorkspace = role === null || !internal;
-  let clientSlug: string | null = null;
-  if (!internal) {
-    const active = await getActiveOrganization();
-    clientSlug = active?.org.slug ?? null;
-  }
-  return { role, capabilities, inClientWorkspace, clientSlug };
+}
+
+export async function getMyPlatformRole(): Promise<MeInfo> {
+  const [role, capabilities, internal, active] = await Promise.all([
+    getPlatformRole(),
+    getStaffCapabilities(),
+    isActiveOrgInternal(),
+    getActiveOrganization(),
+  ]);
+  return {
+    role,
+    capabilities,
+    inClientWorkspace: role === null || !internal,
+    clientSlug: internal ? null : (active?.org.slug ?? null),
+  };
 }

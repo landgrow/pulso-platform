@@ -26,9 +26,17 @@ export function formatDate(
   date: Date | string,
   options?: Intl.DateTimeFormatOptions,
 ): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  // "2026-09-08" (só data, ex.: prazo) é meia-noite UTC: formatar no fuso do
+  // Brasil voltava um dia. Datas puras formatam em UTC; instantes, em Brasília
+  // (o servidor da Vercel não roda no fuso do Brasil).
+  const dateOnly = typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date);
+  const d =
+    typeof date === "string"
+      ? new Date(dateOnly ? `${date}T00:00:00Z` : date)
+      : date;
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "medium",
+    timeZone: dateOnly ? "UTC" : "America/Sao_Paulo",
     ...options,
   }).format(d);
 }

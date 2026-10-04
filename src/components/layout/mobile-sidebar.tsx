@@ -1,6 +1,7 @@
 "use client";
 
 import type { User } from "@supabase/supabase-js";
+import type { MeInfo } from "@/app/actions/me";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useSidebar } from "@/components/layout/sidebar-context";
 import {
@@ -10,7 +11,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-export function MobileSidebar({ user }: { user: User | null }): JSX.Element {
+export function MobileSidebar({
+  user,
+  me,
+}: {
+  user: User | null;
+  me: MeInfo;
+}): JSX.Element {
   const { isMobileOpen, onMobileClose } = useSidebar();
 
   return (
@@ -23,7 +30,7 @@ export function MobileSidebar({ user }: { user: User | null }): JSX.Element {
         <SheetDescription className="sr-only">
           Navegação principal do PULSO
         </SheetDescription>
-        <Sidebar variant="full" user={user} />
+        <Sidebar variant="full" user={user} me={me} />
       </SheetContent>
     </Sheet>
   );

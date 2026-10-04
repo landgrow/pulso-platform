@@ -18,7 +18,7 @@ import {
   Sparkles,
   FolderOpen,
 } from "lucide-react";
-import { getMyPlatformRole } from "@/app/actions/me";
+import type { MeInfo } from "@/app/actions/me";
 import {
   CommandDialog,
   CommandEmpty,
@@ -27,7 +27,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import type { StaffCapabilityId } from "@/lib/auth/staff-access";
 import {
   COMMAND_OPEN_EVENT,
   clientNav,
@@ -56,31 +55,16 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 const GROUP_ORDER: NavGroup[] = ["mesa", "trabalho", "carteira", "sistema"];
 
-export function CommandPalette(): JSX.Element {
+export function CommandPalette({ me }: { me: MeInfo }): JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [platformRole, setPlatformRole] = useState<
-    "platform_admin" | "consultant" | null
-  >(null);
-  const [capabilities, setCapabilities] = useState<StaffCapabilityId[]>([]);
-  const [inClientWorkspace, setInClientWorkspace] = useState(false);
-  const [clientSlug, setClientSlug] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const next = await getMyPlatformRole();
-      if (cancelled) return;
-      setPlatformRole(next.role);
-      setCapabilities(next.capabilities);
-      setInClientWorkspace(next.inClientWorkspace);
-      setClientSlug(next.clientSlug);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const {
+    role: platformRole,
+    capabilities,
+    inClientWorkspace,
+    clientSlug,
+  } = me;
 
   useEffect(() => {
     function onKey(event: KeyboardEvent): void {

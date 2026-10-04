@@ -17,6 +17,7 @@ import { Header } from "@/components/layout/header";
 import { ClientWorkspaceBanner } from "@/components/layout/client-workspace-banner";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { MainCanvas } from "@/components/layout/main-canvas";
+import { getMyPlatformRole } from "@/app/actions/me";
 
 export default async function DashboardLayout({
   children,
@@ -30,21 +31,24 @@ export default async function DashboardLayout({
   }
 
   const user = session.user;
+  // Papel/org do usuário uma vez no servidor, repassado pro menu, busca e
+  // banner — antes cada um buscava sozinho no navegador a cada navegação.
+  const me = await getMyPlatformRole();
 
   return (
     <SidebarProvider>
-      <CommandPalette />
+      <CommandPalette me={me} />
       <div className="flex h-screen overflow-hidden bg-background">
         {/* Sidebar — visível em desktop */}
-        <Sidebar user={user} />
+        <Sidebar user={user} me={me} />
 
         {/* Mobile drawer (Sheet) */}
-        <MobileSidebar user={user} />
+        <MobileSidebar user={user} me={me} />
 
         {/* Main content area */}
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <Header />
-          <ClientWorkspaceBanner />
+          <ClientWorkspaceBanner me={me} />
 
           <MainCanvas>{children}</MainCanvas>
         </div>

@@ -1,6 +1,8 @@
 import "server-only";
+import { cache } from "react";
 import type { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getRequestUser } from "@/lib/supabase/request-user";
 import {
   STAFF_CAPABILITY_IDS,
   type StaffCapabilityId,
@@ -16,49 +18,59 @@ export type PlatformRole = "platform_admin" | "consultant";
  * is_consultant() nas policies de RLS. `profiles.is_platform_admin` NÃO existe
  * no banco (confirmado no schema real) — nunca usar esse campo.
  */
+// user.id já foi validado pelo getUser() (JWT checado no Auth); a leitura do
+// papel vai pelo admin pra não depender da RLS de platform_roles — se a policy
+// falhar, um admin seria tratado como cliente silenciosamente.
+const roleForUser = cache(
+  async (userId: string): Promise<PlatformRole | null> => {
+    const admin = await createAdminClient();
+    const { data } = await admin
+      .from("platform_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return (data?.role as PlatformRole | undefined) ?? null;
+  },
+);
+
+const capabilitiesForConsultant = cache(
+  async (userId: string): Promise<StaffCapabilityId[]> => {
+    const admin = await createAdminClient();
+    const { data, error } = await admin
+      .from("consultant_capabilities")
+      .select("capability")
+      .eq("consultant_id", userId);
+    if (error || !data) return [];
+    return data
+      .map((row: { capability: string }) => row.capability as StaffCapabilityId)
+      .filter((cap: StaffCapabilityId) => STAFF_CAPABILITY_IDS.includes(cap));
+  },
+);
+
+/** Papel de plataforma do usuário logado (cacheado por requisição). */
 export async function getPlatformRole(
-  supabase: ServerSupabaseClient,
+  // Parâmetro mantido por compatibilidade com os ~30 chamadores; o usuário vem
+  // do cache da requisição.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _supabase?: ServerSupabaseClient,
 ): Promise<PlatformRole | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getRequestUser();
   if (!user) return null;
-
-  // user.id já foi validado pelo getUser() (JWT checado no Auth); a leitura
-  // do papel vai pelo admin pra não depender da RLS de platform_roles — se a
-  // policy falhar, um admin seria tratado como cliente silenciosamente.
-  const admin = await createAdminClient();
-  const { data } = await admin
-    .from("platform_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  return (data?.role as PlatformRole | undefined) ?? null;
+  return roleForUser(user.id);
 }
 
 export async function getStaffCapabilities(
-  supabase: ServerSupabaseClient,
+  // Parâmetro mantido por compatibilidade com os ~30 chamadores; o usuário vem
+  // do cache da requisição.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _supabase?: ServerSupabaseClient,
 ): Promise<StaffCapabilityId[]> {
-  const role = await getPlatformRole(supabase);
+  const role = await getPlatformRole();
   if (role === "platform_admin") return [...STAFF_CAPABILITY_IDS];
   if (role !== "consultant") return [];
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getRequestUser();
   if (!user) return [];
-
-  const admin = await createAdminClient();
-  const { data, error } = await admin
-    .from("consultant_capabilities")
-    .select("capability")
-    .eq("consultant_id", user.id);
-
-  if (error || !data) return [];
-  return data
-    .map((row: { capability: string }) => row.capability as StaffCapabilityId)
-    .filter((cap: StaffCapabilityId) => STAFF_CAPABILITY_IDS.includes(cap));
+  return capabilitiesForConsultant(user.id);
 }
 
 export async function isPlatformAdmin(

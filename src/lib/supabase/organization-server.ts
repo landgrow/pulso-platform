@@ -7,6 +7,8 @@
  */
 
 import "server-only";
+import { cache } from "react";
+import { getRequestUser } from "@/lib/supabase/request-user";
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -25,50 +27,65 @@ const ACTIVE_ORG_MAX_AGE = 60 * 60 * 24 * 30; // 30 dias
  * Retorna a organização ativa (do cookie) ou a primeira disponível.
  * Retorna `null` se o usuário não tem nenhuma organização.
  */
-export async function getActiveOrganization(): Promise<ActiveOrganizationContext | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+// Orgs acessíveis + id da org interna, uma vez por requisição (layout, sidebar
+// e página pedem isso ao mesmo tempo).
+const loadOrgContext = cache(
+  async (): Promise<{
+    orgsList: AccessibleOrganization[];
+    internalId: string | null;
+  } | null> => {
+    const user = await getRequestUser();
+    if (!user) return null;
+    const supabase = await createClient();
+    const [{ data: orgs, error }, { data: internal }] = await Promise.all([
+      supabase.rpc("my_accessible_orgs"),
+      supabase
+        .from("organizations")
+        .select("id")
+        .eq("is_internal", true)
+        .maybeSingle(),
+    ]);
+    if (error || !orgs || orgs.length === 0) return null;
+    return {
+      orgsList: orgs as AccessibleOrganization[],
+      internalId: (internal?.id as string | undefined) ?? null,
+    };
+  },
+);
 
-  const cookieStore = await cookies();
-  const activeOrgId = cookieStore.get(ACTIVE_ORG_COOKIE)?.value;
+export const getActiveOrganization = cache(
+  async (): Promise<ActiveOrganizationContext | null> => {
+    const ctx = await loadOrgContext();
+    if (!ctx) return null;
+    const { orgsList, internalId } = ctx;
 
-  // Lista orgs acessíveis via função SQL
-  const { data: orgs, error } = await supabase.rpc("my_accessible_orgs");
-  if (error || !orgs || orgs.length === 0) return null;
+    const cookieStore = await cookies();
+    const activeOrgId = cookieStore.get(ACTIVE_ORG_COOKIE)?.value;
 
-  const orgsList = orgs as AccessibleOrganization[];
-
-  // Se tem cookie E a org ainda é acessível, usa ela
-  if (activeOrgId) {
-    const found = orgsList.find((o) => o.id === activeOrgId);
-    if (found) {
-      return {
-        org: accessibleToOrganization(found),
-        role: found.my_role,
-      };
+    // Se tem cookie E a org ainda é acessível, usa ela
+    if (activeOrgId) {
+      const found = orgsList.find((o) => o.id === activeOrgId);
+      if (found) {
+        return {
+          org: accessibleToOrganization(found),
+          role: found.my_role,
+        };
+      }
     }
-  }
 
-  // Fallback: na equipe, a org interna da Land Grow — não o primeiro cliente
-  // da lista (isso escondia o HQ depois de “Entrar como membro”).
-  const { data: internal } = await supabase
-    .from("organizations")
-    .select("id")
-    .eq("is_internal", true)
-    .maybeSingle();
-  const preferred =
-    (internal?.id
-      ? orgsList.find((org) => org.id === internal.id)
-      : undefined) ?? orgsList[0];
-  if (!preferred) return null;
-  return {
-    org: accessibleToOrganization(preferred),
-    role: preferred.my_role,
-  };
-}
+    // Fallback: na equipe, a org interna da Land Grow — não o primeiro cliente
+    // da lista (isso escondia o HQ depois de “Entrar como membro”).
+    const preferred =
+      (internalId
+        ? orgsList.find((org) => org.id === internalId)
+        : undefined) ?? orgsList[0];
+    if (!preferred) return null;
+    return {
+      org: accessibleToOrganization(preferred),
+      role: preferred.my_role,
+    };
+  },
+);
 
 /**
  * Igual a `getActiveOrganization`, mas redireciona para `/configuracoes/organizacoes`
@@ -87,17 +104,12 @@ export async function requireOrganization(): Promise<ActiveOrganizationContext> 
  * está numa org com is_internal = false.
  */
 export async function isActiveOrgInternal(): Promise<boolean> {
-  const ctx = await getActiveOrganization();
-  if (!ctx) return true;
-
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("organizations")
-    .select("is_internal")
-    .eq("id", ctx.org.id)
-    .maybeSingle();
-
-  return data?.is_internal !== false;
+  const [active, ctx] = await Promise.all([
+    getActiveOrganization(),
+    loadOrgContext(),
+  ]);
+  if (!active || !ctx) return true;
+  return active.org.id === ctx.internalId;
 }
 
 /**

@@ -1,6 +1,8 @@
 import "server-only";
+import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { getRequestUser } from "@/lib/supabase/request-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getPlatformRole,
@@ -23,43 +25,48 @@ export type OrgAccessResult =
  * admin. `can_access_org` já respeita atribuição de consultor e membership;
  * `write` barra client_viewer (a RLS de escrita não diferencia viewer).
  */
-export async function authorizeOrg(
-  orgId: string,
-  opts: { write?: boolean } = {},
-): Promise<OrgAccessResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+// Uma página chama authorizeOrg várias vezes pra mesma org (página + actions
+// de leitura): cacheado por requisição, e as 3 consultas rodam em paralelo.
+const accessForOrg = cache(async (orgId: string): Promise<OrgAccessResult> => {
+  const user = await getRequestUser();
   if (!user) return { ok: false, error: "Não autenticado" };
 
-  const { data: canAccess, error } = await supabase.rpc("can_access_org", {
-    org_id: orgId,
-  });
+  const supabase = await createClient();
+  const admin = await createAdminClient();
+  const [{ data: canAccess, error }, platformRole, { data: membership }] =
+    await Promise.all([
+      supabase.rpc("can_access_org", { org_id: orgId }),
+      getPlatformRole(),
+      admin
+        .from("memberships")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("org_id", orgId)
+        .maybeSingle(),
+    ]);
   if (error || !canAccess) {
     return { ok: false, error: "Sem acesso a esta organização" };
   }
 
-  const platformRole = await getPlatformRole(supabase);
-  const admin = await createAdminClient();
-  const { data: membership } = await admin
-    .from("memberships")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("org_id", orgId)
-    .maybeSingle();
   const memberRole = (membership?.role as string | undefined) ?? null;
   const canWrite =
     platformRole !== null ||
     (memberRole !== null && memberRole !== "client_viewer");
-
-  if (opts.write && !canWrite) {
-    return { ok: false, error: "Seu acesso é somente leitura" };
-  }
   return {
     ok: true,
     access: { user, orgId, platformRole, memberRole, canWrite },
   };
+});
+
+export async function authorizeOrg(
+  orgId: string,
+  opts: { write?: boolean } = {},
+): Promise<OrgAccessResult> {
+  const result = await accessForOrg(orgId);
+  if (result.ok && opts.write && !result.access.canWrite) {
+    return { ok: false, error: "Seu acesso é somente leitura" };
+  }
+  return result;
 }
 
 export interface ClientOrg {
