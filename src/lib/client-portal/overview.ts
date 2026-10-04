@@ -26,6 +26,7 @@ export type TaskBucket = "a_fazer" | "andamento" | "concluida";
 
 export interface PortalTask {
   id: string;
+  boardId: string;
   titulo: string;
   prazo: string | null;
   prioridade: string;
@@ -195,6 +196,7 @@ export async function loadPortalOverview(
           prazo: c.prazo,
           prioridade: c.prioridade,
           setor: c.setor,
+          boardId: c.board_id,
           boardName: boardName.get(c.board_id) ?? "",
           columnLabel: label,
           bucket,

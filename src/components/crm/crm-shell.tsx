@@ -122,6 +122,7 @@ export function CrmShell({ orgId }: { orgId: string }): JSX.Element {
             </div>
           ) : board ? (
             <BoardContent
+              isStaff
               board={board}
               onChanged={() => void refreshCurrentBoard()}
               updateBoardOptimistic={updateBoardOptimistic}

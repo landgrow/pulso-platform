@@ -48,6 +48,7 @@ export function KanbanBoard({ orgId }: { orgId: string }): JSX.Element {
       />
       <div className="flex-1 min-w-0 pl-4">
         <BoardContent
+          isStaff
           board={board}
           onChanged={() => void refreshCurrentBoard()}
           updateBoardOptimistic={updateBoardOptimistic}

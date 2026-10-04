@@ -194,6 +194,7 @@ export function AtividadesShell({
               </div>
             ) : board ? (
               <BoardContent
+                isStaff={variant === "staff"}
                 board={board}
                 onChanged={() => void refreshCurrentBoard()}
                 updateBoardOptimistic={updateBoardOptimistic}

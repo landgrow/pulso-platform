@@ -227,10 +227,12 @@ export function BoardContent({
   board,
   onChanged,
   updateBoardOptimistic,
+  isStaff = false,
 }: {
   board: Board;
   onChanged: () => void;
   updateBoardOptimistic?: (updater: (b: Board) => Board) => void;
+  isStaff?: boolean;
 }): JSX.Element {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [newCardTitles, setNewCardTitles] = useState<Record<string, string>>(
@@ -453,6 +455,7 @@ export function BoardContent({
             orgId={board.org_id}
             onChanged={onChanged}
             onClose={() => setSelectedCardId(null)}
+            isStaff={isStaff}
           />
         )}
       </TaskModal>
@@ -481,7 +484,7 @@ function PropertyRow({
   );
 }
 
-function CardDetail({
+export function CardDetail({
   card,
   columns,
   properties,
@@ -489,6 +492,7 @@ function CardDetail({
   orgId,
   onChanged,
   onClose,
+  isStaff = false,
 }: {
   card: BoardCard;
   columns: BoardColumn[];
@@ -497,6 +501,8 @@ function CardDetail({
   orgId: string;
   onChanged: () => void;
   onClose: () => void;
+  /** A pasta é no Drive da Land Grow — cliente não tem acesso. */
+  isStaff?: boolean;
 }): JSX.Element {
   const [titulo, setTitulo] = useState(card.titulo);
   const [columnId, setColumnId] = useState(card.column_id);
@@ -951,18 +957,20 @@ function CardDetail({
                 }}
               />
             </label>
-            <button
-              type="button"
-              className="text-xs text-primary hover:underline"
-              onClick={() => {
-                void openOrgDriveFolder(orgId).then((result) => {
-                  if (!result.success) toast.error(result.error);
-                  else window.open(result.data.url, "_blank", "noreferrer");
-                });
-              }}
-            >
-              Abrir pasta do cliente
-            </button>
+            {isStaff ? (
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline"
+                onClick={() => {
+                  void openOrgDriveFolder(orgId).then((result) => {
+                    if (!result.success) toast.error(result.error);
+                    else window.open(result.data.url, "_blank", "noreferrer");
+                  });
+                }}
+              >
+                Abrir pasta do cliente
+              </button>
+            ) : null}
           </div>
         </div>
 

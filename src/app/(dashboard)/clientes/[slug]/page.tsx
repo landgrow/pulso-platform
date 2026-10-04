@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Briefcase, CalendarClock, Radar } from "lucide-react";
+import { Briefcase, Radar } from "lucide-react";
 import { authorizeClientSlug } from "@/lib/auth/org-access";
 import {
   loadPortalOverview,
@@ -8,24 +8,12 @@ import {
   PERIOD_RANGE_LABEL,
 } from "@/lib/client-portal/overview";
 import { RangeSelect } from "@/components/client-portal/range-select";
+import { PainelTasks } from "@/components/client-portal/painel-tasks";
 import {
   SimpleBars,
   StatusDonut,
 } from "@/components/client-portal/portal-charts";
 import { EmptyState, KpiCard } from "@/components/ui/page-header";
-import { cn, formatDate } from "@/lib/utils";
-
-const PRIORIDADE_CLASS: Record<string, string> = {
-  alta: "bg-error/10 text-error",
-  media: "bg-warning/10 text-warning",
-  baixa: "bg-surface-2 text-text-2",
-};
-
-const PRIORIDADE_LABEL: Record<string, string> = {
-  alta: "Alta",
-  media: "Média",
-  baixa: "Baixa",
-};
 
 function firstName(user: {
   user_metadata?: Record<string, unknown>;
@@ -116,37 +104,7 @@ export default async function ClientePainelPage({
             description="Quando a Land Grow ou o seu time criar tarefas no Plano de Ação, as próximas aparecem aqui."
           />
         ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface-1">
-            {upcoming.map((t) => (
-              <li
-                key={t.id}
-                className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"
-              >
-                <span className="min-w-0 flex-1 truncate font-medium text-text-1">
-                  {t.titulo}
-                </span>
-                <span className="text-xs text-text-3">{t.boardName}</span>
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-[11px] font-medium",
-                    PRIORIDADE_CLASS[t.prioridade] ?? PRIORIDADE_CLASS.baixa,
-                  )}
-                >
-                  {PRIORIDADE_LABEL[t.prioridade] ?? t.prioridade}
-                </span>
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 text-xs tabular-nums",
-                    t.atrasada ? "text-error" : "text-text-2",
-                  )}
-                >
-                  <CalendarClock className="h-3.5 w-3.5" aria-hidden />
-                  {t.prazo ? formatDate(t.prazo) : "Sem prazo"}
-                  {t.atrasada ? " · atrasada" : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <PainelTasks tasks={upcoming} />
         )}
       </section>
 
