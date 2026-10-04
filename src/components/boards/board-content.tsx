@@ -30,6 +30,8 @@ import {
   Tag,
   Send,
   Paperclip,
+  Plus,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -236,9 +238,9 @@ export function BoardContent({
   isStaff?: boolean;
 }): JSX.Element {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [newCardTitles, setNewCardTitles] = useState<Record<string, string>>(
-    {},
-  );
+  // Tarefa recém-criada pelo "+ Nova tarefa": abre já com o título selecionado.
+  const [freshCardId, setFreshCardId] = useState<string | null>(null);
+  const [addingTo, setAddingTo] = useState<string | null>(null);
   const [view, setView] = useState<BoardView>("board");
 
   const sensors = useSensors(
@@ -279,16 +281,29 @@ export function BoardContent({
     ? (board.cards.find((c) => c.id === selectedCardId) ?? null)
     : null;
 
+  const newCardLabel = board.module === "crm" ? "Novo card" : "Nova tarefa";
+
   async function handleAddCard(columnId: string): Promise<void> {
-    const titulo = (newCardTitles[columnId] ?? "").trim();
-    if (!titulo) return;
-    setNewCardTitles((prev) => ({ ...prev, [columnId]: "" }));
-    const result = await createCard({ boardId: board.id, columnId, titulo });
+    setAddingTo(columnId);
+    const result = await createCard({
+      boardId: board.id,
+      columnId,
+      titulo: newCardLabel,
+    });
+    setAddingTo(null);
     if (!result.success) {
       toast.error(result.error);
       return;
     }
+    // O modal abre assim que a lista recarregada trouxer a tarefa nova.
+    setFreshCardId(result.data.id);
+    setSelectedCardId(result.data.id);
     onChanged();
+  }
+
+  function closeCard(): void {
+    setSelectedCardId(null);
+    setFreshCardId(null);
   }
 
   async function handleDragEnd(event: DragEndEvent): Promise<void> {
@@ -423,22 +438,19 @@ export function BoardContent({
                     ))}
                   </DroppableColumn>
                   {groupBy === "status" && (
-                    <div className="mt-2 flex gap-1.5">
-                      <Input
-                        placeholder="+ Adicionar card"
-                        className="h-8 text-sm"
-                        value={newCardTitles[group.key] ?? ""}
-                        onChange={(e) =>
-                          setNewCardTitles((prev) => ({
-                            ...prev,
-                            [group.key]: e.target.value,
-                          }))
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") void handleAddCard(group.key);
-                        }}
-                      />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleAddCard(group.key)}
+                      disabled={addingTo !== null}
+                      className="mt-2 flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-sm text-text-2 transition-colors hover:bg-surface-2 hover:text-text-1 disabled:cursor-wait"
+                    >
+                      {addingTo === group.key ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Plus className="h-3.5 w-3.5" />
+                      )}
+                      {newCardLabel}
+                    </button>
                   )}
                 </div>
               ))}
@@ -447,16 +459,17 @@ export function BoardContent({
         )}
       </FadeSwap>
 
-      <TaskModal open={!!selectedCard} onClose={() => setSelectedCardId(null)}>
+      <TaskModal open={!!selectedCard} onClose={closeCard}>
         {selectedCard && (
           <CardDetail
             card={selectedCard}
+            autoFocusTitle={selectedCard.id === freshCardId}
             columns={board.columns}
             properties={board.properties}
             module={board.module}
             orgId={board.org_id}
             onChanged={onChanged}
-            onClose={() => setSelectedCardId(null)}
+            onClose={closeCard}
             isStaff={isStaff}
           />
         )}
@@ -495,6 +508,7 @@ export function CardDetail({
   onChanged,
   onClose,
   isStaff = false,
+  autoFocusTitle = false,
 }: {
   card: BoardCard;
   columns: BoardColumn[];
@@ -505,6 +519,8 @@ export function CardDetail({
   onClose: () => void;
   /** A pasta é no Drive da Land Grow — cliente não tem acesso. */
   isStaff?: boolean;
+  /** Tarefa acabou de ser criada: foca e seleciona o título para nomear. */
+  autoFocusTitle?: boolean;
 }): JSX.Element {
   const [titulo, setTitulo] = useState(card.titulo);
   const [columnId, setColumnId] = useState(card.column_id);
@@ -664,7 +680,18 @@ export function CardDetail({
           <Input
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
-            onBlur={() => titulo !== card.titulo && void save({ titulo })}
+            onBlur={() =>
+              titulo.trim() &&
+              titulo !== card.titulo &&
+              void save({ titulo: titulo.trim() })
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+            autoFocus={autoFocusTitle}
+            onFocus={(e) => {
+              if (autoFocusTitle) e.currentTarget.select();
+            }}
             className="h-auto border-0 bg-transparent px-0 text-[1.65rem] font-semibold leading-tight shadow-none focus-visible:ring-0"
             placeholder="Título da tarefa"
           />
