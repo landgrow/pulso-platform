@@ -68,7 +68,20 @@ Data: 05/10/2026. Conduzida seguindo as tarefas do AIOX (Quinn/QA: `security-aud
 - Sem monitoramento de erros em produção (considerar Sentry/Vercel Observability).
 - Migração `0024` (função `staff_due_cards`) não está no banco; o app usa caminho alternativo.
 
-## NÃO testado (precisa de uma sessão logada)
+## Varredura em produção com login (05/10/2026, pulso.landgrow.com.br, admin)
+
+Passaram: Dashboard, Painel, Atividades, Objetivos, Reuniões, Mapa Mental, Financeiro, CRM, Organizações (e ficha com abas),
+BIN, Equipe, Configurações (Conta, Aparência, Notificações, Dados, Integrações, Operação), portal do cliente (Painel,
+Atividades, Projeto, BIN com "Inovação", MIN, Métricas, Central IA) — sem erro de console.
+Funções testadas com dados "TESTE-VARREDURA" (apagados): nova tarefa abre para nomear, responsáveis (Land Grow + usuário do
+cliente), anexar/baixar/remover arquivo, excluir tarefa, seleção em lote na Tabela, aba lembrada na URL, botão Voltar,
+drive de Documentos (pasta com acento, envio, download, Voltar sobe de pasta, excluir pasta; admin vê o mesmo drive).
+Achados: (1) Histórico de ações dava erro de relação audit_log→profiles — **corrigido**; (2) arquivo de 60 MB recusado pelo
+limite de 50 MB do Supabase gratuito — mensagem melhorada, falta subir o plano/limite.
+
+## NÃO testado com login
+
+Visão do **cliente** (conta de cliente): isolamento entre empresas na prática, convite de usuário novo, e-mails de aviso.
 
 Fluxos com login: cada tela do portal do cliente e do admin, criação/edição/exclusão de tarefas, anexos, drive de Documentos,
 convites e redefinição de senha ponta a ponta, notificações. O Playwright autenticado não foi executado porque entraria numa conta

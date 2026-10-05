@@ -195,7 +195,17 @@ export function DocumentsDrive({ orgId }: { orgId: string }): JSX.Element {
           contentType: file.type || "application/octet-stream",
         });
       if (error) {
-        mark(id, { status: "error", error: "Falha no envio. Tente de novo." });
+        // O Storage recusa arquivo acima do limite do plano com 413 / "exceeded".
+        const status = (error as { statusCode?: string | number }).statusCode;
+        const tooBig =
+          String(status) === "413" ||
+          /exceed|maximum allowed size|too large/i.test(error.message);
+        mark(id, {
+          status: "error",
+          error: tooBig
+            ? "Acima do limite de tamanho do armazenamento. Fale com a Land Grow."
+            : "Falha no envio. Tente de novo.",
+        });
         continue;
       }
       mark(id, { status: "done", name: prepared.data.name });

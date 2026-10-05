@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getStaffCapabilities } from "@/lib/supabase/platform-role-server";
 
 const PAGE_SIZE = 20;
@@ -34,15 +35,14 @@ export async function getAuditLog(page = 1): Promise<AuditLogResult> {
 
   const offset = (page - 1) * PAGE_SIZE;
 
-  const { data: entries, error } = await supabase
+  // Capacidade "audit_log" já checada acima; a leitura usa o service role
+  // porque audit_log.user_id aponta para auth.users (não para profiles, então
+  // não dá para fazer o join embutido do PostgREST) e a RLS esconderia linhas
+  // sem organização.
+  const admin = await createAdminClient();
+  const { data: entries, error } = await admin
     .from("audit_log")
-    .select(
-      `
-      *,
-      user:profiles!user_id(full_name),
-      organization:organizations!org_id(name)
-    `,
-    )
+    .select("*")
     .order("created_at", { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1);
 
@@ -50,26 +50,54 @@ export async function getAuditLog(page = 1): Promise<AuditLogResult> {
     return { success: false, error: error.message };
   }
 
-  const { count } = await supabase
+  const { count } = await admin
     .from("audit_log")
     .select("*", { count: "exact", head: true });
 
-  const mapped: AuditLogEntry[] = (entries ?? []).map(
-    (e: Record<string, unknown>) => ({
-      id: e.id as string,
-      org_id: (e.org_id as string | null) ?? null,
-      user_id: (e.user_id as string | null) ?? null,
-      action: e.action as string,
-      resource_type: (e.resource_type as string | null) ?? null,
-      resource_id: (e.resource_id as string | null) ?? null,
-      metadata: (e.metadata as Record<string, unknown> | null) ?? null,
-      created_at: e.created_at as string,
-      user_email: undefined,
-      user_name:
-        (e.user as { full_name?: string } | null)?.full_name ?? undefined,
-      org_name: (e.organization as { name?: string } | null)?.name ?? undefined,
-    }),
+  const rows = (entries ?? []) as Record<string, unknown>[];
+  const userIds = [
+    ...new Set(rows.map((e) => e.user_id as string | null).filter(Boolean)),
+  ] as string[];
+  const orgIds = [
+    ...new Set(rows.map((e) => e.org_id as string | null).filter(Boolean)),
+  ] as string[];
+
+  const [profilesRes, orgsRes] = await Promise.all([
+    userIds.length > 0
+      ? admin.from("profiles").select("id, full_name").in("id", userIds)
+      : Promise.resolve({ data: [] }),
+    orgIds.length > 0
+      ? admin.from("organizations").select("id, name").in("id", orgIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const nameByUser = new Map(
+    (
+      (profilesRes.data ?? []) as { id: string; full_name: string | null }[]
+    ).map((p) => [p.id, p.full_name ?? undefined]),
   );
+  const nameByOrg = new Map(
+    ((orgsRes.data ?? []) as { id: string; name: string }[]).map((o) => [
+      o.id,
+      o.name,
+    ]),
+  );
+
+  const mapped: AuditLogEntry[] = rows.map((e) => ({
+    id: e.id as string,
+    org_id: (e.org_id as string | null) ?? null,
+    user_id: (e.user_id as string | null) ?? null,
+    action: e.action as string,
+    resource_type: (e.resource_type as string | null) ?? null,
+    resource_id: (e.resource_id as string | null) ?? null,
+    metadata: (e.metadata as Record<string, unknown> | null) ?? null,
+    created_at: e.created_at as string,
+    ...(typeof e.user_id === "string" && nameByUser.get(e.user_id)
+      ? { user_name: nameByUser.get(e.user_id) as string }
+      : {}),
+    ...(typeof e.org_id === "string" && nameByOrg.get(e.org_id)
+      ? { org_name: nameByOrg.get(e.org_id) as string }
+      : {}),
+  }));
 
   return {
     success: true,
