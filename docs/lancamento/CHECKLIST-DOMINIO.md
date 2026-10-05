@@ -5,7 +5,7 @@ Ordem importa: faça de cima para baixo. Marque conforme conclui.
 
 ## 0. Antes de tudo — bloqueadores
 
-- [ ] **Supabase → Authentication → Sign In / Providers → desligar "Allow new users to sign up".**
+- [x] **Cadastro público desligado** (confirmado em 05/10/2026: `disable_signup: true`).
       Hoje o cadastro está aberto: qualquer pessoa cria conta chamando a API ou entrando com Google.
       Convites feitos pela equipe continuam funcionando.
 - [ ] Rodar `docs/lancamento/verificacao-banco.sql` (só leitura) e conferir os blocos 1, 2, 3 e 6.

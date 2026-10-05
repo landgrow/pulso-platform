@@ -16,7 +16,7 @@ Data: 05/10/2026. Conduzida seguindo as tarefas do AIOX (Quinn/QA: `security-aud
 
 ## Bloqueadores antes do domínio
 
-1. **Cadastro público do Supabase está aberto** (`disable_signup: false`). Desligar em Authentication → Sign In / Providers.
+1. ~~Cadastro público do Supabase aberto~~ — **resolvido e confirmado** em 05/10/2026 (`disable_signup: true`).
 2. **CNPJ de exemplo** nas páginas de Privacidade e Termos (`XX.XXX.XXX/0001-XX`).
 3. **Limite de arquivo do Supabase**: global em 50 MB no plano gratuito; o PULSO aceita 200 MB.
 4. **E-mails de aviso** ainda sem Resend/domínio verificado.
