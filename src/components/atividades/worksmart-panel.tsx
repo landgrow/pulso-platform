@@ -23,7 +23,7 @@ import {
   updateWorksmartObjective,
 } from "@/app/actions/worksmart";
 import { exportWorksmartPdf } from "@/app/actions/reports";
-import { listTeamMembers, type TeamMember } from "@/app/actions/team";
+import { listCardAssignees } from "@/app/actions/boards";
 import { PdfExportButton } from "@/components/reports/pdf-export-button";
 import { AREA_LABELS, type AreaCanonical } from "@/types";
 import {
@@ -140,7 +140,9 @@ export function WorksmartPanel({
   const [newObjectiveOpen, setNewObjectiveOpen] = useState(false);
   const [newKrOpen, setNewKrOpen] = useState(false);
   const [actionKrId, setActionKrId] = useState<string | null>(null);
-  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [team, setTeam] = useState<
+    { userId: string; fullName: string | null; email: string }[]
+  >([]);
 
   async function refresh(): Promise<void> {
     setLoading(true);
@@ -160,8 +162,15 @@ export function WorksmartPanel({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh() sets loading, needed on every orgId change
     void refresh();
-    void listTeamMembers().then((result) => {
-      if (result.success) setTeam(result.data);
+    void listCardAssignees(orgId).then((result) => {
+      if (result.success)
+        setTeam(
+          result.data.map((t) => ({
+            userId: t.userId,
+            fullName: t.name,
+            email: t.email ?? "",
+          })),
+        );
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
@@ -279,7 +288,7 @@ function ObjectiveDetail({
   onAddAction,
 }: {
   objective: WorksmartObjective;
-  team: TeamMember[];
+  team: { userId: string; fullName: string | null; email: string }[];
   today: string;
   onOpenBoard?: ((boardId: string) => void) | undefined;
   onChanged: () => void;
@@ -777,7 +786,7 @@ function NewObjectiveSheet({
   onCreated,
 }: {
   orgId: string;
-  team: TeamMember[];
+  team: { userId: string; fullName: string | null; email: string }[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (id: string) => void;
@@ -1013,7 +1022,7 @@ function NewActionSheet({
   onCreated,
 }: {
   keyResultId: string;
-  team: TeamMember[];
+  team: { userId: string; fullName: string | null; email: string }[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;

@@ -9,11 +9,11 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   getBoardById,
   listAutomations,
+  listCardAssignees,
   createAutomation,
   toggleAutomation,
   deleteAutomation,
 } from "@/app/actions/boards";
-import { listTeamMembers } from "@/app/actions/team";
 import {
   PRIORIDADE_LABELS,
   type BoardAutomation,
@@ -42,11 +42,13 @@ export function AutomationsPanel({
 
   async function refresh(id: string): Promise<void> {
     setLoading(true);
-    const [boardResult, automationsResult, teamResult] = await Promise.all([
+    const [boardResult, automationsResult] = await Promise.all([
       getBoardById(id),
       listAutomations(id),
-      listTeamMembers(),
     ]);
+    const teamResult = boardResult.success
+      ? await listCardAssignees(boardResult.data.org_id)
+      : null;
     if (boardResult.success) {
       const cols = [...boardResult.data.columns].sort(
         (a, b) => a.position - b.position,
@@ -58,12 +60,12 @@ export function AutomationsPanel({
     }
     if (automationsResult.success) setAutomations(automationsResult.data);
     else toast.error(automationsResult.error);
-    if (teamResult.success)
+    if (teamResult?.success)
       setTeam(
         teamResult.data.map((t) => ({
           userId: t.userId,
-          fullName: t.fullName,
-          email: t.email,
+          fullName: t.name,
+          email: t.email ?? "",
         })),
       );
     setLoading(false);

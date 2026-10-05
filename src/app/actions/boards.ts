@@ -7,6 +7,11 @@ import type { User } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { authorizeOrg, type OrgAccess } from "@/lib/auth/org-access";
 import {
+  canBeAssignee,
+  listOrgAssignees,
+  type Assignee,
+} from "@/lib/boards/assignees";
+import {
   BUILTIN_FIELDS,
   type Board,
   type BoardAutomation,
@@ -582,6 +587,19 @@ export async function getBoard(orgId: string): Promise<Result<Board>> {
   return fetchBoardById(admin, ensured.id);
 }
 
+/** Responsáveis possíveis numa org: equipe Land Grow + usuários da própria org. */
+export async function listCardAssignees(
+  orgId: string,
+): Promise<Result<Assignee[]>> {
+  if (!z.string().uuid().safeParse(orgId).success) {
+    return { success: false, error: "Organização inválida" };
+  }
+  const auth = await authorizeOrg(orgId);
+  if (!auth.ok) return { success: false, error: auth.error };
+  const admin = await createAdminClient();
+  return { success: true, data: await listOrgAssignees(admin, orgId) };
+}
+
 export async function getBoardById(boardId: string): Promise<Result<Board>> {
   const parsed = idSchema.safeParse(boardId);
   if (!parsed.success) return { success: false, error: "Lista inválida" };
@@ -1035,8 +1053,15 @@ export async function updateCard(
   const patch: Record<string, unknown> = {};
   if (rest.titulo !== undefined) patch.titulo = rest.titulo;
   if (rest.prioridade !== undefined) patch.prioridade = rest.prioridade;
-  if (rest.responsavelId !== undefined)
+  if (rest.responsavelId !== undefined) {
+    if (
+      rest.responsavelId &&
+      !(await canBeAssignee(admin, board.org_id, rest.responsavelId))
+    ) {
+      return { success: false, error: "Esse usuário não é desta organização" };
+    }
     patch.responsavel_id = rest.responsavelId;
+  }
   if (rest.setor !== undefined) patch.setor = rest.setor;
   if (rest.prazo !== undefined) patch.prazo = rest.prazo || null;
   if (rest.relatedOrgId !== undefined) patch.related_org_id = rest.relatedOrgId;

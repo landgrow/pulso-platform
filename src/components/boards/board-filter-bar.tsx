@@ -12,8 +12,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { updateBoardViewConfig } from "@/app/actions/boards";
-import { listTeamMembers } from "@/app/actions/team";
+import { listCardAssignees, updateBoardViewConfig } from "@/app/actions/boards";
 import { PRIORIDADE_LABELS, type Board } from "@/types/boards";
 import { SETOR_COLORS } from "@/lib/constants";
 import {
@@ -166,17 +165,17 @@ export function FilterConditionEditor({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    void listTeamMembers().then((result) => {
+    void listCardAssignees(board.org_id).then((result) => {
       if (result.success)
         setTeam(
           result.data.map((t) => ({
             userId: t.userId,
-            fullName: t.fullName,
-            email: t.email,
+            fullName: t.name,
+            email: t.email ?? "",
           })),
         );
     });
-  }, []);
+  }, [board.org_id]);
 
   function updateRow(id: string, patch: Partial<FilterCondition>): void {
     setDraft((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));

@@ -43,6 +43,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { parse5h2wNotes } from "@/lib/worksmart/cascade";
 import {
   createCard,
+  listCardAssignees,
   updateCard,
   deleteCard,
   moveCard,
@@ -58,7 +59,6 @@ import {
   openOrgDriveFolder,
   uploadCardFile,
 } from "@/app/actions/drive";
-import { listTeamMembers } from "@/app/actions/team";
 import {
   PRIORIDADE_LABELS,
   type Board,
@@ -535,7 +535,7 @@ export function CardDetail({
   const [commentSending, setCommentSending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [team, setTeam] = useState<
-    { userId: string; fullName: string | null; email: string }[]
+    { userId: string; name: string; kind: "staff" | "member" }[]
   >([]);
   const [convertEmail, setConvertEmail] = useState("");
   const [converting, setConverting] = useState(false);
@@ -544,17 +544,18 @@ export function CardDetail({
   const [confirmNode, confirm] = useConfirm();
 
   useEffect(() => {
-    void listTeamMembers().then((result) => {
-      if (result.success)
+    void listCardAssignees(orgId).then((result) => {
+      if (result.success) {
         setTeam(
           result.data.map((t) => ({
             userId: t.userId,
-            fullName: t.fullName,
-            email: t.email,
+            name: t.name,
+            kind: t.kind,
           })),
         );
+      }
     });
-  }, []);
+  }, [orgId]);
 
   async function save(patch: Record<string, unknown>): Promise<void> {
     setSaving(true);
@@ -758,7 +759,7 @@ export function CardDetail({
                 { value: "", label: "Vazio" },
                 ...team.map((t) => ({
                   value: t.userId,
-                  label: t.fullName ?? t.email,
+                  label: t.kind === "staff" ? `${t.name} · Land Grow` : t.name,
                 })),
               ]}
             />
