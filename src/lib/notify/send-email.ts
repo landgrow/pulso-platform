@@ -1,7 +1,16 @@
+export interface EmailAttachment {
+  filename: string;
+  /** Conteúdo em texto; vai para o Resend em base64. */
+  content: string;
+  contentType: string;
+}
+
 export interface SendEmailInput {
   to: string;
   subject: string;
   text: string;
+  replyTo?: string;
+  attachments?: EmailAttachment[];
 }
 
 export type SendEmailResult =
@@ -38,6 +47,16 @@ export async function sendTransactionalEmail(
       to: [input.to],
       subject: input.subject,
       text: input.text,
+      ...(input.replyTo ? { reply_to: input.replyTo } : {}),
+      ...(input.attachments?.length
+        ? {
+            attachments: input.attachments.map((a) => ({
+              filename: a.filename,
+              content: Buffer.from(a.content, "utf-8").toString("base64"),
+              content_type: a.contentType,
+            })),
+          }
+        : {}),
     }),
   });
 

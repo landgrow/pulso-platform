@@ -5,7 +5,13 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { authorizeOrg, type OrgAccess } from "@/lib/auth/org-access";
-import type { ChecklistItem, Meeting } from "@/types/meetings";
+import type { ChecklistItem, Meeting, MeetingGuest } from "@/types/meetings";
+import { listOrgAssignees } from "@/lib/boards/assignees";
+import {
+  sendInvites,
+  type InviteMeeting,
+  type SendSummary,
+} from "@/lib/meetings/send-invites";
 import {
   meetingFromRow,
   promoteMeetingChecklist,
@@ -18,6 +24,13 @@ const orgIdSchema = z.object({
   orgId: z.string().uuid("Organização inválida"),
 });
 
+const MAX_GUESTS = 20;
+
+const guestSchema = z.object({
+  email: z.string().trim().toLowerCase().email("E-mail de convidado inválido"),
+  nome: z.string().trim().max(120).default(""),
+});
+
 const createMeetingSchema = z.object({
   orgId: z.string().uuid(),
   titulo: z.string().min(1, "Título é obrigatório"),
@@ -25,6 +38,25 @@ const createMeetingSchema = z.object({
   participantes: z.array(z.string()).default([]),
   resumo: z.string().optional(),
   topicos: z.string().optional(),
+  horaInicio: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Horário inválido")
+    .optional(),
+  duracaoMin: z.number().int().min(5).max(720).default(60),
+  link: z
+    .string()
+    .trim()
+    .max(500)
+    .refine(
+      (v) => v === "" || /^https?:\/\//i.test(v),
+      "O link deve começar com http:// ou https://",
+    )
+    .optional(),
+  convidados: z
+    .array(guestSchema)
+    .max(MAX_GUESTS, `No máximo ${MAX_GUESTS} convidados`)
+    .default([]),
+  enviarConvite: z.boolean().default(true),
 });
 
 const toggleChecklistSchema = z.object({
@@ -36,8 +68,46 @@ const toggleChecklistSchema = z.object({
 
 const meetingIdSchema = z.string().uuid();
 
-const MEETING_SELECT =
-  "id, org_id, titulo, data, participantes, resumo, topicos, checklist, created_at";
+// "*" para continuar funcionando antes de a migração 0035 (horário/convidados)
+// ser aplicada no banco.
+const MEETING_SELECT = "*";
+
+export type InviteResult = {
+  sent: number;
+  failed: number;
+  skipped: number;
+  firstError: string | null;
+};
+
+function organizerOf(access: OrgAccess): MeetingGuest {
+  const user = access.user;
+  const nome =
+    (user.user_metadata?.full_name as string | undefined)?.trim() ||
+    user.email?.split("@")[0] ||
+    "Land Grow";
+  return { email: user.email ?? "", nome };
+}
+
+function toInviteMeeting(row: Record<string, unknown>): InviteMeeting | null {
+  const hora = row.hora_inicio;
+  const convidados = (row.convidados ?? []) as MeetingGuest[];
+  if (typeof hora !== "string" || convidados.length === 0) return null;
+  return {
+    id: row.id as string,
+    titulo: row.titulo as string,
+    data: String(row.data).slice(0, 10),
+    hora_inicio: hora,
+    duracao_min: (row.duracao_min as number | null) ?? 60,
+    link: (row.link as string | null) ?? null,
+    resumo: (row.resumo as string | null) ?? null,
+    convidados,
+    ics_sequence: (row.ics_sequence as number | null) ?? 0,
+  };
+}
+
+function toResult(summary: SendSummary): InviteResult {
+  return { ...summary };
+}
 
 /** Resolve a org dona da reunião (via admin) e autoriza o usuário nela. */
 async function authorizeMeeting(
@@ -79,7 +149,7 @@ export async function listMeetings(orgId: string): Promise<Result<Meeting[]>> {
 
 export async function createMeeting(
   raw: unknown,
-): Promise<Result<{ id: string }>> {
+): Promise<Result<{ id: string; invites: InviteResult | null }>> {
   const parsed = createMeetingSchema.safeParse(raw);
   if (!parsed.success) {
     return {
@@ -94,30 +164,130 @@ export async function createMeeting(
     participantes,
     resumo,
     topicos,
+    horaInicio,
+    duracaoMin,
+    link,
+    enviarConvite,
   } = parsed.data;
+  // Sem repetir o mesmo e-mail duas vezes.
+  const convidados = [
+    ...new Map(parsed.data.convidados.map((g) => [g.email, g])).values(),
+  ];
+
+  if (convidados.length > 0 && !horaInicio) {
+    return {
+      success: false,
+      error: "Informe o horário para poder convidar participantes.",
+    };
+  }
 
   const auth = await authorizeOrg(orgId, { write: true });
   if (!auth.ok) return { success: false, error: auth.error };
 
   const admin = await createAdminClient();
+
+  // Cliente só convida quem é da própria empresa ou da Land Grow: sem isso
+  // qualquer pessoa mandaria e-mail pelo nosso domínio para endereços de fora.
+  if (convidados.length > 0 && auth.access.platformRole === null) {
+    const allowed = new Set(
+      (await listOrgAssignees(admin, orgId))
+        .map((a) => a.email?.toLowerCase())
+        .filter((e): e is string => Boolean(e)),
+    );
+    if (convidados.some((g) => !allowed.has(g.email))) {
+      return {
+        success: false,
+        error:
+          "Você só pode convidar pessoas da sua empresa ou da Land Grow. Para convidar outro e-mail, peça à Land Grow.",
+      };
+    }
+  }
+
   const { data, error } = await admin
     .from("meetings")
     .insert({
       org_id: orgId,
       titulo,
       data: dataReuniao,
-      participantes,
+      participantes:
+        participantes.length > 0
+          ? participantes
+          : convidados.map((g) => g.nome || g.email),
       resumo: resumo || null,
       topicos: topicos || null,
       created_by: auth.access.user.id,
+      ...(horaInicio
+        ? {
+            hora_inicio: horaInicio,
+            duracao_min: duracaoMin,
+            link: link || null,
+            convidados,
+          }
+        : {}),
     })
-    .select("id")
+    .select("*")
     .single();
 
   if (error || !data)
     return { success: false, error: error?.message ?? "Erro ao criar reunião" };
+
+  let invites: InviteResult | null = null;
+  const meeting = toInviteMeeting(data as Record<string, unknown>);
+  if (meeting && enviarConvite) {
+    invites = toResult(
+      await sendInvites(meeting, "REQUEST", organizerOf(auth.access)),
+    );
+    if (invites.sent > 0) {
+      await admin
+        .from("meetings")
+        .update({ convite_enviado_at: new Date().toISOString() })
+        .eq("id", meeting.id);
+    }
+  }
+
   revalidatePath("/admin/atividades");
-  return { success: true, data: { id: data.id as string } };
+  revalidatePath("/admin/reunioes");
+  return { success: true, data: { id: data.id as string, invites } };
+}
+
+/** Reenvia o convite (a agenda de quem já aceitou é atualizada, não duplicada). */
+export async function resendMeetingInvites(
+  meetingId: string,
+): Promise<Result<InviteResult>> {
+  const parsed = meetingIdSchema.safeParse(meetingId);
+  if (!parsed.success) return { success: false, error: "Reunião inválida" };
+
+  const auth = await authorizeMeeting(parsed.data, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { data: row } = await auth.admin
+    .from("meetings")
+    .select("*")
+    .eq("id", parsed.data)
+    .maybeSingle();
+  const meeting = row ? toInviteMeeting(row as Record<string, unknown>) : null;
+  if (!meeting) {
+    return {
+      success: false,
+      error: "Esta reunião não tem horário e convidados para enviar.",
+    };
+  }
+
+  const next = { ...meeting, ics_sequence: meeting.ics_sequence + 1 };
+  const summary = await sendInvites(next, "REQUEST", organizerOf(auth.access), {
+    update: true,
+  });
+  if (summary.sent > 0) {
+    await auth.admin
+      .from("meetings")
+      .update({
+        ics_sequence: next.ics_sequence,
+        convite_enviado_at: new Date().toISOString(),
+      })
+      .eq("id", parsed.data);
+  }
+  revalidatePath("/admin/reunioes");
+  return { success: true, data: toResult(summary) };
 }
 
 export async function deleteMeeting(
@@ -128,6 +298,26 @@ export async function deleteMeeting(
 
   const auth = await authorizeMeeting(parsed.data, { write: true });
   if (!auth.ok) return { success: false, error: auth.error };
+
+  // Já tinha convite na agenda das pessoas: avisa o cancelamento antes de apagar.
+  const { data: existing } = await auth.admin
+    .from("meetings")
+    .select("*")
+    .eq("id", parsed.data)
+    .maybeSingle();
+  const inviteMeeting = existing
+    ? toInviteMeeting(existing as Record<string, unknown>)
+    : null;
+  if (
+    inviteMeeting &&
+    (existing as Record<string, unknown>).convite_enviado_at
+  ) {
+    await sendInvites(
+      { ...inviteMeeting, ics_sequence: inviteMeeting.ics_sequence + 1 },
+      "CANCEL",
+      organizerOf(auth.access),
+    );
+  }
 
   const { data, error } = await auth.admin
     .from("meetings")
