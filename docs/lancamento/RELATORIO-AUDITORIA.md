@@ -46,6 +46,19 @@ Data: 05/10/2026. Conduzida seguindo as tarefas do AIOX (Quinn/QA: `security-aud
 - Auto-login de desenvolvimento só roda com `NODE_ENV=development` (inerte em produção).
 - Todas as ações do servidor passam por checagem de permissão (autorização por organização).
 
+## Verificação feita no banco de produção (SQL Editor, 05/10/2026)
+
+- **Funções chamáveis sem login (bloco 1):** 18, todas protegidas por dentro: `admin_*` e `get_or_create_default_board`
+  recusam quem não tem papel/acesso ("Acesso negado"); `can_*`, `is_*`, `member_role`, `has_org_role`, `staff_can` são
+  predicados que só respondem sobre o próprio usuário logado (visitante recebe `false`); `handle_new_user`, `log_audit` e
+  `archive_colecao_revision` são funções de gatilho. Nenhuma escreve dado sem checar quem chama. As perigosas
+  (`cleanup_*`, `find_user_id_by_email`, `list_periods_for_org`) estão fechadas pela migração 0034.
+- **Políticas (bloco 3):** nenhuma `USING (true)`. As listadas estão em papel `public`, mas todas filtram por
+  `can_access_org`/`can_access_board`/`staff_can`, que dependem de `auth.uid()` (visitante não passa).
+- **`log_audit` corrigida** (migração 0034 reaplicada depois da 0003).
+- **Não verificado ainda:** bloco 2 (tabelas sem RLS; o teste com a chave pública já mostrou 0 linhas nas 37 tabelas) e
+  bloco 6 (contas criadas sem convite).
+
 ## Riscos residuais (aceitáveis, mas saiba deles)
 
 - **Proteção contra tentativas de senha** é em memória por instância (fraca na Vercel). O Supabase tem limite próprio; considerar Vercel Firewall.
