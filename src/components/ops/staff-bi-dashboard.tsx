@@ -30,8 +30,7 @@ const TOOLTIP = {
 const COLORS = {
   andamento: "#6366f1",
   atrasados: "#ef4444",
-  concluidos: "#22c55e",
-  lime: "#b8f000",
+  concluidos: "var(--success)",
 };
 
 export interface StaffBiStats {
@@ -154,7 +153,7 @@ export function StaffBiDashboard({
                 ? `entrou ${formatCurrency(finance.livroMes.entradas)}`
                 : "contratos em BRL"
             }
-            tone="lime"
+            tone="positive"
             last
           />
         </div>
@@ -286,7 +285,7 @@ function Kpi({
   label: string;
   value: string;
   hint: string;
-  tone?: "default" | "danger" | "lime" | "muted";
+  tone?: "default" | "danger" | "positive" | "muted";
   last?: boolean;
   href?: string;
 }): JSX.Element {
@@ -305,7 +304,7 @@ function Kpi({
         className={cn(
           "mt-2 text-[1.65rem] font-semibold tabular-nums tracking-tight",
           tone === "danger" && "text-error",
-          tone === "lime" && "text-brand-lime",
+          tone === "positive" && "text-success",
           (tone === "default" || tone === "muted") && "text-text-1",
         )}
       >
@@ -510,7 +509,7 @@ function ResultsPulse(): JSX.Element {
                     {objective.orgName ? ` · ${objective.orgName}` : ""}
                   </p>
                 </div>
-                <span className="shrink-0 text-xs tabular-nums text-brand-lime">
+                <span className="shrink-0 text-xs tabular-nums text-success">
                   {label}
                 </span>
               </li>

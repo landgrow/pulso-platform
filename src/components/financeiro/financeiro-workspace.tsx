@@ -244,7 +244,7 @@ export function FinanceiroWorkspace(): JSX.Element {
                 label="Balanço do recorte"
                 value={formatCurrency(balance.balanco)}
                 hint={`líquido ${formatCurrency(balance.liquido)}`}
-                tone={balance.balanco >= 0 ? "lime" : "danger"}
+                tone={balance.balanco >= 0 ? "positive" : "danger"}
               />
             </div>
           </section>
@@ -368,7 +368,7 @@ function Kpi({
   label: string;
   value: string;
   hint: string;
-  tone?: "muted" | "lime" | "danger";
+  tone?: "muted" | "positive" | "danger";
 }): JSX.Element {
   return (
     <div className="px-4 py-4">
@@ -378,7 +378,7 @@ function Kpi({
       <p
         className={cn(
           "mt-1 text-lg font-semibold tabular-nums",
-          tone === "lime" && "text-brand-lime",
+          tone === "positive" && "text-success",
           tone === "danger" && "text-error",
           tone === "muted" && "text-text-1",
         )}
