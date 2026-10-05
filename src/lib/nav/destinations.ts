@@ -58,7 +58,7 @@ export function clientNav(slug: string): NavLink[] {
       icon: "bar-chart",
     },
     {
-      href: `${base}/coleta`,
+      href: `${base}/documentos`,
       label: "Documentos",
       short: "Docs",
       icon: "folder",

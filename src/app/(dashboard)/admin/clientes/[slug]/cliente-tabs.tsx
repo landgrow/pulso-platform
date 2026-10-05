@@ -34,7 +34,7 @@ import { MinResults } from "@/components/admin/min-results";
 import { AtividadesShell } from "@/components/atividades/atividades-shell";
 import { MindMapCanvas } from "@/components/mindmaps/mind-map-canvas";
 import { CrmShell } from "@/components/crm/crm-shell";
-import { ClienteDocumentos } from "@/components/admin/cliente-documentos";
+import { DocumentsDrive } from "@/components/documentos/documents-drive";
 import { FadeSwap } from "@/components/ui/fade-swap";
 import { AddTeamMemberForm } from "./add-team-member-form";
 import { RemoveTeamMemberButton } from "./remove-team-member-button";
@@ -169,7 +169,7 @@ export function AdminClienteTabs({
         )}
         {tab === "bin" && <BinTab bin={bin} />}
         {tab === "min" && <MinTab min={min} />}
-        {tab === "documentos" && <ClienteDocumentos orgId={orgId} />}
+        {tab === "documentos" && <DocumentsDrive orgId={orgId} />}
         {tab === "atividades" && <AtividadesShell orgId={orgId} />}
         {tab === "mapa-mental" && <MindMapCanvas orgId={orgId} />}
         {tab === "crm" &&
