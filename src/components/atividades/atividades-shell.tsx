@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -14,6 +14,7 @@ import {
   Target,
 } from "lucide-react";
 import { useBoardList } from "@/hooks/use-board-list";
+import { useQueryParams } from "@/hooks/use-query-params";
 import { BoardContent } from "@/components/boards/board-content";
 import { AtividadesDashboard } from "@/components/atividades/atividades-dashboard";
 import { MeetingsPanel } from "@/components/atividades/meetings-panel";
@@ -32,6 +33,15 @@ type Nav =
   | { kind: "board"; boardId: string }
   | { kind: "automations" };
 
+type View = Exclude<Nav["kind"], "board">;
+const VIEWS: readonly View[] = [
+  "dashboard",
+  "worksmart",
+  "meetings",
+  "import",
+  "automations",
+];
+
 /** Shell de Atividades: WorkSmart (objetivo → SMART → KR → 5H2W) + Plano de Ação. Sem BIN por enquanto. */
 export function AtividadesShell({
   orgId,
@@ -43,6 +53,14 @@ export function AtividadesShell({
   /** Objetivos e Reuniões no submenu — falso quando têm item próprio no menu lateral. */
   showWorksmart?: boolean;
 }): JSX.Element {
+  // A tela aberta (lista, Dashboard, Importar…) mora na URL: o "Voltar" do
+  // navegador devolve a tela anterior, e voltar de outra página não reinicia
+  // na primeira lista.
+  const query = useQueryParams();
+  const vistaParam = query.get("vista");
+  const listaParam = query.get("lista");
+  const [initialList] = useState(listaParam);
+
   const {
     boards,
     activeBoardId,
@@ -53,26 +71,46 @@ export function AtividadesShell({
     handleDeleteBoard,
     refreshCurrentBoard,
     updateBoardOptimistic,
-  } = useBoardList(orgId);
+  } = useBoardList(orgId, "atividades", initialList);
 
-  const [nav, setNav] = useState<Nav>(
-    showWorksmart ? { kind: "worksmart" } : { kind: "dashboard" },
-  );
+  const view = VIEWS.find((v) => v === vistaParam) ?? null;
+  const listaValid =
+    listaParam !== null &&
+    (boards.length === 0 || boards.some((b) => b.id === listaParam));
+  const nav: Nav =
+    view && (showWorksmart || (view !== "worksmart" && view !== "meetings"))
+      ? { kind: view }
+      : listaValid && listaParam
+        ? { kind: "board", boardId: listaParam }
+        : showWorksmart
+          ? { kind: "worksmart" }
+          : activeBoardId || loading
+            ? { kind: "board", boardId: activeBoardId ?? "" }
+            : { kind: "dashboard" };
 
-  // Com WorkSmart no submenu a tela inicial é Objetivos (a lista carrega em
-  // segundo plano); sem ele, abre direto a primeira lista.
-  const initializedRef = useRef(false);
+  // "Voltar"/"Avançar" trocam a lista na URL: abre a que a URL pede.
   useEffect(() => {
-    if (initializedRef.current || !activeBoardId) return;
-    initializedRef.current = true;
-    void openBoard(activeBoardId);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- escolhe a tela inicial quando a lista padrão chega
-    if (!showWorksmart) setNav({ kind: "board", boardId: activeBoardId });
-  }, [activeBoardId, openBoard, showWorksmart]);
+    if (nav.kind !== "board" || !nav.boardId || !activeBoardId) return;
+    if (nav.boardId !== activeBoardId) void openBoard(nav.boardId);
+  }, [nav.kind, nav.kind === "board" ? nav.boardId : "", activeBoardId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function selectBoard(id: string): void {
-    setNav({ kind: "board", boardId: id });
+    query.update({ vista: null, lista: id });
     void openBoard(id);
+  }
+
+  function selectView(next: View): void {
+    query.update({ vista: next, lista: null });
+  }
+
+  async function newBoard(): Promise<void> {
+    const id = await handleNewBoard();
+    if (id) query.update({ vista: null, lista: id });
+  }
+
+  async function removeBoard(id: string): Promise<void> {
+    const next = await handleDeleteBoard(id);
+    if (next) query.update({ vista: null, lista: next }, "replace");
   }
 
   return (
@@ -90,13 +128,13 @@ export function AtividadesShell({
                     icon={<Target className="h-4 w-4" />}
                     label="Objetivos"
                     active={nav.kind === "worksmart"}
-                    onClick={() => setNav({ kind: "worksmart" })}
+                    onClick={() => selectView("worksmart")}
                   />
                   <NavButton
                     icon={<Calendar className="h-4 w-4" />}
                     label="Reuniões"
                     active={nav.kind === "meetings"}
-                    onClick={() => setNav({ kind: "meetings" })}
+                    onClick={() => selectView("meetings")}
                   />
                 </nav>
 
@@ -131,7 +169,7 @@ export function AtividadesShell({
                     nav.kind === "board" &&
                     nav.boardId === b.id && (
                       <button
-                        onClick={() => void handleDeleteBoard(b.id)}
+                        onClick={() => void removeBoard(b.id)}
                         className="shrink-0 p-1 text-text-2 hover:text-error opacity-0 group-hover:opacity-100"
                         aria-label="Excluir"
                       >
@@ -142,7 +180,7 @@ export function AtividadesShell({
               ))}
             </nav>
             <button
-              onClick={() => void handleNewBoard()}
+              onClick={() => void newBoard()}
               className="w-full mt-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text-1"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -155,13 +193,13 @@ export function AtividadesShell({
                 icon={<LayoutDashboard className="h-4 w-4" />}
                 label="Dashboard"
                 active={nav.kind === "dashboard"}
-                onClick={() => setNav({ kind: "dashboard" })}
+                onClick={() => selectView("dashboard")}
               />
               <NavButton
                 icon={<Upload className="h-4 w-4" />}
                 label="Importar Dados"
                 active={nav.kind === "import"}
-                onClick={() => setNav({ kind: "import" })}
+                onClick={() => selectView("import")}
               />
               {variant === "staff" ? (
                 <>
@@ -169,7 +207,7 @@ export function AtividadesShell({
                     icon={<Zap className="h-4 w-4" />}
                     label="Automações"
                     active={nav.kind === "automations"}
-                    onClick={() => setNav({ kind: "automations" })}
+                    onClick={() => selectView("automations")}
                   />
                   <Link
                     href="/admin/equipe"

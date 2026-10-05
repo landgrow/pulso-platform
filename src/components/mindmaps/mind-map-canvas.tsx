@@ -17,6 +17,7 @@ import {
   LayoutTemplate,
   Sparkles,
 } from "lucide-react";
+import { useQueryParams } from "@/hooks/use-query-params";
 import { ListSecondaryPanel } from "@/components/layout/list-secondary-panel";
 import { InlineText } from "@/components/layout/inline-text";
 import { MapViewport } from "@/components/mindmaps/map-viewport";
@@ -181,6 +182,14 @@ function LayoutBox({
 export function MindMapCanvas({ orgId }: { orgId: string }): JSX.Element {
   const [maps, setMaps] = useState<MindMapSummary[]>([]);
   const [activeMapId, setActiveMapId] = useState<string | null>(null);
+  // Mapa aberto lembrado na URL (sem empilhar histórico): voltar de outra
+  // página reabre o mesmo mapa em vez do primeiro.
+  const query = useQueryParams();
+  const [initialMapId] = useState(query.get("mapa"));
+  useEffect(() => {
+    if (activeMapId) query.update({ mapa: activeMapId }, "replace");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMapId]);
   const [tree, setTree] = useState<MindMapNode | null>(null);
   const [layout, setLayout] = useState<MindMapLayout>("radial");
   const [loading, setLoading] = useState(true);
@@ -242,7 +251,8 @@ export function MindMapCanvas({ orgId }: { orgId: string }): JSX.Element {
       list = refreshed.success ? refreshed.data : [];
     }
     setMaps(list);
-    const targetId = list[0]?.id ?? null;
+    const targetId =
+      list.find((m) => m.id === initialMapId)?.id ?? list[0]?.id ?? null;
     setActiveMapId(targetId);
     if (targetId) {
       const mapResult = await getMindMap(targetId);
@@ -251,7 +261,7 @@ export function MindMapCanvas({ orgId }: { orgId: string }): JSX.Element {
       }
     }
     setLoading(false);
-  }, [orgId, hydrateMap]);
+  }, [orgId, hydrateMap, initialMapId]);
 
   // Guarda de montagem: em dev, o React (StrictMode) monta o efeito 2x de
   // propósito pra achar bugs de efeito colateral — sem essa trava, as duas

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { useSearchParams } from "next/navigation";
+import { type ReactNode } from "react";
+import { useQueryParams } from "@/hooks/use-query-params";
 import {
   LayoutGrid,
   Share2,
@@ -85,11 +85,23 @@ export function AdminClienteTabs({
   isEncerrado,
   internalOrgId,
 }: Props): JSX.Element {
-  const searchParams = useSearchParams();
-  const requested = searchParams.get("tab");
-  const [tab, setTab] = useState<Tab>(
-    TABS.includes(requested as Tab) ? (requested as Tab) : "visao-geral",
-  );
+  // A aba fica na URL: "Voltar" devolve a aba anterior. Trocar de aba limpa o
+  // que era da aba antiga (lista, pasta, Quadro/Tabela).
+  const query = useQueryParams();
+  const requested = query.get("tab");
+  const tab: Tab = TABS.includes(requested as Tab)
+    ? (requested as Tab)
+    : "visao-geral";
+  function setTab(next: Tab): void {
+    query.update({
+      tab: next,
+      vista: null,
+      lista: null,
+      aba: null,
+      pasta: null,
+      mapa: null,
+    });
+  }
 
   return (
     <div className="w-full min-w-0 space-y-6">

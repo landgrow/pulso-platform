@@ -23,14 +23,18 @@ interface BoardListItem {
 export function useBoardList(
   orgId: string,
   module: BoardModule = "atividades",
+  /** Lista a abrir na primeira carga (vem da URL); cai na primeira se não existir. */
+  initialBoardId: string | null = null,
 ): {
   boards: BoardListItem[];
   activeBoardId: string | null;
   board: Board | null;
   loading: boolean;
   openBoard: (id: string) => Promise<void>;
-  handleNewBoard: (name?: string) => Promise<void>;
-  handleDeleteBoard: (id: string) => Promise<void>;
+  /** Devolve o id da lista criada (ou null se falhou). */
+  handleNewBoard: (name?: string) => Promise<string | null>;
+  /** Devolve o id da lista aberta depois da exclusão (ou null). */
+  handleDeleteBoard: (id: string) => Promise<string | null>;
   refreshCurrentBoard: () => Promise<void>;
   updateBoardOptimistic: (updater: (b: Board) => Board) => void;
 } {
@@ -56,7 +60,8 @@ export function useBoardList(
       list = refreshed.success ? refreshed.data : [];
     }
     setBoards(list);
-    const targetId = list[0]?.id ?? null;
+    const targetId =
+      list.find((b) => b.id === initialBoardId)?.id ?? list[0]?.id ?? null;
     setActiveBoardId(targetId);
     if (targetId) {
       const boardResult = await getBoardById(targetId);
@@ -66,7 +71,7 @@ export function useBoardList(
       setBoard(null);
     }
     setLoading(false);
-  }, [orgId, module]);
+  }, [orgId, module, initialBoardId]);
 
   // Guarda de montagem: em dev, StrictMode monta o efeito 2x — sem essa
   // trava, as duas chamadas concorrentes de load() achariam a lista vazia
@@ -88,7 +93,7 @@ export function useBoardList(
     setLoading(false);
   }
 
-  async function handleNewBoard(name?: string): Promise<void> {
+  async function handleNewBoard(name?: string): Promise<string | null> {
     const result = await createBoard({
       orgId,
       module,
@@ -96,30 +101,31 @@ export function useBoardList(
     });
     if (!result.success) {
       toast.error(result.error);
-      return;
+      return null;
     }
     const listResult = await listBoards(orgId, module);
     if (listResult.success) setBoards(listResult.data);
     await openBoard(result.data.id);
+    return result.data.id;
   }
 
-  async function handleDeleteBoard(id: string): Promise<void> {
+  async function handleDeleteBoard(id: string): Promise<string | null> {
     const target = boards.find((b) => b.id === id);
     if (target?.kind === "admin_only") {
       toast.error(
         "A lista de tarefas administrativas é fixa e não pode ser excluída.",
       );
-      return;
+      return null;
     }
     const standardCount = boards.filter((b) => b.kind !== "admin_only").length;
     if (module === "atividades" && standardCount <= 1) {
       toast.error("Precisa manter pelo menos uma lista.");
-      return;
+      return null;
     }
     const result = await deleteBoard(id);
     if (!result.success) {
       toast.error(result.error);
-      return;
+      return null;
     }
     const listResult = await listBoards(orgId, module);
     const list = listResult.success ? listResult.data : [];
@@ -130,6 +136,7 @@ export function useBoardList(
       setActiveBoardId(null);
       setBoard(null);
     }
+    return nextId;
   }
 
   // Recarrega só o board atualmente aberto — usada depois de qualquer

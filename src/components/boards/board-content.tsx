@@ -75,6 +75,7 @@ import {
   groupCards,
   sortCards,
 } from "@/lib/board-view";
+import { useQueryParams } from "@/hooks/use-query-params";
 import { BoardTableView } from "@/components/boards/board-table-view";
 import { BoardPanelView } from "@/components/boards/board-panel-view";
 import { BoardSettingsPanel } from "@/components/boards/board-settings-panel";
@@ -241,7 +242,18 @@ export function BoardContent({
   // Tarefa recém-criada pelo "+ Nova tarefa": abre já com o título selecionado.
   const [freshCardId, setFreshCardId] = useState<string | null>(null);
   const [addingTo, setAddingTo] = useState<string | null>(null);
-  const [view, setView] = useState<BoardView>("board");
+  // Aba Quadro/Tabela/Painel fica na URL (sem empilhar histórico): voltar de
+  // outra página reabre na mesma aba.
+  const query = useQueryParams();
+  const abaParam = query.get("aba");
+  const view: BoardView =
+    abaParam === "tabela" ? "table" : abaParam === "painel" ? "panel" : "board";
+  function setView(next: BoardView): void {
+    query.update(
+      { aba: next === "table" ? "tabela" : next === "panel" ? "painel" : null },
+      "replace",
+    );
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),

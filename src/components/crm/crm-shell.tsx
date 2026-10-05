@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { LayoutGrid, BarChart3, Loader2, Plus, Trash2 } from "lucide-react";
 import { useBoardList } from "@/hooks/use-board-list";
+import { useQueryParams } from "@/hooks/use-query-params";
 import { BoardContent } from "@/components/boards/board-content";
 import { AtividadesDashboard } from "@/components/atividades/atividades-dashboard";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,11 @@ type Nav = { kind: "board"; boardId: string } | { kind: "metricas" };
 
 /** Shell simplificado de CRM — mesma infraestrutura de kanban de Atividades (custom properties, filtros, configurações), mas com submenu enxuto: só a lista de kanbans (Leads, Parceiros etc) + Métricas. */
 export function CrmShell({ orgId }: { orgId: string }): JSX.Element {
+  // Kanban/Métricas abertos moram na URL: "Voltar" devolve a tela anterior.
+  const query = useQueryParams();
+  const listaParam = query.get("lista");
+  const [initialList] = useState(listaParam);
+
   const {
     boards,
     activeBoardId,
@@ -22,20 +28,37 @@ export function CrmShell({ orgId }: { orgId: string }): JSX.Element {
     handleDeleteBoard,
     refreshCurrentBoard,
     updateBoardOptimistic,
-  } = useBoardList(orgId, "crm");
+  } = useBoardList(orgId, "crm", initialList);
 
-  const [nav, setNav] = useState<Nav>({ kind: "board", boardId: "" });
+  const listaValid =
+    listaParam !== null &&
+    (boards.length === 0 || boards.some((b) => b.id === listaParam));
+  const nav: Nav =
+    query.get("vista") === "metricas"
+      ? { kind: "metricas" }
+      : listaValid && listaParam
+        ? { kind: "board", boardId: listaParam }
+        : { kind: "board", boardId: activeBoardId ?? "" };
 
-  const initializedRef = useRef(false);
+  // "Voltar"/"Avançar" trocam o kanban na URL: abre o que a URL pede.
   useEffect(() => {
-    if (initializedRef.current || !activeBoardId) return;
-    initializedRef.current = true;
-    setNav({ kind: "board", boardId: activeBoardId });
-  }, [activeBoardId]);
+    if (nav.kind !== "board" || !nav.boardId || !activeBoardId) return;
+    if (nav.boardId !== activeBoardId) void openBoard(nav.boardId);
+  }, [nav.kind, nav.kind === "board" ? nav.boardId : "", activeBoardId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function selectBoard(id: string): void {
-    setNav({ kind: "board", boardId: id });
+    query.update({ vista: null, lista: id });
     void openBoard(id);
+  }
+
+  async function newBoard(name?: string): Promise<void> {
+    const id = await handleNewBoard(name);
+    if (id) query.update({ vista: null, lista: id });
+  }
+
+  async function removeBoard(id: string): Promise<void> {
+    const next = await handleDeleteBoard(id);
+    if (next) query.update({ vista: null, lista: next }, "replace");
   }
 
   return (
@@ -68,7 +91,7 @@ export function CrmShell({ orgId }: { orgId: string }): JSX.Element {
                   </button>
                   {nav.kind === "board" && nav.boardId === b.id && (
                     <button
-                      onClick={() => void handleDeleteBoard(b.id)}
+                      onClick={() => void removeBoard(b.id)}
                       className="shrink-0 p-1 text-text-2 hover:text-error opacity-0 group-hover:opacity-100"
                       aria-label="Excluir"
                     >
@@ -79,7 +102,7 @@ export function CrmShell({ orgId }: { orgId: string }): JSX.Element {
               ))}
             </nav>
             <button
-              onClick={() => void handleNewBoard()}
+              onClick={() => void newBoard()}
               className="w-full mt-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-text-2 hover:bg-surface-2 hover:text-text-1"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -89,7 +112,7 @@ export function CrmShell({ orgId }: { orgId: string }): JSX.Element {
             <div className="h-px bg-border my-2" />
             <nav className="space-y-0.5">
               <button
-                onClick={() => setNav({ kind: "metricas" })}
+                onClick={() => query.update({ vista: "metricas", lista: null })}
                 className={cn(
                   "w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left",
                   nav.kind === "metricas"
@@ -135,7 +158,7 @@ export function CrmShell({ orgId }: { orgId: string }): JSX.Element {
                 separar Leads, Parceiros etc.
               </p>
               <button
-                onClick={() => void handleNewBoard("Leads")}
+                onClick={() => void newBoard("Leads")}
                 className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm font-medium hover:opacity-90"
               >
                 <Plus className="h-3.5 w-3.5" />

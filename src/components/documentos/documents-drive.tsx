@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useCallback,
   useEffect,
   useRef,
   useState,
@@ -39,6 +38,8 @@ import {
   type DriveItem,
 } from "@/app/actions/documentos-drive";
 import { createClient } from "@/lib/supabase/client";
+import { useQueryParams } from "@/hooks/use-query-params";
+import { parseFolder } from "@/lib/documentos/storage-names";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -103,7 +104,14 @@ function FileIcon({ item }: { item: DriveItem }): JSX.Element {
  * analisar. Mesmo componente no portal do cliente e na ficha do cliente no HQ.
  */
 export function DocumentsDrive({ orgId }: { orgId: string }): JSX.Element {
-  const [path, setPath] = useState<string[]>([]);
+  // A pasta aberta fica na URL: "Voltar" sobe de pasta e voltar de outra
+  // página reabre a mesma pasta.
+  const urlState = useQueryParams();
+  const pastaParam = urlState.get("pasta") ?? "";
+  const folderValid = parseFolder(pastaParam) !== null;
+  function setPath(next: string[]): void {
+    urlState.update({ pasta: next.join("/") });
+  }
   const [items, setItems] = useState<DriveItem[] | null>(null);
   const [canWrite, setCanWrite] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -116,10 +124,12 @@ export function DocumentsDrive({ orgId }: { orgId: string }): JSX.Element {
   const inputRef = useRef<HTMLInputElement>(null);
   const dragDepth = useRef(0);
 
-  const folder = path.join("/");
+  const folder = folderValid ? pastaParam : "";
+  const path = folder ? folder.split("/") : [];
 
-  const load = useCallback(async (): Promise<void> => {
-    const result = await listDriveFolder({ orgId, folder });
+  function showListing(
+    result: Awaited<ReturnType<typeof listDriveFolder>>,
+  ): void {
     if (!result.success) {
       setLoadError(result.error);
       setItems([]);
@@ -128,13 +138,23 @@ export function DocumentsDrive({ orgId }: { orgId: string }): JSX.Element {
     setLoadError(null);
     setItems(result.data.items);
     setCanWrite(result.data.canWrite);
-  }, [orgId, folder]);
+  }
 
+  async function load(): Promise<void> {
+    showListing(await listDriveFolder({ orgId, folder }));
+  }
+
+  // Troca de pasta (inclusive pelo "Voltar" do navegador): recarrega a lista.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- recarrega ao trocar de pasta
-    setItems(null);
-    void load();
-  }, [load]);
+    let cancelled = false;
+    setItems(null); // eslint-disable-line react-hooks/set-state-in-effect
+    void listDriveFolder({ orgId, folder }).then((result) => {
+      if (!cancelled) showListing(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId, folder]);
 
   async function uploadFiles(files: FileList | File[]): Promise<void> {
     const list = Array.from(files);
