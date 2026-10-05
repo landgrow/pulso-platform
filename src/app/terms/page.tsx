@@ -228,7 +228,7 @@ export default function TermsPage(): JSX.Element {
             <p>
               <strong>Land Grow Tecnologia e Serviços Ltda.</strong>
               <br />
-              CNPJ: XX.XXX.XXX/0001-XX
+              CNPJ: 54.097.307/0001-81
               <br />
               E-mail:{" "}
               <a
