@@ -55,6 +55,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     "/preview",
     "/privacy",
     "/terms",
+    "/robots.txt",
   ];
   const stayWhenAuthenticated = new Set([
     "/reset-password",

@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   title: "PULSO — Plataforma de Inteligência de Negócios",
   description:
     "Plataforma da Land Grow para diagnóstico e aceleração de empresas",
+  // Área de cliente: nada aqui deve aparecer em buscadores.
+  robots: { index: false, follow: false },
 };
 
 interface RootLayoutProps {

@@ -41,6 +41,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Não anuncia a tecnologia do servidor em cada resposta.
+  poweredByHeader: false,
   experimental: {
     serverActions: {
       // Anexo de card aceita até 4 MB (drive.ts) + overhead do multipart; o
