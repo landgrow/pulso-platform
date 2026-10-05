@@ -65,3 +65,7 @@ supabase/.temp/
 /test-kanban.js
 /docker-compose.yml
 /fluent forms/
+
+# Arquivo morto local do protótipo antigo e material comercial (pitch/AWS) — fora do git
+/_legado/
+/docs/comercial/

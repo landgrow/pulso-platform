@@ -10,7 +10,7 @@
 
 Construir o **Motor de Coleções** do PULSO: a infraestrutura que ingere, normaliza e versiona os dados de cada cliente, vindos de múltiplas fontes (formulário, upload, texto livre, áudio), preparando-os para serem usados pelo BIN (Épico 2) e MIN (Épico 3).
 
-O motor de coleções **não inclui** a parte de conexões diretas (CRM, Open Finance, Instagram) — isso entra em uma Fase 2 do motor (ver MOTOR-INGESTAO-RECONCILIACAO.md). Nesta primeira entrega, o motor trabalha com:
+O motor de coleções **não inclui** a parte de conexões diretas (CRM, Open Finance, Instagram) — isso entra em uma Fase 2 do motor (ver docs/produto/MOTOR-INGESTAO-RECONCILIACAO.md). Nesta primeira entrega, o motor trabalha com:
 
 - **Formulário estruturado** (entrada manual via UI)
 - **Upload de arquivos** (PDF, Excel/CSV)
@@ -246,8 +246,8 @@ colecoes (1) ─── (N) colecao_revisions  -- versionamento
 
 ## Referências
 
-- **PRD-PLATAFORMA-BI-LAND-GROW.md** — seção 5.1 (Ingestão de Dados)
-- **MOTOR-INGESTAO-RECONCILIACAO.md** — Camada 1 do motor
+- **docs/produto/PRD-PLATAFORMA-BI-LAND-GROW.md** — seção 5.1 (Ingestão de Dados)
+- **docs/produto/MOTOR-INGESTAO-RECONCILIACAO.md** — Camada 1 do motor
 - **data/client-data-schema.json** — schema do JSON consolidado
 - **Story-Driven Development** — `docs/framework/`
 

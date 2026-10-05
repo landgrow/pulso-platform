@@ -50,7 +50,7 @@ test.describe("Auth flow", () => {
     await page.goto("/forgot-password");
 
     await expect(
-      page.getByRole("heading", { name: /recuperar senha/i }),
+      page.getByRole("heading", { name: /esqueceu a senha/i }),
     ).toBeVisible();
   });
 });

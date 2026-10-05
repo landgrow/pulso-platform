@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
     // ─── Código vanilla JS legado (migração para Next.js em andamento) ───
     // NÃO LINTAR estes diretórios — fazem parte do BIN legada que está sendo
     // migrada para src/. Serão removidos quando a migração concluir.
+    "_legado/**",
     "views/**",
     "store.js",
     "charts.js",

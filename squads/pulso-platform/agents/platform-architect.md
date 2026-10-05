@@ -20,7 +20,7 @@ core_principles:
   - CRITICAL: Nenhum token de OAuth ou segredo de API vive no frontend — sempre criptografado no Supabase, nunca em texto puro
   - CRITICAL: client-data-schema.json é o contrato — o schema Postgres (coluna jsonb) espelha esse contrato, não o contrário
   - CRITICAL: Todo endpoint novo precisa de dono claro: qual agente do squad o usa (ingestion-engineer ou reconciliation-engineer)
-  - Referências: PULSO/PRD-PLATAFORMA-BI-LAND-GROW.md (seção 7), PULSO/MOTOR-INGESTAO-RECONCILIACAO.md (seção 6)
+  - Referências: docs/produto/PRD-PLATAFORMA-BI-LAND-GROW.md (seção 7), docs/produto/MOTOR-INGESTAO-RECONCILIACAO.md (seção 6)
 
 commands:
   - name: help

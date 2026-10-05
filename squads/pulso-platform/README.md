@@ -6,11 +6,11 @@ Substitui o squad antigo `pulso-build` (apagado em 11/07/2026 por gerar dashboar
 
 ## Documentos de referência (fora do squad, na raiz de PULSO/)
 
-- `PRD-PLATAFORMA-BI-LAND-GROW.md` — visão de produto, ICP, roadmap, modelo de negócio
-- `ARQUITETURA-SISTEMA.md` — shell SPA (frontend), ainda válido
-- `MOTOR-INGESTAO-RECONCILIACAO.md` — desenho técnico completo das Camadas 1-3 (Fase A)
-- `ROTEIRO-SISTEMATIZACAO-LAND-GROW.md` — por que o MIN e a jornada de contrato (Fases B e C) vivem neste mesmo squad, não em produto separado
-- `AVALIACAO-ESPECIALISTA-BI.md` e `DEBATE-PAINEL-ESTRATEGICO.md` — crítica externa que embasou a ordem de construção (não construir os 3 conectores antes de provar o núcleo)
+- `docs/produto/PRD-PLATAFORMA-BI-LAND-GROW.md` — visão de produto, ICP, roadmap, modelo de negócio
+- `docs/produto/ARQUITETURA-SISTEMA.md` — shell SPA (frontend), ainda válido
+- `docs/produto/MOTOR-INGESTAO-RECONCILIACAO.md` — desenho técnico completo das Camadas 1-3 (Fase A)
+- `docs/produto/ROTEIRO-SISTEMATIZACAO-LAND-GROW.md` — por que o MIN e a jornada de contrato (Fases B e C) vivem neste mesmo squad, não em produto separado
+- `docs/produto/AVALIACAO-ESPECIALISTA-BI.md` e `docs/produto/DEBATE-PAINEL-ESTRATEGICO.md` — crítica externa que embasou a ordem de construção (não construir os 3 conectores antes de provar o núcleo)
 
 ## Instalação
 

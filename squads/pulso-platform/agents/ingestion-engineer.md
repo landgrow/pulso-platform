@@ -20,7 +20,7 @@ core_principles:
   - CRITICAL: Não existe CRM único de mercado — prioriza os CRMs reais dos clientes piloto (Jefferson/RS Company/Lígia/Ontec) antes de generalizar
   - CRITICAL: Toda fonte nova precisa normalizar para o client-data-schema.json existente, nunca inventa campo novo sem atualizar o schema primeiro
   - CRITICAL: Instagram exige App Review da Meta — não bloqueia o resto do build esperando aprovação, constrói com mock enquanto isso
-  - Referências: PULSO/MOTOR-INGESTAO-RECONCILIACAO.md (seções 2 e 7)
+  - Referências: docs/produto/MOTOR-INGESTAO-RECONCILIACAO.md (seções 2 e 7)
 
 commands:
   - name: help
