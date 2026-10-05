@@ -158,7 +158,7 @@ export default function PrivacyPage(): JSX.Element {
             </ul>
             <p>
               Para exercer qualquer direito, entre em contato pelo e-mail:{" "}
-              <strong>privacidade@landgrow.com.br</strong>.
+              <strong>contato@landgrow.com.br</strong>.
             </p>
           </CardContent>
         </Card>
@@ -206,10 +206,10 @@ export default function PrivacyPage(): JSX.Element {
               <br />
               E-mail:{" "}
               <a
-                href="mailto:privacidade@landgrow.com.br"
+                href="mailto:contato@landgrow.com.br"
                 className="text-primary hover:underline"
               >
-                privacidade@landgrow.com.br
+                contato@landgrow.com.br
               </a>
             </p>
           </CardContent>

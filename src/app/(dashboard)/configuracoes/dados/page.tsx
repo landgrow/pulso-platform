@@ -60,10 +60,10 @@ export default async function DadosPage(): Promise<JSX.Element> {
             Para solicitações que não estão disponíveis via autoatendimento,
             escreva para{" "}
             <a
-              href="mailto:privacidade@landgrow.com.br"
+              href="mailto:contato@landgrow.com.br"
               className="text-primary hover:underline"
             >
-              privacidade@landgrow.com.br
+              contato@landgrow.com.br
             </a>
             .
           </p>

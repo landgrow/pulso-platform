@@ -9,9 +9,11 @@ Ordem importa: faça de cima para baixo. Marque conforme conclui.
       Hoje o cadastro está aberto: qualquer pessoa cria conta chamando a API ou entrando com Google.
       Convites feitos pela equipe continuam funcionando.
 - [ ] Rodar `docs/lancamento/verificacao-banco.sql` (só leitura) e conferir os blocos 1, 2, 3 e 6.
-- [ ] Preencher o **CNPJ real** em `src/app/privacy/page.tsx` e `src/app/terms/page.tsx`
-      (hoje está `XX.XXX.XXX/0001-XX`) e confirmar que as caixas `privacidade@` e `contato@landgrow.com.br` existem.
+- [x] CNPJ real preenchido nas páginas de Privacidade e Termos. E-mail de contato único: `contato@landgrow.com.br` (confirmar que recebe).
 - [ ] `git push origin main` (publica todos os commits desta revisão).
+
+> **Atenção com migrações:** o banco de produção já tem as migrações 0001–0033 aplicadas. Não rode 0001–0003 de novo
+> (a 0003 sobrescreve `log_audit` com a versão antiga). A única segura para repetir é a `0034_seguranca_e_auditoria.sql` (idempotente).
 
 ## 1. Vercel
 

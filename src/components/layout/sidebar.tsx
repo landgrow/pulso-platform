@@ -110,7 +110,7 @@ export function Sidebar({
       ? "w-full"
       : isFull
         ? "hidden w-56 lg:flex"
-        : "hidden w-[4.5rem] lg:flex",
+        : "hidden w-20 lg:flex",
   );
 
   return (
@@ -186,8 +186,8 @@ export function Sidebar({
                   {isFull ? (
                     <span className="truncate">{item.label}</span>
                   ) : (
-                    <span className="text-[10px] font-medium leading-none tracking-wide">
-                      {item.short}
+                    <span className="max-w-full truncate text-center text-[10px] font-medium leading-none">
+                      {item.label}
                     </span>
                   )}
                 </Link>
