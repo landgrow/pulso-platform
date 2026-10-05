@@ -425,7 +425,7 @@ export function DocumentsDrive({ orgId }: { orgId: string }): JSX.Element {
             </span>
             <span className="text-xs text-text-3">
               ou clique para selecionar. Contratos, planilhas, extratos,
-              relatórios. Até 50 MB por arquivo.
+              relatórios. Até 200 MB por arquivo.
             </span>
           </button>
         ) : (

@@ -20,7 +20,7 @@ type Result<T> = { success: true; data: T } | { success: false; error: string };
  * `evidencias/{orgId}/documentos/...` — pastas são prefixos, sem tabela.
  */
 const BUCKET = "evidencias";
-const MAX_FILE_BYTES = 50 * 1024 * 1024;
+const MAX_FILE_BYTES = 200 * 1024 * 1024;
 const BLOCKED_EXTENSIONS =
   /\.(exe|bat|cmd|com|msi|scr|ps1|sh|js|jar|vbs|dll|app|dmg|apk|html?|svg)$/i;
 
@@ -182,7 +182,7 @@ export async function createDriveUploadUrl(
   }
   if (size === 0) return { success: false, error: "O arquivo está vazio." };
   if (size > MAX_FILE_BYTES) {
-    return { success: false, error: "Arquivo maior que 50 MB." };
+    return { success: false, error: "Arquivo maior que 200 MB." };
   }
   const auth = await authorize(orgId, folder, true);
   if (!auth.ok) return { success: false, error: auth.error };
