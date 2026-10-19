@@ -72,28 +72,29 @@ export function CrmShell({ orgId }: { orgId: string }): JSX.Element {
               CRM
             </p>
             <nav className="space-y-0.5">
-              {boards.map((b) => (
-                <BoardListRow
-                  key={b.id}
-                  name={b.name}
-                  active={nav.kind === "board" && nav.boardId === b.id}
-                  onSelect={() => selectBoard(b.id)}
-                  onRename={(next) => handleRenameBoard(b.id, next)}
-                  onDelete={
-                    nav.kind === "board" && nav.boardId === b.id
-                      ? () => void removeBoard(b.id)
-                      : undefined
-                  }
-                  marker={
-                    <span
-                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] leading-none"
-                      style={{ background: b.color }}
-                    >
-                      {b.icon}
-                    </span>
-                  }
-                />
-              ))}
+              {boards.map((b) => {
+                const canDelete = nav.kind === "board" && nav.boardId === b.id;
+                return (
+                  <BoardListRow
+                    key={b.id}
+                    name={b.name}
+                    active={canDelete}
+                    onSelect={() => selectBoard(b.id)}
+                    onRename={(next) => handleRenameBoard(b.id, next)}
+                    {...(canDelete
+                      ? { onDelete: () => void removeBoard(b.id) }
+                      : {})}
+                    marker={
+                      <span
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] leading-none"
+                        style={{ background: b.color }}
+                      >
+                        {b.icon}
+                      </span>
+                    }
+                  />
+                );
+              })}
             </nav>
             <button
               onClick={() => void newBoard()}

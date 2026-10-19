@@ -171,14 +171,12 @@ export function ListSecondaryPanel({
                 name={item.name}
                 active={item.id === activeId}
                 onSelect={() => onSelect(item.id)}
-                onRename={
-                  onRename ? (next) => onRename(item.id, next) : undefined
-                }
-                onDelete={
-                  onDelete && item.id === activeId && items.length > 1
-                    ? () => onDelete(item.id)
-                    : undefined
-                }
+                {...(onRename
+                  ? { onRename: (next: string) => onRename(item.id, next) }
+                  : {})}
+                {...(onDelete && item.id === activeId && items.length > 1
+                  ? { onDelete: () => onDelete(item.id) }
+                  : {})}
                 marker={
                   item.icon ? (
                     <span
