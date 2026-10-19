@@ -282,11 +282,6 @@
       (last ? "Concluir bloco" : "Confirmar") +
       "</button></div></div>";
     savePlace();
-    var field = $("minStepText");
-    if (field)
-      setTimeout(function () {
-        field.focus();
-      }, 40);
   }
 
   function persistCurrent() {

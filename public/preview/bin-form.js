@@ -86,7 +86,8 @@
         geralEnviadoEm: raw.geralEnviadoEm || null,
         diagnosticoEnviadoEm: raw.diagnosticoEnviadoEm || null,
         setoresEnviados: raw.setoresEnviados || {},
-        hqSyncedGeral: raw.hqSyncedGeral || false,
+        hqAckGeral: raw.hqAckGeral || false,
+        hqAckSetores: raw.hqAckSetores || {},
       };
     } catch (e) {
       flow = { geralEnviadoEm: null, diagnosticoEnviadoEm: null };
@@ -123,21 +124,30 @@
     saveAnswers();
   }
 
+  function markHqAck(kind, sectionId) {
+    if (kind === "geral") flow.hqAckGeral = true;
+    if (kind === "setor" && sectionId) {
+      if (!flow.hqAckSetores) flow.hqAckSetores = {};
+      flow.hqAckSetores[sectionId] = true;
+    }
+    saveAnswers();
+  }
+
   function syncCompletedToHq() {
     if (!instrument) return;
-    if (flow.geralEnviadoEm && !flow.hqSyncedGeral) {
-      flow.hqSyncedGeral = true;
-      saveAnswers();
+    if (flow.geralEnviadoEm && !flow.hqAckGeral) {
       publishToHq("geral", "geral");
     }
     instrument.sections.forEach(function (section) {
       if (section.id === "geral") return;
-      if (flow.setoresEnviados && flow.setoresEnviados[section.id]) return;
+      if (flow.hqAckSetores && flow.hqAckSetores[section.id]) return;
+      var alreadySent =
+        flow.setoresEnviados && flow.setoresEnviados[section.id];
       var count = countSection(section);
-      if (count.total > 0 && count.filled === count.total) {
-        markSectionSent(section.id);
-        publishToHq("setor", section.id);
-      }
+      var complete = count.total > 0 && count.filled === count.total;
+      if (!alreadySent && !complete) return;
+      if (!alreadySent) markSectionSent(section.id);
+      publishToHq("setor", section.id);
     });
   }
 
@@ -181,6 +191,7 @@
           );
           return;
         }
+        markHqAck(kind, sectionId);
         setHqStatus("Chegou no HQ — Painel e ficha do cliente.");
       })
       .catch(function () {
@@ -789,7 +800,7 @@
       applyAnswer(id, current, false);
       return;
     }
-    applyAnswer(id, value, false);
+    applyAnswer(id, value, !needsSpecify(q, value));
   }
 
   function stepNext() {

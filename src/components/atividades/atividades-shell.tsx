@@ -10,7 +10,6 @@ import {
   Lock,
   Loader2,
   Plus,
-  Trash2,
   Target,
 } from "lucide-react";
 import { useBoardList } from "@/hooks/use-board-list";
@@ -24,6 +23,7 @@ import { WorksmartPanel } from "@/components/atividades/worksmart-panel";
 import { FadeSwap } from "@/components/ui/fade-swap";
 import { cn } from "@/lib/utils";
 import { CollapsibleSubnav } from "@/components/layout/nav-collapse";
+import { BoardListRow } from "@/components/layout/list-secondary-panel";
 
 type Nav =
   | { kind: "dashboard" }
@@ -69,6 +69,7 @@ export function AtividadesShell({
     openBoard,
     handleNewBoard,
     handleDeleteBoard,
+    handleRenameBoard,
     refreshCurrentBoard,
     updateBoardOptimistic,
   } = useBoardList(orgId, "atividades", initialList);
@@ -146,37 +147,29 @@ export function AtividadesShell({
             </p>
             <nav className="space-y-0.5">
               {boards.map((b) => (
-                <div key={b.id} className="group flex items-center">
-                  <button
-                    onClick={() => selectBoard(b.id)}
-                    className={cn(
-                      "flex-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left min-w-0",
-                      nav.kind === "board" && nav.boardId === b.id
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-text-2 hover:bg-surface-2 hover:text-text-1",
-                    )}
-                  >
+                <BoardListRow
+                  key={b.id}
+                  name={b.name}
+                  active={nav.kind === "board" && nav.boardId === b.id}
+                  onSelect={() => selectBoard(b.id)}
+                  onRename={(next) => handleRenameBoard(b.id, next)}
+                  onDelete={
+                    boards.filter((x) => x.kind !== "admin_only").length > 1 &&
+                    b.kind !== "admin_only" &&
+                    nav.kind === "board" &&
+                    nav.boardId === b.id
+                      ? () => void removeBoard(b.id)
+                      : undefined
+                  }
+                  marker={
                     <span
-                      className="shrink-0 h-5 w-5 rounded flex items-center justify-center text-[11px] leading-none"
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] leading-none"
                       style={{ background: b.color }}
                     >
                       {b.icon}
                     </span>
-                    <span className="truncate">{b.name}</span>
-                  </button>
-                  {boards.filter((x) => x.kind !== "admin_only").length > 1 &&
-                    b.kind !== "admin_only" &&
-                    nav.kind === "board" &&
-                    nav.boardId === b.id && (
-                      <button
-                        onClick={() => void removeBoard(b.id)}
-                        className="shrink-0 p-1 text-text-2 hover:text-error opacity-0 group-hover:opacity-100"
-                        aria-label="Excluir"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                </div>
+                  }
+                />
               ))}
             </nav>
             <button

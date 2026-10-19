@@ -221,7 +221,7 @@ export async function submitMinFromClient(input: {
 
   const { data: org } = await db
     .from("organizations")
-    .select("id, slug, is_internal")
+    .select("id, name, slug, is_internal")
     .eq("slug", input.slug)
     .is("deleted_at", null)
     .maybeSingle();
@@ -243,16 +243,30 @@ export async function submitMinFromClient(input: {
     };
   }
 
-  const { data: cliente } = await db
+  const clienteLookup = await db
     .from("clientes")
     .select("id")
     .eq("org_id", org.id)
     .maybeSingle();
+  if (clienteLookup.error) {
+    return { success: false, error: clienteLookup.error.message };
+  }
+  let cliente = clienteLookup.data;
   if (!cliente) {
-    return {
-      success: false,
-      error: "Cliente não encontrado para esta organização.",
-    };
+    const createdCliente = await db
+      .from("clientes")
+      .insert({ org_id: org.id, nome: org.name })
+      .select("id")
+      .single();
+    if (createdCliente.error || !createdCliente.data) {
+      return {
+        success: false,
+        error:
+          createdCliente.error?.message ??
+          "Cliente não encontrado para esta organização.",
+      };
+    }
+    cliente = createdCliente.data;
   }
 
   const { error } = await db.from("min_blocos").upsert(

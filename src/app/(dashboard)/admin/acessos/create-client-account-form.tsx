@@ -28,9 +28,18 @@ const memberSchema = z.object({
   role: z.enum(["client_member", "client_viewer"]),
 });
 
+const optionalEmail = z
+  .string()
+  .trim()
+  .refine(
+    (value) =>
+      value.length === 0 || z.string().email().safeParse(value).success,
+    "Email inválido",
+  );
+
 const schema = z.object({
   name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
-  email: z.string().email("Email inválido"),
+  email: optionalEmail,
   organizationName: z
     .string()
     .min(2, "Nome da empresa deve ter no mínimo 2 caracteres"),
@@ -53,7 +62,7 @@ export function CreateClientAccountForm(): JSX.Element {
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { additionalMembers: [] },
+    defaultValues: { email: "", additionalMembers: [] },
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -70,13 +79,15 @@ export function CreateClientAccountForm(): JSX.Element {
         return;
       }
       setCreated(result);
-      reset({ additionalMembers: [] });
+      reset({ email: "", additionalMembers: [] });
       if (result.warnings.length > 0) {
         toast.warning(
-          `Dono convidado, mas houve problema com: ${result.warnings.join("; ")}`,
+          `Cliente cadastrado, mas houve problema com: ${result.warnings.join("; ")}`,
         );
+      } else if (result.email) {
+        toast.success("Cliente cadastrado e convite enviado");
       } else {
-        toast.success(`Convite(s) enviado(s)`);
+        toast.success("Cliente cadastrado");
       }
     } catch {
       toast.error("Erro ao criar acesso. Tente novamente.");
@@ -94,9 +105,9 @@ export function CreateClientAccountForm(): JSX.Element {
             <CardTitle className="text-lg">Criar acesso de cliente</CardTitle>
           </div>
           <CardDescription>
-            Cria a organização e o vínculo de proprietário (client_owner), e
-            envia um email de convite pra cada pessoa definir a própria senha.
-            Ninguém na Land Grow vê ou gera senha nenhuma.
+            Cria a empresa na carteira. O email do dono é opcional: se
+            preencher, a pessoa recebe o convite para definir a própria senha.
+            Sem email, o cliente entra mesmo assim.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -116,10 +127,11 @@ export function CreateClientAccountForm(): JSX.Element {
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email do dono</Label>
+                <Label htmlFor="email">Email do dono (opcional)</Label>
                 <Input
                   id="email"
-                  type="email"
+                  type="text"
+                  inputMode="email"
                   placeholder="cliente@empresa.com"
                   autoComplete="off"
                   {...register("email")}
@@ -224,11 +236,14 @@ export function CreateClientAccountForm(): JSX.Element {
           <CardHeader>
             <div className="flex items-center gap-2">
               <MailCheck className="h-5 w-5 text-success" />
-              <CardTitle className="text-lg">Convite(s) enviado(s)</CardTitle>
+              <CardTitle className="text-lg">
+                {created.email ? "Convite enviado" : "Cliente cadastrado"}
+              </CardTitle>
             </div>
             <CardDescription>
-              O dono ({created.email}) e qualquer outro usuário adicionado vão
-              receber um email com um link pra definir a própria senha.
+              {created.email
+                ? `O dono (${created.email}) recebe um email com o link para definir a própria senha.`
+                : "Empresa na carteira, sem convite de acesso. O email pode ser enviado depois."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">

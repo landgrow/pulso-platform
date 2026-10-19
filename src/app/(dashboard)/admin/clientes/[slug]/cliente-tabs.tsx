@@ -40,6 +40,7 @@ import { AddTeamMemberForm } from "./add-team-member-form";
 import { RemoveTeamMemberButton } from "./remove-team-member-button";
 import { ContratoForm } from "./contrato-form";
 import { EncerrarContratoButton } from "./encerrar-contrato-button";
+import { ClienteCadastroForm } from "../cliente-cadastro-form";
 
 type Tab =
   | "visao-geral"
@@ -163,7 +164,13 @@ export function AdminClienteTabs({
       </div>
 
       <FadeSwap swapKey={tab}>
-        {tab === "visao-geral" && <VisaoGeralTab entry={entry} />}
+        {tab === "visao-geral" && (
+          <VisaoGeralTab
+            orgId={orgId}
+            entry={entry}
+            canEdit={viewerRole === "platform_admin" && !isEncerrado}
+          />
+        )}
         {tab === "usuarios" && (
           <UsuariosTab
             orgId={orgId}
@@ -199,23 +206,44 @@ export function AdminClienteTabs({
 }
 
 function VisaoGeralTab({
+  orgId,
   entry,
+  canEdit,
 }: {
+  orgId: string;
   entry: ClientDirectoryEntry | null;
+  canEdit: boolean;
 }): JSX.Element {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Dados gerais</CardTitle>
         <CardDescription>
-          Quem é o dono. Usuários, contratos, BIN e MIN ficam nas abas ao lado.
+          Nome da empresa, dono e email. Usuários e contratos ficam nas abas ao
+          lado.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <p className="text-xs text-text-2 mb-1">Dono</p>
-        <p className="text-sm">
-          {entry?.owner_name ?? entry?.owner_email ?? "—"}
-        </p>
+        {canEdit && entry ? (
+          <ClienteCadastroForm
+            orgId={orgId}
+            organizationName={entry.name}
+            ownerName={entry.owner_name ?? ""}
+            ownerEmail={entry.owner_email ?? ""}
+            hasOwnerAccess={Boolean(entry.owner_user_id)}
+          />
+        ) : (
+          <div className="space-y-3 text-sm">
+            <div>
+              <p className="text-xs text-text-2 mb-1">Empresa</p>
+              <p>{entry?.name ?? "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-text-2 mb-1">Dono</p>
+              <p>{entry?.owner_name ?? entry?.owner_email ?? "—"}</p>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

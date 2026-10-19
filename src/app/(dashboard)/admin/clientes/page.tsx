@@ -16,6 +16,7 @@ import { PROGRAMA_LABELS, type ClientDirectoryEntry } from "@/types/clientes";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { NovoClienteSheet } from "./novo-cliente-sheet";
+import { EditarClienteButton } from "./editar-cliente-sheet";
 
 function contratosAtivos(entry: ClientDirectoryEntry) {
   return entry.contratos.filter((c) => c.status === "ativo");
@@ -97,6 +98,7 @@ export default async function AdminClientesPage(): Promise<JSX.Element> {
                   <TableHead>Valor</TableHead>
                   <TableHead>Contrato</TableHead>
                   <TableHead>Status</TableHead>
+                  {isAdmin ? <TableHead className="w-[1%]" /> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -151,6 +153,16 @@ export default async function AdminClientesPage(): Promise<JSX.Element> {
                           {isEncerrado ? "Encerrado" : "Ativo"}
                         </Badge>
                       </TableCell>
+                      {isAdmin ? (
+                        <TableCell>
+                          <EditarClienteButton
+                            orgId={c.org_id}
+                            organizationName={c.name}
+                            ownerName={c.owner_name ?? ""}
+                            ownerEmail={c.owner_email ?? ""}
+                          />
+                        </TableCell>
+                      ) : null}
                     </TableRow>
                   );
                 })}

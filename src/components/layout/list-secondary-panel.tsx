@@ -1,9 +1,109 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CollapsibleSubnav } from "@/components/layout/nav-collapse";
+
+export function BoardListRow({
+  name,
+  active,
+  marker,
+  onSelect,
+  onRename,
+  onDelete,
+}: {
+  name: string;
+  active: boolean;
+  marker: ReactNode;
+  onSelect: () => void;
+  onRename?: (name: string) => Promise<boolean>;
+  onDelete?: () => void;
+}): JSX.Element {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+
+  async function commit(next: string): Promise<void> {
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === name) {
+      setDraft(name);
+      setEditing(false);
+      return;
+    }
+    const ok = onRename ? await onRename(trimmed) : false;
+    if (!ok) setDraft(name);
+    setEditing(false);
+  }
+
+  return (
+    <div className="group flex items-center">
+      {editing ? (
+        <input
+          autoFocus
+          aria-label="Nome da lista"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              void commit(draft);
+            }
+            if (event.key === "Escape") {
+              setDraft(name);
+              setEditing(false);
+            }
+          }}
+          onBlur={() => void commit(draft)}
+          className="h-8 min-w-0 flex-1 rounded-md border border-border bg-surface-1 px-2 text-sm text-text-1 outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        />
+      ) : (
+        <button
+          onClick={onSelect}
+          onDoubleClick={() => {
+            if (!onRename) return;
+            setDraft(name);
+            setEditing(true);
+          }}
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
+            active
+              ? "bg-primary/10 font-medium text-primary"
+              : "text-text-2 hover:bg-surface-2 hover:text-text-1",
+          )}
+        >
+          {marker}
+          <span className="truncate">{name}</span>
+        </button>
+      )}
+      {onRename && !editing && (
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(name);
+            setEditing(true);
+          }}
+          className={cn(
+            "shrink-0 p-1 text-text-2 hover:text-text-1",
+            active ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+          )}
+          aria-label={`Renomear ${name}`}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {onDelete && !editing && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="shrink-0 p-1 text-text-2 hover:text-error opacity-0 group-hover:opacity-100"
+          aria-label="Excluir"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
 
 export interface ListSecondaryPanelItem {
   id: string;
@@ -29,6 +129,7 @@ export function ListSecondaryPanel({
   onSelect,
   onCreate,
   onDelete,
+  onRename,
   collapseKey,
   className,
 }: {
@@ -42,6 +143,7 @@ export function ListSecondaryPanel({
   onSelect: (id: string) => void;
   onCreate: () => void;
   onDelete?: (id: string) => void;
+  onRename?: (id: string, name: string) => Promise<boolean>;
   collapseKey?: string;
   className?: string;
 }): JSX.Element {
@@ -64,38 +166,32 @@ export function ListSecondaryPanel({
           )}
           <nav className="space-y-0.5">
             {items.map((item) => (
-              <div key={item.id} className="group flex items-center">
-                <button
-                  onClick={() => onSelect(item.id)}
-                  className={cn(
-                    "flex-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left min-w-0",
-                    item.id === activeId
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "text-text-2 hover:bg-surface-2 hover:text-text-1",
-                  )}
-                >
-                  {item.icon ? (
+              <BoardListRow
+                key={item.id}
+                name={item.name}
+                active={item.id === activeId}
+                onSelect={() => onSelect(item.id)}
+                onRename={
+                  onRename ? (next) => onRename(item.id, next) : undefined
+                }
+                onDelete={
+                  onDelete && item.id === activeId && items.length > 1
+                    ? () => onDelete(item.id)
+                    : undefined
+                }
+                marker={
+                  item.icon ? (
                     <span
-                      className="shrink-0 h-5 w-5 rounded flex items-center justify-center text-[11px] leading-none"
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] leading-none"
                       style={{ background: item.color ?? "var(--text-faint)" }}
                     >
                       {item.icon}
                     </span>
                   ) : (
                     <span className="shrink-0">{icon}</span>
-                  )}
-                  <span className="truncate">{item.name}</span>
-                </button>
-                {onDelete && item.id === activeId && items.length > 1 && (
-                  <button
-                    onClick={() => onDelete(item.id)}
-                    className="shrink-0 p-1 text-text-2 hover:text-error opacity-0 group-hover:opacity-100"
-                    aria-label="Excluir"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
+                  )
+                }
+              />
             ))}
           </nav>
         </div>

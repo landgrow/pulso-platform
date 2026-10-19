@@ -15,9 +15,18 @@ const additionalMemberSchema = z.object({
   role: z.enum(["client_member", "client_viewer"]),
 });
 
+const optionalEmail = z
+  .string()
+  .trim()
+  .refine(
+    (value) =>
+      value.length === 0 || z.string().email().safeParse(value).success,
+    "Email inválido",
+  );
+
 const createClientAccountSchema = z.object({
   name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
-  email: z.string().email("Email inválido"),
+  email: optionalEmail,
   organizationName: z
     .string()
     .min(2, "Nome da empresa deve ter no mínimo 2 caracteres"),
@@ -53,7 +62,7 @@ export async function getIsPlatformAdmin(): Promise<IsPlatformAdminResult> {
 export type CreateClientAccountResult =
   | {
       success: true;
-      userId: string;
+      userId: string | null;
       orgId: string;
       slug: string;
       email: string;
@@ -65,9 +74,9 @@ export type CreateClientAccountResult =
  * Cria um acesso de cliente inteiro (usuário + organização + membership
  * client_owner) direto pelo admin, sem passar por cadastro público.
  *
- * O usuário recebe um convite por email do próprio Supabase, com um link pra
- * definir a própria senha (via /auth/callback -> /reset-password) — a Land
- * Grow nunca vê nem gera senha nenhuma.
+ * O email do dono é opcional. Com email, o Supabase manda o convite para a
+ * pessoa definir a própria senha. Sem email, a empresa entra na carteira
+ * mesmo assim — o convite pode ser enviado depois.
  */
 export async function createClientAccount(
   raw: unknown,
@@ -91,28 +100,31 @@ export async function createClientAccount(
 
   const { name, email, organizationName, additionalMembers } = parsed.data;
   const admin = await createAdminClient();
+  const ownerEmail = email.trim();
 
-  const { data: created, error: createError } =
-    await admin.auth.admin.inviteUserByEmail(email, {
-      data: { full_name: name },
-      redirectTo: inviteRedirectTo(process.env.NEXT_PUBLIC_APP_URL),
-    });
+  let userId: string | null = null;
+  if (ownerEmail) {
+    const { data: created, error: createError } =
+      await admin.auth.admin.inviteUserByEmail(ownerEmail, {
+        data: { full_name: name },
+        redirectTo: inviteRedirectTo(process.env.NEXT_PUBLIC_APP_URL),
+      });
 
-  if (createError || !created.user) {
-    const msg = createError?.message?.toLowerCase() ?? "";
-    if (
-      msg.includes("already been registered") ||
-      msg.includes("already registered")
-    ) {
-      return { success: false, error: "Este email já está cadastrado" };
+    if (createError || !created.user) {
+      const msg = createError?.message?.toLowerCase() ?? "";
+      if (
+        msg.includes("already been registered") ||
+        msg.includes("already registered")
+      ) {
+        return { success: false, error: "Este email já está cadastrado" };
+      }
+      return {
+        success: false,
+        error: createError?.message ?? "Erro ao criar usuário",
+      };
     }
-    return {
-      success: false,
-      error: createError?.message ?? "Erro ao criar usuário",
-    };
+    userId = created.user.id;
   }
-
-  const userId = created.user.id;
 
   try {
     const baseSlug = generateSlug(organizationName);
@@ -133,15 +145,17 @@ export async function createClientAccount(
       throw new Error(orgError?.message ?? "Falha ao criar organização");
     }
 
-    const { error: memberError } = await admin.from("memberships").insert({
-      user_id: userId,
-      org_id: org.id,
-      role: "client_owner",
-    });
+    if (userId) {
+      const { error: memberError } = await admin.from("memberships").insert({
+        user_id: userId,
+        org_id: org.id,
+        role: "client_owner",
+      });
 
-    if (memberError) {
-      await admin.from("organizations").delete().eq("id", org.id);
-      throw new Error(memberError.message);
+      if (memberError) {
+        await admin.from("organizations").delete().eq("id", org.id);
+        throw new Error(memberError.message);
+      }
     }
 
     // Cria o registro em `clientes` (1:1 com organizations) — sem ele, o
@@ -153,7 +167,9 @@ export async function createClientAccount(
     });
 
     if (clienteError) {
-      await admin.from("memberships").delete().eq("org_id", org.id);
+      if (userId) {
+        await admin.from("memberships").delete().eq("org_id", org.id);
+      }
       await admin.from("organizations").delete().eq("id", org.id);
       throw new Error(clienteError.message);
     }
@@ -190,10 +206,16 @@ export async function createClientAccount(
       }
     }
 
-    return { success: true, userId, orgId: org.id, slug, email, warnings };
+    return {
+      success: true,
+      userId,
+      orgId: org.id,
+      slug,
+      email: ownerEmail,
+      warnings,
+    };
   } catch (e) {
-    // Rollback: sem org/membership, o usuário órfão não deve ficar no auth.
-    await admin.auth.admin.deleteUser(userId);
+    if (userId) await admin.auth.admin.deleteUser(userId);
     return {
       success: false,
       error: e instanceof Error ? e.message : "Erro ao criar organização",

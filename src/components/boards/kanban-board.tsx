@@ -15,6 +15,7 @@ export function KanbanBoard({ orgId }: { orgId: string }): JSX.Element {
     openBoard,
     handleNewBoard,
     handleDeleteBoard,
+    handleRenameBoard,
     refreshCurrentBoard,
     updateBoardOptimistic,
   } = useBoardList(orgId);
@@ -45,6 +46,7 @@ export function KanbanBoard({ orgId }: { orgId: string }): JSX.Element {
         onSelect={(id) => void openBoard(id)}
         onCreate={() => void handleNewBoard()}
         onDelete={(id) => void handleDeleteBoard(id)}
+        onRename={(id, name) => handleRenameBoard(id, name)}
       />
       <div className="flex-1 min-w-0 pl-4">
         <BoardContent

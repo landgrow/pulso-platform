@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,7 +33,6 @@ type LoginForm = z.infer<typeof loginSchema>;
 function LoginFormContent(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -73,8 +72,7 @@ function LoginFormContent(): JSX.Element {
         result.redirectTo !== "/dashboard"
           ? result.redirectTo
           : safeCallbackNext(next);
-      router.push(dest);
-      router.refresh();
+      window.location.assign(dest);
     } catch {
       toast.error("Erro ao fazer login. Tente novamente.");
     } finally {

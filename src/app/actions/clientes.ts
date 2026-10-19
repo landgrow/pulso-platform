@@ -1,10 +1,14 @@
 "use server";
 
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getPlatformRole } from "@/lib/supabase/platform-role-server";
+import {
+  getPlatformRole,
+  requireCapability,
+} from "@/lib/supabase/platform-role-server";
 import { inviteRedirectTo } from "@/lib/auth/invite-callback";
 import { setActiveOrganizationCookie } from "@/lib/supabase/organization-server";
 import type { ClientDirectoryEntry, Programa } from "@/types/clientes";
@@ -387,6 +391,181 @@ export async function reativarCliente(
  * já enxergam qualquer organização via my_accessible_orgs()/can_access_org(),
  * então só confirma o papel antes de trocar o cookie.
  */
+const optionalEmail = z
+  .string()
+  .trim()
+  .refine(
+    (value) =>
+      value.length === 0 || z.string().email().safeParse(value).success,
+    "Email inválido",
+  );
+
+const updateClientCadastroSchema = z.object({
+  orgId: z.string().uuid("Organização inválida"),
+  organizationName: z
+    .string()
+    .trim()
+    .min(2, "Nome da empresa deve ter no mínimo 2 caracteres"),
+  ownerName: z
+    .string()
+    .trim()
+    .refine(
+      (value) => value.length === 0 || value.length >= 2,
+      "Nome deve ter no mínimo 2 caracteres",
+    ),
+  email: optionalEmail,
+});
+
+/**
+ * Atualiza o cadastro da empresa: nome, dono e email.
+ * Email em branco mantém o acesso que já existe. Sem dono, um email novo
+ * cria o convite. Nome do dono vazio tira o nome da ficha.
+ */
+export async function updateClientCadastro(
+  raw: unknown,
+): Promise<Result<{ orgId: string }>> {
+  const supabase = await createClient();
+  try {
+    await requireCapability(supabase, "acessos");
+  } catch (e) {
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : "Acesso negado",
+    };
+  }
+
+  const parsed = updateClientCadastroSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.errors[0]?.message ?? "Dados inválidos",
+    };
+  }
+
+  const { orgId, organizationName, ownerName, email } = parsed.data;
+  const admin = await createAdminClient();
+
+  const { data: org, error: orgError } = await admin
+    .from("organizations")
+    .update({ name: organizationName })
+    .eq("id", orgId)
+    .eq("is_internal", false)
+    .select("id, slug")
+    .maybeSingle();
+  if (orgError || !org) {
+    return {
+      success: false,
+      error: orgError?.message ?? "Organização não encontrada",
+    };
+  }
+
+  const clienteRow = await admin
+    .from("clientes")
+    .select("id")
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (clienteRow.error) {
+    return { success: false, error: clienteRow.error.message };
+  }
+
+  const donoNome = ownerName.length > 0 ? ownerName : null;
+  if (clienteRow.data) {
+    const { error } = await admin
+      .from("clientes")
+      .update({ nome: organizationName, dono_nome: donoNome })
+      .eq("id", clienteRow.data.id);
+    if (error) return { success: false, error: error.message };
+  } else {
+    const { error } = await admin.from("clientes").insert({
+      org_id: orgId,
+      nome: organizationName,
+      dono_nome: donoNome,
+    });
+    if (error) return { success: false, error: error.message };
+  }
+
+  const { data: ownerMembership, error: ownerError } = await admin
+    .from("memberships")
+    .select("user_id")
+    .eq("org_id", orgId)
+    .eq("role", "client_owner")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (ownerError) return { success: false, error: ownerError.message };
+
+  if (ownerMembership) {
+    const { error: profileError } = await admin
+      .from("profiles")
+      .update({ full_name: donoNome })
+      .eq("id", ownerMembership.user_id);
+    if (profileError) return { success: false, error: profileError.message };
+
+    if (email) {
+      const { error: userError } = await admin.auth.admin.updateUserById(
+        ownerMembership.user_id,
+        {
+          email,
+          email_confirm: true,
+          user_metadata: { full_name: donoNome },
+        },
+      );
+      if (userError) return { success: false, error: userError.message };
+    }
+  } else if (email) {
+    const invited = await admin.auth.admin.inviteUserByEmail(email, {
+      data: { full_name: donoNome },
+      redirectTo: inviteRedirectTo(process.env.NEXT_PUBLIC_APP_URL),
+    });
+    let userId = invited.data.user?.id ?? null;
+    if (!userId) {
+      const msg = invited.error?.message?.toLowerCase() ?? "";
+      if (
+        !msg.includes("already been registered") &&
+        !msg.includes("already registered")
+      ) {
+        return {
+          success: false,
+          error: invited.error?.message ?? "Erro ao criar o acesso do dono",
+        };
+      }
+      const listed = await admin.auth.admin.listUsers({
+        page: 1,
+        perPage: 200,
+      });
+      userId =
+        listed.data.users.find(
+          (user) => user.email?.toLowerCase() === email.toLowerCase(),
+        )?.id ?? null;
+      if (!userId) {
+        return {
+          success: false,
+          error: "Este email já está cadastrado e não deu para vincular.",
+        };
+      }
+    }
+
+    const { error: memberError } = await admin.from("memberships").insert({
+      user_id: userId,
+      org_id: orgId,
+      role: "client_owner",
+    });
+    if (memberError && !memberError.message.includes("duplicate")) {
+      return { success: false, error: memberError.message };
+    }
+    if (donoNome) {
+      await admin
+        .from("profiles")
+        .update({ full_name: donoNome })
+        .eq("id", userId);
+    }
+  }
+
+  revalidatePath("/admin/clientes");
+  revalidatePath(`/admin/clientes/${org.slug}`);
+  return { success: true, data: { orgId } };
+}
+
 export async function viewClienteAsAdmin(orgId: string): Promise<void> {
   const supabase = await createClient();
   const role = await getPlatformRole(supabase);

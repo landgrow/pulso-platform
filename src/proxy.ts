@@ -111,7 +111,8 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(url);
   }
 
-  // Cliente não usa o painel interno. A empresa dele abre em /{slug}.
+  // Quem já entrou não fica na tela de login. Cliente abre em /{slug};
+  // equipe da Land Grow segue para o painel.
   if (
     user &&
     (pathname === "/dashboard" || pathname === "/login") &&
@@ -122,7 +123,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
       user.id,
       request.cookies.get(ACTIVE_ORG_COOKIE)?.value ?? null,
     );
-    if (home !== "/dashboard" && home !== pathname) {
+    const shouldLeave =
+      pathname === "/login" ? home !== pathname : home !== "/dashboard";
+    if (shouldLeave) {
       const url = request.nextUrl.clone();
       url.pathname = home;
       url.search = "";

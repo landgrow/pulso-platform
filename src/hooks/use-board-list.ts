@@ -8,6 +8,7 @@ import {
   listBoards,
   createBoard,
   deleteBoard,
+  renameBoard,
 } from "@/app/actions/boards";
 import type { Board, BoardModule } from "@/types/boards";
 
@@ -35,6 +36,7 @@ export function useBoardList(
   handleNewBoard: (name?: string) => Promise<string | null>;
   /** Devolve o id da lista aberta depois da exclusão (ou null). */
   handleDeleteBoard: (id: string) => Promise<string | null>;
+  handleRenameBoard: (id: string, name: string) => Promise<boolean>;
   refreshCurrentBoard: () => Promise<void>;
   updateBoardOptimistic: (updater: (b: Board) => Board) => void;
 } {
@@ -139,6 +141,26 @@ export function useBoardList(
     return nextId;
   }
 
+  async function handleRenameBoard(id: string, name: string): Promise<boolean> {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      toast.error("Dê um nome para a lista.");
+      return false;
+    }
+    const result = await renameBoard({ boardId: id, name: trimmed });
+    if (!result.success) {
+      toast.error(result.error);
+      return false;
+    }
+    setBoards((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, name: trimmed } : item)),
+    );
+    setBoard((prev) =>
+      prev && prev.id === id ? { ...prev, name: trimmed } : prev,
+    );
+    return true;
+  }
+
   // Recarrega só o board atualmente aberto — usada depois de qualquer
   // mutação (card, coluna, propriedade). Diferente de load() (memoizada só
   // com [orgId], usada apenas na montagem), essa é redefinida a cada render
@@ -181,6 +203,7 @@ export function useBoardList(
     openBoard,
     handleNewBoard,
     handleDeleteBoard,
+    handleRenameBoard,
     refreshCurrentBoard,
     updateBoardOptimistic,
   };
