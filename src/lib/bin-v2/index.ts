@@ -1,18 +1,31 @@
-export { BIN_V2_INSTRUMENT, BIN_SPECIFY_SUFFIX } from "./types";
+export {
+  BIN_PACK_INSTRUMENTS,
+  BIN_V2_INSTRUMENT,
+  BIN_SPECIFY_SUFFIX,
+} from "./types";
 export type {
   BinAnswers,
   BinAnswerValue,
   BinInstrument,
+  BinPackId,
   BinQuestion,
   BinSection,
 } from "./types";
 export {
+  BIN_INSTRUMENTS,
   binInstrument,
   getBinQuestion,
   requireBinQuestion,
   getBinSection,
   questionsInSection,
+  instrumentFor,
+  packIdFor,
+  servicosInstrument,
+  varejoInstrument,
+  industriaInstrument,
 } from "./instrument";
+export { packFor, packById } from "./pack";
+export type { BinPack } from "./pack";
 export {
   isQuestionVisible,
   visibleQuestions,
@@ -27,6 +40,8 @@ export {
   isQuestionAnswered,
   specifyKey,
   selectedNeedsSpecify,
+  selectedLabels,
+  selectedOptions,
 } from "./answers";
 export {
   parseBinAnswers,
@@ -53,3 +68,26 @@ export type { BinEventKind, BinFlowMeta, BinStaffEvent } from "./flow";
 export { formatBinAnswer } from "./format-answer";
 export { binInboxItemsFromRows } from "./inbox";
 export type { BinInboxItem, BinInboxKind, BinInboxRow } from "./inbox";
+export {
+  BIN_FAIXA_COLORS,
+  binAnswerScoreLabel,
+  binFaixaColor,
+  binFaixaTone,
+  binSectionScoreLabel,
+  formatBinNota,
+  scoreBinAnswer,
+  scoreBinSection,
+} from "./score";
+export type { BinAnswerScore, BinFaixa, BinSectionScore } from "./score";
+export { evaluateBinGates } from "./gates";
+export type { BinGateResult, BinGatesReading } from "./gates";
+export { verifyBinAnswers } from "./verify";
+export type { BinVerifyFlag } from "./verify";
+export { buildBinReading } from "./reading";
+export type { BinReading, BinSectionReading } from "./reading";
+export { buildBinDeliverables, deliverablesForSection } from "./deliverables";
+export type {
+  BinDeliverable,
+  BinDeliverableKind,
+  BinDeliverableSet,
+} from "./deliverables";

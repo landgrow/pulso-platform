@@ -3,6 +3,7 @@ import {
   binInstrument,
   calcBinProgress,
   getBinQuestion,
+  industriaInstrument,
   isQuestionVisible,
   parseBinAnswers,
   parseBinGeral,
@@ -10,6 +11,7 @@ import {
   requireBinQuestion,
   resolveBinRoute,
   binDirectedFormStatus,
+  varejoInstrument,
 } from "@/lib/bin-v2";
 import type { BinAnswers } from "@/lib/bin-v2";
 
@@ -17,6 +19,13 @@ describe("BIN Serviços v2 — instrumento", () => {
   it("carrega 182 questões em 11 seções", () => {
     expect(binInstrument.questions).toHaveLength(182);
     expect(binInstrument.sections).toHaveLength(11);
+  });
+
+  it("abre varejo e indústria com instrumento próprio", () => {
+    expect(varejoInstrument.questions.length).toBeGreaterThan(180);
+    expect(industriaInstrument.questions.length).toBeGreaterThan(200);
+    expect(varejoInstrument.instrument).toBe("bin_varejo_v2");
+    expect(industriaInstrument.instrument).toBe("bin_industria_v2");
   });
 
   it("injeta O00 e usa o título de inovação sem viés", () => {
@@ -87,10 +96,10 @@ describe("BIN roteador G06/G07", () => {
     expect(resolveBinRoute({ G06: "G06:4", G07: "G07:5" })).toBeNull();
   });
 
-  it("só o formulário de serviços está pronto na v2", () => {
+  it("os três formulários v2 estão prontos; pré-operação fica em cobertura", () => {
     expect(binDirectedFormStatus("servicos")).toBe("ready");
-    expect(binDirectedFormStatus("varejo")).toBe("pending");
-    expect(binDirectedFormStatus("industria")).toBe("pending");
+    expect(binDirectedFormStatus("varejo")).toBe("ready");
+    expect(binDirectedFormStatus("industria")).toBe("ready");
     expect(binDirectedFormStatus("pre_operacao")).toBe("coverage");
   });
 

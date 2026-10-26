@@ -1,5 +1,30 @@
 import { BIN_SPECIFY_SUFFIX } from "./types";
-import type { BinAnswers, BinAnswerValue, BinQuestion } from "./types";
+import type {
+  BinAnswers,
+  BinAnswerValue,
+  BinOption,
+  BinQuestion,
+} from "./types";
+
+export function selectedValues(value: BinAnswerValue | undefined): string[] {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : value === "" ? [] : [value];
+}
+
+export function selectedOptions(
+  question: BinQuestion,
+  answers: BinAnswers,
+): BinOption[] {
+  const picked = new Set(selectedValues(answers[question.id]));
+  return question.options.filter((option) => picked.has(option.value));
+}
+
+export function selectedLabels(
+  question: BinQuestion,
+  answers: BinAnswers,
+): string[] {
+  return selectedOptions(question, answers).map((option) => option.label);
+}
 
 export function specifyKey(questionId: string): string {
   return `${questionId}${BIN_SPECIFY_SUFFIX}`;
@@ -7,11 +32,6 @@ export function specifyKey(questionId: string): string {
 
 export function isSpecifyKey(key: string): boolean {
   return key.endsWith(BIN_SPECIFY_SUFFIX);
-}
-
-function selectedValues(value: BinAnswerValue | undefined): string[] {
-  if (value === undefined) return [];
-  return Array.isArray(value) ? value : value === "" ? [] : [value];
 }
 
 export function selectedNeedsSpecify(

@@ -1,0 +1,1283 @@
+[
+  {
+    "regra": "A-1",
+    "classe": "F",
+    "questaoA": "A02",
+    "disparaA": [
+      "Vender e buscar clientes",
+      "Atender o cliente",
+      "Fazer e entregar o serviço",
+      "Planejar o futuro da empresa",
+      "Cuidar do dinheiro",
+      "Cuidar de contratos e questões legais",
+      "Divulgar a empresa",
+      "Cuidar das pessoas da equipe",
+      "Cuidar de sistemas e tecnologia",
+      "Comprar e lidar com fornecedores"
+    ],
+    "disparaARaw": "Vender e buscar clientes | Atender o cliente | Fazer e entregar o serviço | Planejar o futuro da empresa | Cuidar do dinheiro | Cuidar de contratos e questões legais | Divulgar a empresa | Cuidar das pessoas da equipe | Cuidar de sistemas e tecnologia | Comprar e lidar com fornecedores",
+    "questaoB": "A01",
+    "disparaB": [],
+    "disparaBRaw": "(ver ação)",
+    "precedencia": "A01",
+    "acao": "verificar; item marcado em A02 e ausente de A01"
+  },
+  {
+    "regra": "A-2",
+    "classe": "F",
+    "questaoA": "A12",
+    "disparaA": ["Não trabalhamos com terceiros"],
+    "disparaARaw": "Não trabalhamos com terceiros",
+    "questaoB": "A02",
+    "disparaB": [
+      "Vender e buscar clientes",
+      "Atender o cliente",
+      "Fazer e entregar o serviço",
+      "Planejar o futuro da empresa",
+      "Cuidar do dinheiro",
+      "Cuidar de contratos e questões legais",
+      "Divulgar a empresa",
+      "Cuidar das pessoas da equipe",
+      "Cuidar de sistemas e tecnologia",
+      "Comprar e lidar com fornecedores"
+    ],
+    "disparaBRaw": "Vender e buscar clientes | Atender o cliente | Fazer e entregar o serviço | Planejar o futuro da empresa | Cuidar do dinheiro | Cuidar de contratos e questões legais | Divulgar a empresa | Cuidar das pessoas da equipe | Cuidar de sistemas e tecnologia | Comprar e lidar com fornecedores",
+    "precedencia": "A02",
+    "acao": "verificar"
+  },
+  {
+    "regra": "A-3",
+    "classe": "F",
+    "questaoA": "A04",
+    "disparaA": ["Sistema de organização de tarefas ou projetos"],
+    "disparaARaw": "Sistema de organização de tarefas ou projetos",
+    "questaoB": "A10",
+    "disparaB": ["De memória, sem anotar"],
+    "disparaBRaw": "De memória, sem anotar",
+    "precedencia": "A10",
+    "acao": "verificar"
+  },
+  {
+    "regra": "A-4",
+    "classe": "F",
+    "questaoA": "A05",
+    "disparaA": [
+      "Não perderíamos nada, está tudo guardado fora do aparelho",
+      "Não perderíamos nada e já testamos recuperar"
+    ],
+    "disparaARaw": "Não perderíamos nada, está tudo guardado fora do aparelho | Não perderíamos nada e já testamos recuperar",
+    "questaoB": "A04",
+    "disparaB": ["Não usamos sistema, é tudo no papel ou na cabeça"],
+    "disparaBRaw": "Não usamos sistema, é tudo no papel ou na cabeça",
+    "precedencia": "A04",
+    "acao": "verificar"
+  },
+  {
+    "regra": "A-5",
+    "classe": "F",
+    "questaoA": "A07",
+    "disparaA": ["Alguém da empresa cuida disso e mantém atualizado"],
+    "disparaARaw": "Alguém da empresa cuida disso e mantém atualizado",
+    "questaoB": "A08",
+    "disparaB": ["Nunca criamos nem mudamos processo"],
+    "disparaBRaw": "Nunca criamos nem mudamos processo",
+    "precedencia": "A08",
+    "acao": "verificar"
+  },
+  {
+    "regra": "A-6",
+    "classe": "F",
+    "questaoA": "A15",
+    "disparaA": ["Temos horário reservado toda semana para isso"],
+    "disparaARaw": "Temos horário reservado toda semana para isso",
+    "questaoB": "A09",
+    "disparaB": ["Ninguém cuida, fazemos quando aperta"],
+    "disparaBRaw": "Ninguém cuida, fazemos quando aperta",
+    "precedencia": "A09",
+    "acao": "verificar"
+  },
+  {
+    "regra": "A-7",
+    "classe": "I",
+    "questaoA": "A14",
+    "disparaA": [
+      "Não atrasamos",
+      "Não atrasamos e temos aviso antes de cada prazo"
+    ],
+    "disparaARaw": "Não atrasamos | Não atrasamos e temos aviso antes de cada prazo",
+    "questaoB": "A10",
+    "disparaB": ["De memória, sem anotar"],
+    "disparaBRaw": "De memória, sem anotar",
+    "precedencia": "A10",
+    "acao": "registrar; nota já corrigida pelo bloqueio"
+  },
+  {
+    "regra": "E-1",
+    "classe": "F",
+    "questaoA": "E02",
+    "disparaA": ["Revisamos de tempos em tempos"],
+    "disparaARaw": "Revisamos de tempos em tempos",
+    "questaoB": "E03",
+    "disparaB": ["Nunca parei para pensar sobre isso"],
+    "disparaBRaw": "Nunca parei para pensar sobre isso",
+    "precedencia": "E03",
+    "acao": "verificar"
+  },
+  {
+    "regra": "E-10",
+    "classe": "F",
+    "questaoA": "E18",
+    "disparaA": ["Fazemos o que o cliente precisar"],
+    "disparaARaw": "Fazemos o que o cliente precisar",
+    "questaoB": "E19",
+    "disparaB": [
+      "Temos critério definido do que aceitamos e do que não aceitamos"
+    ],
+    "disparaBRaw": "Temos critério definido do que aceitamos e do que não aceitamos",
+    "precedencia": "E19",
+    "acao": "verificar"
+  },
+  {
+    "regra": "E-11",
+    "classe": "F",
+    "questaoA": "E15",
+    "disparaA": [
+      "Está escrito, a equipe conhece e sabe o que cada um tem a ver com ele"
+    ],
+    "disparaARaw": "Está escrito, a equipe conhece e sabe o que cada um tem a ver com ele",
+    "questaoB": "L14",
+    "disparaB": ["Não, nunca conversamos sobre isso"],
+    "disparaBRaw": "Não, nunca conversamos sobre isso",
+    "precedencia": "L14",
+    "acao": "verificar"
+  },
+  {
+    "regra": "E-12",
+    "classe": "D",
+    "questaoA": "E15",
+    "disparaA": [
+      "Está escrito e a equipe conhece",
+      "Está escrito, a equipe conhece e sabe o que cada um tem a ver com ele"
+    ],
+    "disparaARaw": "Está escrito e a equipe conhece | Está escrito, a equipe conhece e sabe o que cada um tem a ver com ele",
+    "questaoB": "E16",
+    "disparaB": [],
+    "disparaBRaw": "(texto livre)",
+    "precedencia": null,
+    "acao": "sessão"
+  },
+  {
+    "regra": "E-13",
+    "classe": "I",
+    "questaoA": "E17",
+    "disparaA": [
+      "Olhamos de tempos em tempos ao longo do ano",
+      "Olhamos com regularidade e mudamos o plano quando fica atrás"
+    ],
+    "disparaARaw": "Olhamos de tempos em tempos ao longo do ano | Olhamos com regularidade e mudamos o plano quando fica atrás",
+    "questaoB": "E15",
+    "disparaB": ["Não temos objetivo definido"],
+    "disparaBRaw": "Não temos objetivo definido",
+    "precedencia": "E15",
+    "acao": "registrar; nota já corrigida pelo bloqueio"
+  },
+  {
+    "regra": "E-14",
+    "classe": "F",
+    "questaoA": "E20",
+    "disparaA": [
+      "Parte relevante do que entregamos ou vendemos depende de parceria"
+    ],
+    "disparaARaw": "Parte relevante do que entregamos ou vendemos depende de parceria",
+    "questaoB": "O10",
+    "disparaB": ["Nada, fazemos tudo por dentro"],
+    "disparaBRaw": "Nada, fazemos tudo por dentro",
+    "precedencia": "O10",
+    "acao": "verificar"
+  },
+  {
+    "regra": "E-15",
+    "classe": "I",
+    "questaoA": "E20",
+    "disparaA": [
+      "Temos parceiros fixos, com o combinado claro entre as partes",
+      "Parte relevante do que entregamos ou vendemos depende de parceria"
+    ],
+    "disparaARaw": "Temos parceiros fixos, com o combinado claro entre as partes | Parte relevante do que entregamos ou vendemos depende de parceria",
+    "questaoB": "J06",
+    "disparaB": ["Não, é tudo no combinado verbal"],
+    "disparaBRaw": "Não, é tudo no combinado verbal",
+    "precedencia": "J06",
+    "acao": "verificar"
+  },
+  {
+    "regra": "E-2",
+    "classe": "F",
+    "questaoA": "E04",
+    "disparaA": [
+      "Nenhuma dessas, o tempo foi todo para entregar trabalho de cliente"
+    ],
+    "disparaARaw": "Nenhuma dessas, o tempo foi todo para entregar trabalho de cliente",
+    "questaoB": "E05",
+    "disparaB": [
+      "Eu e os sócios, com apoio de alguém de fora, mentor, conselho ou consultoria"
+    ],
+    "disparaBRaw": "Eu e os sócios, com apoio de alguém de fora, mentor, conselho ou consultoria",
+    "precedencia": "E05",
+    "acao": "verificar"
+  },
+  {
+    "regra": "E-3",
+    "classe": "I",
+    "questaoA": "E04",
+    "disparaA": [
+      "Olhei os números da empresa e tomei alguma decisão a partir deles"
+    ],
+    "disparaARaw": "Olhei os números da empresa e tomei alguma decisão a partir deles",
+    "questaoB": "F02",
+    "disparaB": ["Não controlo, olho o saldo da conta", "Anoto quando lembro"],
+    "disparaBRaw": "Não controlo, olho o saldo da conta | Anoto quando lembro",
+    "precedencia": "F02",
+    "acao": "verificar"
+  },
+  {
+    "regra": "E-4",
+    "classe": "F",
+    "questaoA": "E08",
+    "disparaA": ["Não acompanho números, vejo pelo saldo da conta"],
+    "disparaARaw": "Não acompanho números, vejo pelo saldo da conta",
+    "questaoB": "E09",
+    "disparaB": ["Sim, e os números que eu preciso já estão organizados"],
+    "disparaBRaw": "Sim, e os números que eu preciso já estão organizados",
+    "precedencia": "E09",
+    "acao": "verificar"
+  },
+  {
+    "regra": "E-5",
+    "classe": "F",
+    "questaoA": "E08",
+    "disparaA": ["Quanto custa entregar cada serviço"],
+    "disparaARaw": "Quanto custa entregar cada serviço",
+    "questaoB": "F05",
+    "disparaB": [
+      "Não sei e nunca calculei",
+      "Tenho uma noção, mas nunca coloquei no papel"
+    ],
+    "disparaBRaw": "Não sei e nunca calculei | Tenho uma noção, mas nunca coloquei no papel",
+    "precedencia": "F05",
+    "acao": "verificar"
+  },
+  {
+    "regra": "E-6",
+    "classe": "F",
+    "questaoA": "E08",
+    "disparaA": ["Quantos orçamentos viraram venda"],
+    "disparaARaw": "Quantos orçamentos viraram venda",
+    "questaoB": "V04",
+    "disparaB": ["Não sei dizer"],
+    "disparaBRaw": "Não sei dizer",
+    "precedencia": "V04",
+    "acao": "verificar"
+  },
+  {
+    "regra": "E-7",
+    "classe": "D",
+    "questaoA": "E10",
+    "disparaA": [
+      "Temos o perfil escrito e usamos ele para decidir o que aceitar e onde divulgar"
+    ],
+    "disparaARaw": "Temos o perfil escrito e usamos ele para decidir o que aceitar e onde divulgar",
+    "questaoB": "E11",
+    "disparaB": [],
+    "disparaBRaw": "(texto livre)",
+    "precedencia": null,
+    "acao": "sessão"
+  },
+  {
+    "regra": "E-8",
+    "classe": "F",
+    "questaoA": "E10",
+    "disparaA": [
+      "Temos o perfil escrito e usamos ele para decidir o que aceitar e onde divulgar"
+    ],
+    "disparaARaw": "Temos o perfil escrito e usamos ele para decidir o que aceitar e onde divulgar",
+    "questaoB": "E19",
+    "disparaB": ["Nunca recusamos, pegamos o que aparece"],
+    "disparaBRaw": "Nunca recusamos, pegamos o que aparece",
+    "precedencia": "E19",
+    "acao": "verificar"
+  },
+  {
+    "regra": "E-9",
+    "classe": "D",
+    "questaoA": "E13",
+    "disparaA": [
+      "Sim, é difícil de copiar e o cliente cita isso quando fala da gente"
+    ],
+    "disparaARaw": "Sim, é difícil de copiar e o cliente cita isso quando fala da gente",
+    "questaoB": "E14",
+    "disparaB": [],
+    "disparaBRaw": "(texto livre)",
+    "precedencia": null,
+    "acao": "sessão"
+  },
+  {
+    "regra": "F-1",
+    "classe": "I",
+    "questaoA": "F05",
+    "disparaA": [
+      "Sei o custo dos principais e reviso de tempos em tempos",
+      "Sei o custo de cada um e acompanho a cada entrega"
+    ],
+    "disparaARaw": "Sei o custo dos principais e reviso de tempos em tempos | Sei o custo de cada um e acompanho a cada entrega",
+    "questaoB": "F02",
+    "disparaB": ["Não controlo, olho o saldo da conta", "Anoto quando lembro"],
+    "disparaBRaw": "Não controlo, olho o saldo da conta | Anoto quando lembro",
+    "precedencia": "F02",
+    "acao": "registrar; nota já corrigida pelo bloqueio"
+  },
+  {
+    "regra": "F-10",
+    "classe": "F",
+    "questaoA": "F11",
+    "disparaA": ["Sobrou o bastante para guardar todo mês"],
+    "disparaARaw": "Sobrou o bastante para guardar todo mês",
+    "questaoB": "F14",
+    "disparaB": ["Não guardo nada"],
+    "disparaBRaw": "Não guardo nada",
+    "precedencia": "F14",
+    "acao": "verificar"
+  },
+  {
+    "regra": "F-11",
+    "classe": "I",
+    "questaoA": "F09",
+    "disparaA": [
+      "Calculo o custo real do trabalho e defino a margem que preciso",
+      "Parto do que o cliente ganha com o serviço e confiro com o custo"
+    ],
+    "disparaARaw": "Calculo o custo real do trabalho e defino a margem que preciso | Parto do que o cliente ganha com o serviço e confiro com o custo",
+    "questaoB": "F05",
+    "disparaB": [
+      "Não sei e nunca calculei",
+      "Tenho uma noção, mas nunca coloquei no papel"
+    ],
+    "disparaBRaw": "Não sei e nunca calculei | Tenho uma noção, mas nunca coloquei no papel",
+    "precedencia": "F05",
+    "acao": "verificar"
+  },
+  {
+    "regra": "F-2",
+    "classe": "I",
+    "questaoA": "F21",
+    "disparaA": [
+      "Projeto os próximos meses e comparo com o que aconteceu",
+      "Projeto cenários diferentes e decido a partir deles"
+    ],
+    "disparaARaw": "Projeto os próximos meses e comparo com o que aconteceu | Projeto cenários diferentes e decido a partir deles",
+    "questaoB": "F02",
+    "disparaB": ["Não controlo, olho o saldo da conta", "Anoto quando lembro"],
+    "disparaBRaw": "Não controlo, olho o saldo da conta | Anoto quando lembro",
+    "precedencia": "F02",
+    "acao": "registrar; nota já corrigida pelo bloqueio"
+  },
+  {
+    "regra": "F-3",
+    "classe": "I",
+    "questaoA": "F02",
+    "disparaA": ["Uso um sistema e comparo com o que eu tinha previsto"],
+    "disparaARaw": "Uso um sistema e comparo com o que eu tinha previsto",
+    "questaoB": "F01",
+    "disparaB": ["Não, é tudo a mesma conta"],
+    "disparaBRaw": "Não, é tudo a mesma conta",
+    "precedencia": "F01",
+    "acao": "verificar"
+  },
+  {
+    "regra": "F-4",
+    "classe": "F",
+    "questaoA": "F13",
+    "disparaA": ["Tenho valor fixo e ele está dentro do custo da empresa"],
+    "disparaARaw": "Tenho valor fixo e ele está dentro do custo da empresa",
+    "questaoB": "F04",
+    "disparaB": ["Não sei"],
+    "disparaBRaw": "Não sei",
+    "precedencia": "F04",
+    "acao": "verificar"
+  },
+  {
+    "regra": "F-5",
+    "classe": "F",
+    "questaoA": "F14",
+    "disparaA": [
+      "Guardo um valor definido e ele já cobre alguns meses de custo"
+    ],
+    "disparaARaw": "Guardo um valor definido e ele já cobre alguns meses de custo",
+    "questaoB": "F12",
+    "disparaB": ["Menos de um mês, dependo do que entra todo mês"],
+    "disparaBRaw": "Menos de um mês, dependo do que entra todo mês",
+    "precedencia": "F12",
+    "acao": "verificar"
+  },
+  {
+    "regra": "F-6",
+    "classe": "F",
+    "questaoA": "F19",
+    "disparaA": ["Nunca tive cliente em atraso"],
+    "disparaARaw": "Nunca tive cliente em atraso",
+    "questaoB": "F17",
+    "disparaB": ["Quase todos", "Muitos", "Poucos", "Um ou outro"],
+    "disparaBRaw": "Quase todos | Muitos | Poucos | Um ou outro",
+    "precedencia": "F17",
+    "acao": "verificar"
+  },
+  {
+    "regra": "F-7",
+    "classe": "I",
+    "questaoA": "F09",
+    "disparaA": [
+      "Somo os custos e coloco uma porcentagem por cima",
+      "Calculo o custo real do trabalho e defino a margem que preciso",
+      "Parto do que o cliente ganha com o serviço e confiro com o custo"
+    ],
+    "disparaARaw": "Somo os custos e coloco uma porcentagem por cima | Calculo o custo real do trabalho e defino a margem que preciso | Parto do que o cliente ganha com o serviço e confiro com o custo",
+    "questaoB": "F04",
+    "disparaB": ["Não sei", "Tenho uma ideia, mas nunca somei"],
+    "disparaBRaw": "Não sei | Tenho uma ideia, mas nunca somei",
+    "precedencia": "F04",
+    "acao": "verificar"
+  },
+  {
+    "regra": "F-8",
+    "classe": "F",
+    "questaoA": "F20",
+    "disparaA": [
+      "Da reserva que a empresa já tem",
+      "Da reserva, e sem comprometer a operação"
+    ],
+    "disparaARaw": "Da reserva que a empresa já tem | Da reserva, e sem comprometer a operação",
+    "questaoB": "F14",
+    "disparaB": ["Não guardo nada"],
+    "disparaBRaw": "Não guardo nada",
+    "precedencia": "F14",
+    "acao": "verificar"
+  },
+  {
+    "regra": "F-9",
+    "classe": "D",
+    "questaoA": "F20",
+    "disparaA": ["Do bolso dos sócios, com dinheiro pessoal"],
+    "disparaARaw": "Do bolso dos sócios, com dinheiro pessoal",
+    "questaoB": "F01",
+    "disparaB": ["É totalmente separado, com uma retirada definida para mim"],
+    "disparaBRaw": "É totalmente separado, com uma retirada definida para mim",
+    "precedencia": null,
+    "acao": "sessão"
+  },
+  {
+    "regra": "I-1",
+    "classe": "F",
+    "questaoA": "I01",
+    "disparaA": ["Nos últimos meses"],
+    "disparaARaw": "Nos últimos meses",
+    "questaoB": "I02",
+    "disparaB": ["Não houve mudança"],
+    "disparaBRaw": "Não houve mudança",
+    "precedencia": "I01",
+    "acao": "verificar"
+  },
+  {
+    "regra": "I-2",
+    "classe": "F",
+    "questaoA": "I01",
+    "disparaA": ["Nunca, sempre oferecemos as mesmas coisas"],
+    "disparaARaw": "Nunca, sempre oferecemos as mesmas coisas",
+    "questaoB": "I07",
+    "disparaB": ["Já tivemos várias tentativas, umas deram certo e outras não"],
+    "disparaBRaw": "Já tivemos várias tentativas, umas deram certo e outras não",
+    "precedencia": "I01",
+    "acao": "verificar"
+  },
+  {
+    "regra": "I-3",
+    "classe": "I",
+    "questaoA": "I06",
+    "disparaA": [
+      "Testamos pequeno com alguns clientes antes de oferecer para todos"
+    ],
+    "disparaARaw": "Testamos pequeno com alguns clientes antes de oferecer para todos",
+    "questaoB": "I03",
+    "disparaB": ["A ideia é dita e morre ali"],
+    "disparaBRaw": "A ideia é dita e morre ali",
+    "precedencia": "I03",
+    "acao": "registrar; nota já corrigida pelo bloqueio"
+  },
+  {
+    "regra": "I-4",
+    "classe": "F",
+    "questaoA": "I04",
+    "disparaA": [
+      "Não participamos de nada, nunca vimos oportunidade dessas",
+      "Não participamos, já vimos e achamos que não vale a pena"
+    ],
+    "disparaARaw": "Não participamos de nada, nunca vimos oportunidade dessas | Não participamos, já vimos e achamos que não vale a pena",
+    "questaoB": "I02",
+    "disparaB": ["Veio de fora, de um evento, curso ou conversa"],
+    "disparaBRaw": "Veio de fora, de um evento, curso ou conversa",
+    "precedencia": "I02",
+    "acao": "verificar"
+  },
+  {
+    "regra": "I-5",
+    "classe": "I",
+    "questaoA": "I03",
+    "disparaA": [
+      "Algumas ideias viram teste",
+      "Ideias viram teste com regularidade e algumas viram serviço vendido"
+    ],
+    "disparaARaw": "Algumas ideias viram teste | Ideias viram teste com regularidade e algumas viram serviço vendido",
+    "questaoB": "I05",
+    "disparaB": ["Não, todo o tempo vai para o trabalho já vendido"],
+    "disparaBRaw": "Não, todo o tempo vai para o trabalho já vendido",
+    "precedencia": "I05",
+    "acao": "verificar"
+  },
+  {
+    "regra": "J-1",
+    "classe": "F",
+    "questaoA": "J02",
+    "disparaA": [
+      "Temos todos",
+      "Temos todos e acompanhamos as renovações antes de vencer"
+    ],
+    "disparaARaw": "Temos todos | Temos todos e acompanhamos as renovações antes de vencer",
+    "questaoB": "J01",
+    "disparaB": ["Trabalho sem CNPJ"],
+    "disparaBRaw": "Trabalho sem CNPJ",
+    "precedencia": "J01",
+    "acao": "verificar com ressalva de atividade"
+  },
+  {
+    "regra": "J-2",
+    "classe": "F",
+    "questaoA": "J03",
+    "disparaA": ["Sim, já existe bloqueio ou penhora em curso"],
+    "disparaARaw": "Sim, já existe bloqueio ou penhora em curso",
+    "questaoB": "F15",
+    "disparaB": ["Sim, e as parcelas cabem tranquilamente"],
+    "disparaBRaw": "Sim, e as parcelas cabem tranquilamente",
+    "precedencia": "F15",
+    "acao": "verificar"
+  },
+  {
+    "regra": "J-3",
+    "classe": "F",
+    "questaoA": "J06",
+    "disparaA": ["Não trabalhamos com ninguém de fora"],
+    "disparaARaw": "Não trabalhamos com ninguém de fora",
+    "questaoB": "A02",
+    "disparaB": [
+      "Vender e buscar clientes",
+      "Atender o cliente",
+      "Fazer e entregar o serviço",
+      "Planejar o futuro da empresa",
+      "Cuidar do dinheiro",
+      "Cuidar de contratos e questões legais",
+      "Divulgar a empresa",
+      "Cuidar das pessoas da equipe",
+      "Cuidar de sistemas e tecnologia",
+      "Comprar e lidar com fornecedores"
+    ],
+    "disparaBRaw": "Vender e buscar clientes | Atender o cliente | Fazer e entregar o serviço | Planejar o futuro da empresa | Cuidar do dinheiro | Cuidar de contratos e questões legais | Divulgar a empresa | Cuidar das pessoas da equipe | Cuidar de sistemas e tecnologia | Comprar e lidar com fornecedores",
+    "precedencia": "A02",
+    "acao": "verificar"
+  },
+  {
+    "regra": "J-4",
+    "classe": "F",
+    "questaoA": "J08",
+    "disparaA": [
+      "Temos contrato fixo com escritório, ou advogado na empresa, e ele revisa antes de a gente assinar"
+    ],
+    "disparaARaw": "Temos contrato fixo com escritório, ou advogado na empresa, e ele revisa antes de a gente assinar",
+    "questaoB": "J09",
+    "disparaB": ["Nunca paramos para pensar nisso"],
+    "disparaBRaw": "Nunca paramos para pensar nisso",
+    "precedencia": "J09",
+    "acao": "verificar"
+  },
+  {
+    "regra": "J-5",
+    "classe": "F",
+    "questaoA": "J10",
+    "disparaA": [
+      "Temos contrato e registro do que foi entregue",
+      "Temos contrato, registro e aceite do cliente na entrega"
+    ],
+    "disparaARaw": "Temos contrato e registro do que foi entregue | Temos contrato, registro e aceite do cliente na entrega",
+    "questaoB": "J05",
+    "disparaB": [
+      "Não, o combinado é verbal ou por mensagem",
+      "Só em trabalhos grandes"
+    ],
+    "disparaBRaw": "Não, o combinado é verbal ou por mensagem | Só em trabalhos grandes",
+    "precedencia": "J05",
+    "acao": "verificar"
+  },
+  {
+    "regra": "J-6",
+    "classe": "I",
+    "questaoA": "J10",
+    "disparaA": [
+      "Temos contrato e registro do que foi entregue",
+      "Temos contrato, registro e aceite do cliente na entrega"
+    ],
+    "disparaARaw": "Temos contrato e registro do que foi entregue | Temos contrato, registro e aceite do cliente na entrega",
+    "questaoB": "A03",
+    "disparaB": ["Não temos cadastro, os contatos ficam espalhados"],
+    "disparaBRaw": "Não temos cadastro, os contatos ficam espalhados",
+    "precedencia": "A03",
+    "acao": "verificar"
+  },
+  {
+    "regra": "J-7",
+    "classe": "F",
+    "questaoA": "J11",
+    "disparaA": ["Não, nunca aconteceu"],
+    "disparaARaw": "Não, nunca aconteceu",
+    "questaoB": "J03",
+    "disparaB": [
+      "Sim, já existe bloqueio ou penhora em curso",
+      "Sim, existe processo ou cobrança judicial andando"
+    ],
+    "disparaBRaw": "Sim, já existe bloqueio ou penhora em curso | Sim, existe processo ou cobrança judicial andando",
+    "precedencia": "J03",
+    "acao": "verificar"
+  },
+  {
+    "regra": "J-8",
+    "classe": "D",
+    "questaoA": "J13",
+    "disparaA": ["Temos tudo organizado e revisamos de tempos em tempos"],
+    "disparaARaw": "Temos tudo organizado e revisamos de tempos em tempos",
+    "questaoB": "A17",
+    "disparaB": ["Não temos cuidado especial, ficam onde der"],
+    "disparaBRaw": "Não temos cuidado especial, ficam onde der",
+    "precedencia": null,
+    "acao": "sessão"
+  },
+  {
+    "regra": "J-9",
+    "classe": "D",
+    "questaoA": "J13",
+    "disparaA": ["Não conheço as obrigações dessa lei"],
+    "disparaARaw": "Não conheço as obrigações dessa lei",
+    "questaoB": "A03",
+    "disparaB": [
+      "Temos cadastro com histórico do que cada cliente já contratou",
+      "Temos cadastro com histórico e qualquer pessoa da equipe consegue consultar"
+    ],
+    "disparaBRaw": "Temos cadastro com histórico do que cada cliente já contratou | Temos cadastro com histórico e qualquer pessoa da equipe consegue consultar",
+    "precedencia": null,
+    "acao": "sessão; provável defeito de instrumento"
+  },
+  {
+    "regra": "L-1",
+    "classe": "F",
+    "questaoA": "L01",
+    "disparaA": [
+      "Somos sócios com o mesmo peso nas decisões",
+      "Somos sócios, mas um tem a palavra final",
+      "É empresa familiar, as decisões passam pela família",
+      "Temos conselho ou comitê que decide junto"
+    ],
+    "disparaARaw": "Somos sócios com o mesmo peso nas decisões | Somos sócios, mas um tem a palavra final | É empresa familiar, as decisões passam pela família | Temos conselho ou comitê que decide junto",
+    "questaoB": "L02",
+    "disparaB": ["Sou dono único, não tenho sócios"],
+    "disparaBRaw": "Sou dono único, não tenho sócios",
+    "precedencia": "L01",
+    "acao": "verificar"
+  },
+  {
+    "regra": "L-2",
+    "classe": "F",
+    "questaoA": "L02",
+    "disparaA": ["A decisão fica parada até alguém desistir"],
+    "disparaARaw": "A decisão fica parada até alguém desistir",
+    "questaoB": "L05",
+    "disparaB": ["Na hora, quando o problema aparece"],
+    "disparaBRaw": "Na hora, quando o problema aparece",
+    "precedencia": "L05",
+    "acao": "verificar"
+  },
+  {
+    "regra": "L-3",
+    "classe": "F",
+    "questaoA": "L04",
+    "disparaA": ["Uma ou nenhuma", "Nenhuma, decido na hora que aparece"],
+    "disparaARaw": "Uma ou nenhuma | Nenhuma, decido na hora que aparece",
+    "questaoB": "L05",
+    "disparaB": ["Fica sem decisão até virar urgência"],
+    "disparaBRaw": "Fica sem decisão até virar urgência",
+    "precedencia": "L05",
+    "acao": "verificar"
+  },
+  {
+    "regra": "L-4",
+    "classe": "F",
+    "questaoA": "L06",
+    "disparaA": ["Quase nenhuma, o que chega em mim precisa mesmo de mim"],
+    "disparaARaw": "Quase nenhuma, o que chega em mim precisa mesmo de mim",
+    "questaoB": "L08",
+    "disparaB": ["Não, tudo passa por mim antes"],
+    "disparaBRaw": "Não, tudo passa por mim antes",
+    "precedencia": "L08",
+    "acao": "verificar"
+  },
+  {
+    "regra": "L-5",
+    "classe": "F",
+    "questaoA": "L10",
+    "disparaA": ["Resolve sozinha e só me envolve no que é grande"],
+    "disparaARaw": "Resolve sozinha e só me envolve no que é grande",
+    "questaoB": "L08",
+    "disparaB": ["Não, tudo passa por mim antes"],
+    "disparaBRaw": "Não, tudo passa por mim antes",
+    "precedencia": "L08",
+    "acao": "verificar"
+  },
+  {
+    "regra": "L-6",
+    "classe": "F",
+    "questaoA": "L12",
+    "disparaA": ["Não lembro de alguém discordar de mim"],
+    "disparaARaw": "Não lembro de alguém discordar de mim",
+    "questaoB": "L13",
+    "disparaB": ["Com regularidade, e a pessoa também dá retorno para mim"],
+    "disparaBRaw": "Com regularidade, e a pessoa também dá retorno para mim",
+    "precedencia": "L12",
+    "acao": "verificar"
+  },
+  {
+    "regra": "L-7",
+    "classe": "F",
+    "questaoA": "L07",
+    "disparaA": ["Quase todo, praticamente só executo"],
+    "disparaARaw": "Quase todo, praticamente só executo",
+    "questaoB": "O03",
+    "disparaB": ["Sim, por tempo indeterminado"],
+    "disparaBRaw": "Sim, por tempo indeterminado",
+    "precedencia": "O03",
+    "acao": "verificar"
+  },
+  {
+    "regra": "L-8",
+    "classe": "F",
+    "questaoA": "L15",
+    "disparaA": ["Com ninguém, decido sozinho"],
+    "disparaARaw": "Com ninguém, decido sozinho",
+    "questaoB": "L01",
+    "disparaB": ["Temos conselho ou comitê que decide junto"],
+    "disparaBRaw": "Temos conselho ou comitê que decide junto",
+    "precedencia": "L01",
+    "acao": "verificar"
+  },
+  {
+    "regra": "L-9",
+    "classe": "I",
+    "questaoA": "L09",
+    "disparaA": ["Consigo ver sem precisar perguntar, está registrado"],
+    "disparaARaw": "Consigo ver sem precisar perguntar, está registrado",
+    "questaoB": "A10",
+    "disparaB": ["De memória, sem anotar"],
+    "disparaBRaw": "De memória, sem anotar",
+    "precedencia": "A10",
+    "acao": "verificar"
+  },
+  {
+    "regra": "M-1",
+    "classe": "F",
+    "questaoA": "M08",
+    "disparaA": ["Indicação de clientes antigos"],
+    "disparaARaw": "Indicação de clientes antigos",
+    "questaoB": "M09",
+    "disparaB": [
+      "Aparece gente com alguma regularidade",
+      "Aparece gente com regularidade e em quantidade que dá conta",
+      "Aparece gente com regularidade e conseguimos escolher quem atender"
+    ],
+    "disparaBRaw": "Aparece gente com alguma regularidade | Aparece gente com regularidade e em quantidade que dá conta | Aparece gente com regularidade e conseguimos escolher quem atender",
+    "precedencia": "M08",
+    "acao": "verificar"
+  },
+  {
+    "regra": "M-2",
+    "classe": "I",
+    "questaoA": "M11",
+    "disparaA": [
+      "Sei o valor e acompanho de tempos em tempos",
+      "Sei o valor por canal e comparo entre eles"
+    ],
+    "disparaARaw": "Sei o valor e acompanho de tempos em tempos | Sei o valor por canal e comparo entre eles",
+    "questaoB": "M10",
+    "disparaB": ["Não medimos"],
+    "disparaBRaw": "Não medimos",
+    "precedencia": "M10",
+    "acao": "registrar; nota já corrigida pelo bloqueio"
+  },
+  {
+    "regra": "M-3",
+    "classe": "F",
+    "questaoA": "M01",
+    "disparaA": [
+      "Direcionamos para um público definido, e escolhemos os canais por causa dele",
+      "Direcionamos por público e temos comunicação diferente para perfis diferentes"
+    ],
+    "disparaARaw": "Direcionamos para um público definido, e escolhemos os canais por causa dele | Direcionamos por público e temos comunicação diferente para perfis diferentes",
+    "questaoB": "M04",
+    "disparaB": ["Não fazemos divulgação, dependemos do boca a boca"],
+    "disparaBRaw": "Não fazemos divulgação, dependemos do boca a boca",
+    "precedencia": "M04",
+    "acao": "verificar"
+  },
+  {
+    "regra": "O-1",
+    "classe": "F",
+    "questaoA": "O03",
+    "disparaA": ["Sim, por tempo indeterminado"],
+    "disparaARaw": "Sim, por tempo indeterminado",
+    "questaoB": "O01",
+    "disparaB": ["Só eu"],
+    "disparaBRaw": "Só eu",
+    "precedencia": "O01",
+    "acao": "verificar"
+  },
+  {
+    "regra": "O-2",
+    "classe": "F",
+    "questaoA": "O04",
+    "disparaA": ["Sim, sem mudar nada"],
+    "disparaARaw": "Sim, sem mudar nada",
+    "questaoB": "O05",
+    "disparaB": ["Foi demais, atrasamos ou recusamos trabalho"],
+    "disparaBRaw": "Foi demais, atrasamos ou recusamos trabalho",
+    "precedencia": "O05",
+    "acao": "verificar"
+  },
+  {
+    "regra": "O-3",
+    "classe": "F",
+    "questaoA": "O17",
+    "disparaA": ["Quase nunca dá errado"],
+    "disparaARaw": "Quase nunca dá errado",
+    "questaoB": "O13",
+    "disparaB": [
+      "Quase nenhum",
+      "A minoria",
+      "Mais ou menos a metade",
+      "Não controlamos os prazos"
+    ],
+    "disparaBRaw": "Quase nenhum | A minoria | Mais ou menos a metade | Não controlamos os prazos",
+    "precedencia": "O13",
+    "acao": "verificar"
+  },
+  {
+    "regra": "O-4",
+    "classe": "I",
+    "questaoA": "O18",
+    "disparaA": ["Comparo tempo e custo com o previsto, serviço por serviço"],
+    "disparaARaw": "Comparo tempo e custo com o previsto, serviço por serviço",
+    "questaoB": "O09",
+    "disparaB": ["Não, está só na cabeça de quem faz"],
+    "disparaBRaw": "Não, está só na cabeça de quem faz",
+    "precedencia": "O09",
+    "acao": "registrar"
+  },
+  {
+    "regra": "O-5",
+    "classe": "D",
+    "questaoA": "O19",
+    "disparaA": [],
+    "disparaARaw": "(texto livre)",
+    "questaoB": "O09",
+    "disparaB": [
+      "Não, está só na cabeça de quem faz",
+      "A gente conversa sobre como fazer, mas nada está escrito"
+    ],
+    "disparaBRaw": "Não, está só na cabeça de quem faz | A gente conversa sobre como fazer, mas nada está escrito",
+    "precedencia": null,
+    "acao": "sessão"
+  },
+  {
+    "regra": "R-1",
+    "classe": "F",
+    "questaoA": "R06",
+    "disparaA": ["Não tivemos saídas"],
+    "disparaARaw": "Não tivemos saídas",
+    "questaoB": "R05",
+    "disparaB": [
+      "Praticamente todo mundo trocou",
+      "Mais de três pessoas",
+      "Duas ou três pessoas",
+      "Uma pessoa"
+    ],
+    "disparaBRaw": "Praticamente todo mundo trocou | Mais de três pessoas | Duas ou três pessoas | Uma pessoa",
+    "precedencia": "R05",
+    "acao": "verificar"
+  },
+  {
+    "regra": "R-2",
+    "classe": "F",
+    "questaoA": "R09",
+    "disparaA": [
+      "Temos jeito definido de ensinar o que é do nosso trabalho",
+      "Ensinamos o nosso jeito e ainda apoiamos formação de fora"
+    ],
+    "disparaARaw": "Temos jeito definido de ensinar o que é do nosso trabalho | Ensinamos o nosso jeito e ainda apoiamos formação de fora",
+    "questaoB": "R04",
+    "disparaB": ["Começa fazendo e vai aprendendo sozinho"],
+    "disparaBRaw": "Começa fazendo e vai aprendendo sozinho",
+    "precedencia": "R04",
+    "acao": "verificar"
+  },
+  {
+    "regra": "R-3",
+    "classe": "F",
+    "questaoA": "R14",
+    "disparaA": [
+      "Perguntamos com regularidade e já mudamos coisas por causa das respostas"
+    ],
+    "disparaARaw": "Perguntamos com regularidade e já mudamos coisas por causa das respostas",
+    "questaoB": "R06",
+    "disparaB": ["Não sei dizer o motivo"],
+    "disparaBRaw": "Não sei dizer o motivo",
+    "precedencia": "R06",
+    "acao": "verificar"
+  },
+  {
+    "regra": "R-4",
+    "classe": "F",
+    "questaoA": "R01",
+    "disparaA": ["Ninguém cuida, cada contratação acontece de um jeito"],
+    "disparaARaw": "Ninguém cuida, cada contratação acontece de um jeito",
+    "questaoB": "R03",
+    "disparaB": [
+      "Fazemos teste prático antes de fechar",
+      "Fazemos teste prático e acompanhamos de perto no começo"
+    ],
+    "disparaBRaw": "Fazemos teste prático antes de fechar | Fazemos teste prático e acompanhamos de perto no começo",
+    "precedencia": "R03",
+    "acao": "verificar"
+  },
+  {
+    "regra": "R-5",
+    "classe": "F",
+    "questaoA": "R02",
+    "disparaA": ["Não procuramos, contratamos quem aparece"],
+    "disparaARaw": "Não procuramos, contratamos quem aparece",
+    "questaoB": "R03",
+    "disparaB": [
+      "Sabemos o que a pessoa precisa saber fazer e perguntamos sobre isso",
+      "Fazemos teste prático antes de fechar",
+      "Fazemos teste prático e acompanhamos de perto no começo"
+    ],
+    "disparaBRaw": "Sabemos o que a pessoa precisa saber fazer e perguntamos sobre isso | Fazemos teste prático antes de fechar | Fazemos teste prático e acompanhamos de perto no começo",
+    "precedencia": "R03",
+    "acao": "verificar"
+  },
+  {
+    "regra": "V-1",
+    "classe": "I",
+    "questaoA": "V04",
+    "disparaA": ["Menos de 1", "1 ou 2", "De 3 a 5", "De 6 a 8", "Quase todas"],
+    "disparaARaw": "Menos de 1 | 1 ou 2 | De 3 a 5 | De 6 a 8 | Quase todas",
+    "questaoB": "V03",
+    "disparaB": ["Não ficam registradas em lugar nenhum"],
+    "disparaBRaw": "Não ficam registradas em lugar nenhum",
+    "precedencia": "V03",
+    "acao": "registrar; nota já corrigida pelo bloqueio"
+  },
+  {
+    "regra": "V-2",
+    "classe": "I",
+    "questaoA": "V06",
+    "disparaA": ["Retomo com rotina e sei quantos voltam a fechar depois"],
+    "disparaARaw": "Retomo com rotina e sei quantos voltam a fechar depois",
+    "questaoB": "V03",
+    "disparaB": ["Não ficam registradas em lugar nenhum"],
+    "disparaBRaw": "Não ficam registradas em lugar nenhum",
+    "precedencia": "V03",
+    "acao": "verificar"
+  },
+  {
+    "regra": "V-3",
+    "classe": "F",
+    "questaoA": "V12",
+    "disparaA": ["Nenhum"],
+    "disparaARaw": "Nenhum",
+    "questaoB": "V15",
+    "disparaB": ["Temos contrato de continuidade"],
+    "disparaBRaw": "Temos contrato de continuidade",
+    "precedencia": "V12",
+    "acao": "verificar"
+  },
+  {
+    "regra": "V-4",
+    "classe": "D",
+    "questaoA": "V08",
+    "disparaA": ["Quase sempre, é assim que a gente fecha", "Muitas vezes"],
+    "disparaARaw": "Quase sempre, é assim que a gente fecha | Muitas vezes",
+    "questaoB": "F09",
+    "disparaB": [
+      "Calculo o custo real do trabalho e defino a margem que preciso",
+      "Parto do que o cliente ganha com o serviço e confiro com o custo"
+    ],
+    "disparaBRaw": "Calculo o custo real do trabalho e defino a margem que preciso | Parto do que o cliente ganha com o serviço e confiro com o custo",
+    "precedencia": null,
+    "acao": "sessão"
+  },
+  {
+    "regra": "X-1",
+    "classe": "F",
+    "questaoA": "G10",
+    "disparaA": ["Trabalho sozinho"],
+    "disparaARaw": "Trabalho sozinho",
+    "questaoB": "G11",
+    "disparaB": [
+      "1 ou 2",
+      "De 3 a 5",
+      "De 6 a 10",
+      "De 11 a 25",
+      "De 26 a 50",
+      "Mais de 50"
+    ],
+    "disparaBRaw": "1 ou 2 | De 3 a 5 | De 6 a 10 | De 11 a 25 | De 26 a 50 | Mais de 50",
+    "precedencia": "G11",
+    "acao": "verificar"
+  },
+  {
+    "regra": "X-10",
+    "classe": "I",
+    "questaoA": "A11",
+    "disparaA": ["Temos dia, roteiro, e comparamos com o mês anterior"],
+    "disparaARaw": "Temos dia, roteiro, e comparamos com o mês anterior",
+    "questaoB": "F02",
+    "disparaB": ["Não controlo, olho o saldo da conta", "Anoto quando lembro"],
+    "disparaBRaw": "Não controlo, olho o saldo da conta | Anoto quando lembro",
+    "precedencia": "F02",
+    "acao": "verificar; atravessa setores, não bloqueia nota"
+  },
+  {
+    "regra": "X-11",
+    "classe": "D",
+    "questaoA": "A06",
+    "disparaA": ["Estão escritas e as pessoas consultam no dia a dia"],
+    "disparaARaw": "Estão escritas e as pessoas consultam no dia a dia",
+    "questaoB": "O09",
+    "disparaB": ["Não, está só na cabeça de quem faz"],
+    "disparaBRaw": "Não, está só na cabeça de quem faz",
+    "precedencia": null,
+    "acao": "sessão"
+  },
+  {
+    "regra": "X-12",
+    "classe": "F",
+    "questaoA": "J07",
+    "disparaA": [
+      "Um contador cuida e eu acompanho o que é enviado",
+      "Acompanho e sei o que cada obrigação significa para a empresa"
+    ],
+    "disparaARaw": "Um contador cuida e eu acompanho o que é enviado | Acompanho e sei o que cada obrigação significa para a empresa",
+    "questaoB": "F03",
+    "disparaB": ["Só o contador, eu não acompanho"],
+    "disparaBRaw": "Só o contador, eu não acompanho",
+    "precedencia": "F03",
+    "acao": "verificar"
+  },
+  {
+    "regra": "X-13",
+    "classe": "F",
+    "questaoA": "M03",
+    "disparaA": ["Agência ou freelancer de fora"],
+    "disparaARaw": "Agência ou freelancer de fora",
+    "questaoB": "A02",
+    "disparaB": ["Divulgar a empresa"],
+    "disparaBRaw": "Divulgar a empresa",
+    "precedencia": "A02",
+    "acao": "verificar; divulgação ausente de A02"
+  },
+  {
+    "regra": "X-14",
+    "classe": "F",
+    "questaoA": "J13",
+    "disparaA": ["Não conheço as obrigações dessa lei"],
+    "disparaARaw": "Não conheço as obrigações dessa lei",
+    "questaoB": "A03",
+    "disparaB": [
+      "Temos cadastro com histórico do que cada cliente já contratou",
+      "Temos cadastro com histórico e qualquer pessoa da equipe consegue consultar"
+    ],
+    "disparaBRaw": "Temos cadastro com histórico do que cada cliente já contratou | Temos cadastro com histórico e qualquer pessoa da equipe consegue consultar",
+    "precedencia": "A03",
+    "acao": "verificar"
+  },
+  {
+    "regra": "X-15",
+    "classe": "D",
+    "questaoA": "V07",
+    "disparaA": ["Não entenderam o valor do que a gente oferece"],
+    "disparaARaw": "Não entenderam o valor do que a gente oferece",
+    "questaoB": "M02",
+    "disparaB": ["Falamos em preço"],
+    "disparaBRaw": "Falamos em preço",
+    "precedencia": null,
+    "acao": "sessão"
+  },
+  {
+    "regra": "X-16",
+    "classe": "F",
+    "questaoA": "F07",
+    "disparaA": ["Contrato de continuidade, com pagamento todo mês"],
+    "disparaARaw": "Contrato de continuidade, com pagamento todo mês",
+    "questaoB": "V12",
+    "disparaB": ["Nenhum"],
+    "disparaBRaw": "Nenhum",
+    "precedencia": "V12",
+    "acao": "verificar"
+  },
+  {
+    "regra": "X-17",
+    "classe": "F",
+    "questaoA": "L10",
+    "disparaA": [
+      "Resolve e me conta depois",
+      "Resolve sozinha e só me envolve no que é grande"
+    ],
+    "disparaARaw": "Resolve e me conta depois | Resolve sozinha e só me envolve no que é grande",
+    "questaoB": "R08",
+    "disparaB": [
+      "Não, cada um faz o que aparece",
+      "Sabem mais ou menos, tem coisa que fica sem dono"
+    ],
+    "disparaBRaw": "Não, cada um faz o que aparece | Sabem mais ou menos, tem coisa que fica sem dono",
+    "precedencia": "R08",
+    "acao": "verificar"
+  },
+  {
+    "regra": "X-2",
+    "classe": "F",
+    "questaoA": "G10",
+    "disparaA": ["Carteira assinada"],
+    "disparaARaw": "Carteira assinada",
+    "questaoB": "G11",
+    "disparaB": ["Nenhuma"],
+    "disparaBRaw": "Nenhuma",
+    "precedencia": "G11",
+    "acao": "verificar"
+  },
+  {
+    "regra": "X-3",
+    "classe": "F",
+    "questaoA": "G12",
+    "disparaA": ["De 1 a 5"],
+    "disparaARaw": "De 1 a 5",
+    "questaoB": "V16",
+    "disparaB": ["Nenhum cliente meu é grande a esse ponto"],
+    "disparaBRaw": "Nenhum cliente meu é grande a esse ponto",
+    "precedencia": "G12",
+    "acao": "verificar"
+  },
+  {
+    "regra": "X-4",
+    "classe": "F",
+    "questaoA": "G12",
+    "disparaA": [
+      "Ainda não temos clientes e ainda não começamos a procurar",
+      "Ainda não temos clientes, mas já estamos procurando"
+    ],
+    "disparaARaw": "Ainda não temos clientes e ainda não começamos a procurar | Ainda não temos clientes, mas já estamos procurando",
+    "questaoB": "G13",
+    "disparaB": [
+      "Até R$ 10 mil",
+      "De R$ 10 mil a R$ 30 mil",
+      "De R$ 30 mil a R$ 100 mil",
+      "De R$ 100 mil a R$ 300 mil",
+      "De R$ 300 mil a R$ 1 milhão",
+      "Mais de R$ 1 milhão"
+    ],
+    "disparaBRaw": "Até R$ 10 mil | De R$ 10 mil a R$ 30 mil | De R$ 30 mil a R$ 100 mil | De R$ 100 mil a R$ 300 mil | De R$ 300 mil a R$ 1 milhão | Mais de R$ 1 milhão",
+    "precedencia": "G12",
+    "acao": "verificar"
+  },
+  {
+    "regra": "X-5",
+    "classe": "F",
+    "questaoA": "G13",
+    "disparaA": ["Ainda não temos faturamento"],
+    "disparaARaw": "Ainda não temos faturamento",
+    "questaoB": "F11",
+    "disparaB": [
+      "Sobrou pouco, mas sobrou",
+      "Sobrou o bastante para guardar todo mês"
+    ],
+    "disparaBRaw": "Sobrou pouco, mas sobrou | Sobrou o bastante para guardar todo mês",
+    "precedencia": "G13",
+    "acao": "verificar"
+  },
+  {
+    "regra": "X-6",
+    "classe": "F",
+    "questaoA": "R07",
+    "disparaA": ["Nenhuma, trabalhamos sem ter"],
+    "disparaARaw": "Nenhuma, trabalhamos sem ter",
+    "questaoB": "J02",
+    "disparaB": [
+      "Temos todos",
+      "Temos todos e acompanhamos as renovações antes de vencer"
+    ],
+    "disparaBRaw": "Temos todos | Temos todos e acompanhamos as renovações antes de vencer",
+    "precedencia": "J02",
+    "acao": "verificar"
+  },
+  {
+    "regra": "X-7",
+    "classe": "F",
+    "questaoA": "R07",
+    "disparaA": ["Só uma pessoa"],
+    "disparaARaw": "Só uma pessoa",
+    "questaoB": "O01",
+    "disparaB": ["Todo mundo que trabalha com a entrega"],
+    "disparaBRaw": "Todo mundo que trabalha com a entrega",
+    "precedencia": "R07",
+    "acao": "verificar quando o serviço exige registro"
+  },
+  {
+    "regra": "X-8",
+    "classe": "D",
+    "questaoA": "J04",
+    "disparaA": [
+      "Está tudo regular",
+      "Está tudo regular e um profissional confere de tempos em tempos"
+    ],
+    "disparaARaw": "Está tudo regular | Está tudo regular e um profissional confere de tempos em tempos",
+    "questaoB": "R12",
+    "disparaB": ["Valor por obra, projeto ou entrega concluída"],
+    "disparaBRaw": "Valor por obra, projeto ou entrega concluída",
+    "precedencia": null,
+    "acao": "sessão quando G10 declara carteira assinada"
+  },
+  {
+    "regra": "X-9",
+    "classe": "D",
+    "questaoA": "J05",
+    "disparaA": [
+      "Em todos, e o contrato descreve o que está e o que não está incluído"
+    ],
+    "disparaARaw": "Em todos, e o contrato descreve o que está e o que não está incluído",
+    "questaoB": "O15",
+    "disparaB": ["Quase sempre", "Muitas vezes"],
+    "disparaBRaw": "Quase sempre | Muitas vezes",
+    "precedencia": null,
+    "acao": "sessão"
+  }
+]

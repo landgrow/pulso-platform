@@ -14,13 +14,11 @@ export const BIN_ROUTE_LABELS: Record<BinRoute, string> = {
   pre_operacao: "Pré-operação",
 };
 
-/** Só serviços tem formulário v2 pronto. Varejo e indústria continuam na v1. */
 export type BinDirectedFormStatus = "ready" | "pending" | "coverage";
 
 export function binDirectedFormStatus(route: BinRoute): BinDirectedFormStatus {
-  if (route === "servicos") return "ready";
   if (route === "pre_operacao") return "coverage";
-  return "pending";
+  return "ready";
 }
 
 function asString(value: BinAnswers[string]): string | null {

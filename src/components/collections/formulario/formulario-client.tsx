@@ -37,7 +37,7 @@ export function FormularioClient({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const blocos = useMemo(
-    () => binInstrument.sections.map(binSectionToBloco),
+    () => binInstrument.sections.map((section) => binSectionToBloco(section)),
     [],
   );
 

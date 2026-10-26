@@ -36,6 +36,8 @@ export function DiagCard({
   total,
   respondidas,
   countLabel = "perguntas",
+  score,
+  scoreClass,
   onClick,
 }: {
   index: number;
@@ -46,6 +48,8 @@ export function DiagCard({
   total: number;
   respondidas: number;
   countLabel?: string;
+  score?: string | null;
+  scoreClass?: string;
   onClick?: () => void;
 }): JSX.Element {
   const status = diagStatusKey(respondidas, total);
@@ -56,7 +60,7 @@ export function DiagCard({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className="text-left rounded-xl border border-border bg-surface-1 p-4 flex flex-col gap-2.5 hover:border-text-2/40 transition-colors disabled:cursor-default"
+      className="h-full w-full min-h-[168px] text-left rounded-xl border border-border bg-surface-1 p-4 flex flex-col gap-2.5 hover:border-text-2/40 transition-colors disabled:cursor-default"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="text-sm font-semibold" style={{ color }}>
@@ -67,7 +71,7 @@ export function DiagCard({
         </span>
       </div>
       {Array.isArray(meta) ? (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex min-h-[2.5rem] flex-wrap content-start gap-1.5">
           {meta.map((tag) => (
             <span
               key={tag}
@@ -78,24 +82,41 @@ export function DiagCard({
           ))}
         </div>
       ) : (
-        <p className="text-xs text-text-2 leading-snug">{meta}</p>
+        <p className="min-h-[2.5rem] text-xs text-text-2 leading-snug line-clamp-2">
+          {meta}
+        </p>
       )}
-      <div className="flex items-center justify-between text-[11px]">
-        <span
-          className={cn("inline-flex items-center gap-1", STATUS_CLASS[status])}
-        >
-          <StatusIcon className="h-3 w-3" />
-          {DIAG_STATUS_LABELS[status]}
-        </span>
-        <span className="text-text-2">
-          {respondidas}/{total} {countLabel}
-        </span>
-      </div>
-      <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
-        <div
-          className={cn("h-full", STATUS_BG_CLASS[status])}
-          style={{ width: `${pct}%` }}
-        />
+      <div className="mt-auto space-y-2.5">
+        {score !== undefined ? (
+          <p
+            className={cn(
+              "min-h-5 text-sm font-medium tabular-nums",
+              scoreClass,
+            )}
+          >
+            {score || "\u00A0"}
+          </p>
+        ) : null}
+        <div className="flex items-center justify-between text-[11px]">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1",
+              STATUS_CLASS[status],
+            )}
+          >
+            <StatusIcon className="h-3 w-3" />
+            {DIAG_STATUS_LABELS[status]}
+          </span>
+          <span className="text-text-2">
+            {respondidas}/{total} {countLabel}
+          </span>
+        </div>
+        <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
+          <div
+            className={cn("h-full", STATUS_BG_CLASS[status])}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
       </div>
     </button>
   );

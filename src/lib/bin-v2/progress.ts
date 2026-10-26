@@ -1,11 +1,15 @@
 import { isQuestionAnswered } from "./answers";
 import { binInstrument, questionsInSection } from "./instrument";
 import { isQuestionVisible } from "./visibility";
-import type { BinAnswers, BinSection } from "./types";
+import type { BinAnswers, BinInstrument, BinSection } from "./types";
 
-export function calcBinProgress(answers: BinAnswers): number {
-  const visible = binInstrument.questions.filter(
-    (q) => q.required && isQuestionVisible(q, answers),
+export function calcBinProgress(
+  answers: BinAnswers,
+  instrument?: BinInstrument | null,
+): number {
+  const inst = instrument ?? binInstrument;
+  const visible = inst.questions.filter(
+    (q) => q.required && isQuestionVisible(q, answers, inst),
   );
   if (visible.length === 0) return 100;
   const filled = visible.filter((q) => isQuestionAnswered(q, answers)).length;
@@ -14,17 +18,20 @@ export function calcBinProgress(answers: BinAnswers): number {
 
 export function binProgressFromPayload(
   payload: Record<string, unknown> | null | undefined,
+  instrument?: BinInstrument | null,
 ): number {
   if (!payload) return 0;
-  return calcBinProgress(payload as BinAnswers);
+  return calcBinProgress(payload as BinAnswers, instrument);
 }
 
 export function countBinSection(
   section: BinSection,
   answers: BinAnswers,
+  instrument?: BinInstrument | null,
 ): { filled: number; total: number } {
-  const questions = questionsInSection(section).filter((q) =>
-    isQuestionVisible(q, answers),
+  const inst = instrument ?? binInstrument;
+  const questions = questionsInSection(section, inst).filter((q) =>
+    isQuestionVisible(q, answers, inst),
   );
   return {
     total: questions.length,

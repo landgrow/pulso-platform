@@ -3,7 +3,7 @@ import type {
   FormularioCampo,
 } from "@/lib/formulario-questions";
 import { questionsInSection } from "./instrument";
-import type { BinQuestion, BinSection } from "./types";
+import type { BinInstrument, BinQuestion, BinSection } from "./types";
 
 function uiToCampoTipo(ui: BinQuestion["ui"]): FormularioCampo["tipo"] {
   if (ui === "textarea") return "textarea";
@@ -12,9 +12,6 @@ function uiToCampoTipo(ui: BinQuestion["ui"]): FormularioCampo["tipo"] {
 }
 
 export function binQuestionToCampo(question: BinQuestion): FormularioCampo {
-  // Sem o código interno (G13, S02…) — é chave de schema, não texto de tela.
-  // A numeração visível é feita no FormBlocoArea, depois de esconder as
-  // perguntas condicionais, pra não pular número.
   const campo: FormularioCampo = {
     id: question.id,
     tipo: uiToCampoTipo(question.ui),
@@ -32,10 +29,13 @@ export function binQuestionToCampo(question: BinQuestion): FormularioCampo {
   return campo;
 }
 
-export function binSectionToBloco(section: BinSection): FormularioBloco {
+export function binSectionToBloco(
+  section: BinSection,
+  instrument?: BinInstrument | null,
+): FormularioBloco {
   return {
     area: section.title,
     cor: section.color,
-    perguntas: questionsInSection(section).map(binQuestionToCampo),
+    perguntas: questionsInSection(section, instrument).map(binQuestionToCampo),
   };
 }

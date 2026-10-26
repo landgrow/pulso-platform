@@ -1,6 +1,14 @@
 export const BIN_V2_INSTRUMENT = "bin_servicos_v2";
 export const BIN_SPECIFY_SUFFIX = "__outro";
 
+export type BinPackId = "servicos" | "varejo" | "industria";
+
+export const BIN_PACK_INSTRUMENTS: Record<BinPackId, string> = {
+  servicos: "bin_servicos_v2",
+  varejo: "bin_varejo_v2",
+  industria: "bin_industria_v2",
+};
+
 export type BinScale =
   | "ordinal"
   | "ordinal_invertido"

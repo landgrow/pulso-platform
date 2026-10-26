@@ -2,14 +2,18 @@
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { BinReadingPanel } from "@/components/bin/bin-reading-panel";
+import { BinSectorPanel } from "@/components/bin/bin-sector-panel";
 import {
+  binAnswerScoreLabel,
   binEventHeadline,
-  binInstrument,
   binRouteLabel,
-  countBinSection,
+  binSectionScoreLabel,
   formatBinAnswer,
   getBinQuestion,
   isQuestionVisible,
+  packFor,
+  scoreBinSection,
 } from "@/lib/bin-v2";
 import type { BinAnswers, BinFlowMeta, BinRoute } from "@/lib/bin-v2";
 import { formatDate } from "@/lib/utils";
@@ -26,9 +30,16 @@ export function BinHqReview({
   periodoLabel: string | null;
 }): JSX.Element {
   const answers = payload as BinAnswers;
+  const pack = packFor(route);
   const [openId, setOpenId] = useState<string | null>(
     flow.geralEnviadoEm ? "geral" : null,
   );
+  const openSection = openId
+    ? pack.instrument.sections.find((section) => section.id === openId)
+    : undefined;
+  const openScore = openSection
+    ? scoreBinSection(openSection, answers, pack.instrument)
+    : null;
 
   return (
     <div className="space-y-5">
@@ -58,7 +69,7 @@ export function BinHqReview({
             .reverse()
             .map((event) => {
               const section = event.sectionId
-                ? binInstrument.sections.find((s) => s.id === event.sectionId)
+                ? pack.instrument.sections.find((s) => s.id === event.sectionId)
                 : undefined;
               return (
                 <li
@@ -84,64 +95,91 @@ export function BinHqReview({
         </ol>
       ) : null}
 
-      <div className="space-y-3">
-        {binInstrument.sections.map((section) => {
-          const { filled, total } = countBinSection(section, answers);
-          if (filled === 0 && total > 0 && section.id !== "geral") {
-            if (!flow.geralEnviadoEm) return null;
-          }
-          const sentAt = flow.setoresEnviados[section.id];
-          const isOpen = openId === section.id;
-          return (
-            <div
-              key={section.id}
-              className="rounded-lg border border-border bg-surface-1"
-            >
-              <button
-                type="button"
-                className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left"
-                onClick={() => setOpenId(isOpen ? null : section.id)}
-              >
-                <div>
-                  <p className="text-sm font-medium">{section.title}</p>
-                  <p className="text-xs text-text-2 mt-0.5">
-                    {filled} de {total}
-                    {sentAt
-                      ? ` · enviado ${formatDate(sentAt, { dateStyle: "short", timeStyle: "short" })}`
-                      : ""}
-                  </p>
-                </div>
-                <span className="text-xs text-text-2">
-                  {isOpen ? "Fechar" : "Ver respostas"}
-                </span>
-              </button>
-              {isOpen ? (
-                <dl className="space-y-4 border-t border-border px-4 py-4">
-                  {section.questionIds.map((id) => {
-                    const question = getBinQuestion(id);
-                    if (!question || !isQuestionVisible(question, answers)) {
-                      return null;
-                    }
-                    const answer = formatBinAnswer(question, answers);
-                    return (
-                      <div key={id}>
-                        <dt className="text-xs font-medium text-text-2">
-                          {question.id} · {question.prompt}
-                        </dt>
-                        <dd className="mt-1 text-sm whitespace-pre-wrap">
-                          {answer ?? (
-                            <span className="text-text-2">Sem resposta</span>
-                          )}
-                        </dd>
-                      </div>
-                    );
-                  })}
-                </dl>
+      <BinReadingPanel
+        answers={answers}
+        route={route}
+        flow={flow}
+        selectedSectionId={openId === "geral" ? null : openId}
+        onSelectSection={(sectionId) => setOpenId(sectionId ?? "geral")}
+      />
+
+      <BinSectorPanel
+        answers={answers}
+        flow={flow}
+        route={route}
+        selectedId={openId}
+        showScore
+        onSelect={(sectionId) =>
+          setOpenId((current) => (current === sectionId ? null : sectionId))
+        }
+      />
+
+      {openSection ? (
+        <dl className="space-y-4 rounded-lg border border-border bg-surface-1 px-4 py-4">
+          <div className="flex items-baseline justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium">{openSection.title}</p>
+              {openScore ? (
+                <p className="mt-0.5 text-sm text-text-2">
+                  {binSectionScoreLabel(openScore) ??
+                    "Diagnóstico geral não recebe nota. Essas perguntas são contexto."}
+                </p>
               ) : null}
             </div>
-          );
-        })}
-      </div>
+            <button
+              type="button"
+              className="text-xs text-text-2 hover:text-text-1"
+              onClick={() => setOpenId(null)}
+            >
+              Fechar
+            </button>
+          </div>
+          {openSection.id !== "geral" ? (
+            <p className="text-xs text-text-2">
+              O número ao lado vale só para essa pergunta, de 0 a 100. Ele não
+              soma na nota do setor.
+            </p>
+          ) : null}
+          {openSection.questionIds.map((id) => {
+            const question = getBinQuestion(id, pack.instrument);
+            if (
+              !question ||
+              !isQuestionVisible(question, answers, pack.instrument)
+            ) {
+              return null;
+            }
+            const answer = formatBinAnswer(question, answers);
+            const points = binAnswerScoreLabel(
+              question,
+              answers,
+              pack.instrument,
+            );
+            return (
+              <div key={id}>
+                <dt className="text-xs font-medium text-text-2">
+                  {question.id} · {question.prompt}
+                </dt>
+                <dd className="mt-1 flex items-baseline justify-between gap-4 text-sm">
+                  <span className="whitespace-pre-wrap">
+                    {answer ?? (
+                      <span className="text-text-2">Sem resposta</span>
+                    )}
+                  </span>
+                  {points ? (
+                    <span className="shrink-0 tabular-nums text-text-2">
+                      {points}
+                    </span>
+                  ) : null}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+      ) : (
+        <p className="text-sm text-text-2">
+          Clique num setor para ler as respostas e a pontuação.
+        </p>
+      )}
     </div>
   );
 }

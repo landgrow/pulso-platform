@@ -380,7 +380,8 @@ function BinTab({ bin }: { bin: BinSummary | null }): JSX.Element {
           <CardTitle className="text-lg">BIN</CardTitle>
         </div>
         <CardDescription>
-          Cada bloco enviado pelo cliente chega aqui, com as respostas.
+          Portões, inconsistências e os quatro entregáveis por setor já
+          respondido. Clique num setor para ler as respostas.
         </CardDescription>
       </CardHeader>
       <CardContent>

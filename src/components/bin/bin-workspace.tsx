@@ -1,23 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Radar } from "lucide-react";
 import { toast } from "sonner";
 import { notifyBinSubmission } from "@/app/actions/bin";
 import { upsertColecao } from "@/app/actions/colecoes";
 import { Button } from "@/components/ui/button";
 import { DiagCard } from "@/components/admin/diag-card";
+import { BinSectorPanel } from "@/components/bin/bin-sector-panel";
 import { AutoSaveIndicator } from "@/components/collections/formulario/auto-save-indicator";
 import { FormBlocoArea } from "@/components/collections/formulario/form-bloco-area";
 import { ProgressBar } from "@/components/collections/formulario/progress-bar";
-import { BIN_ENTREGAVEIS } from "@/data/diagnostico-demo";
+import { BinReadingPanel } from "@/components/bin/bin-reading-panel";
 import { useAutoSave, type AutoSaveStatus } from "@/hooks/use-auto-save";
 import {
   BIN_SECTION_DESCRIPTIONS,
-  BIN_V2_INSTRUMENT,
   appendBinEvent,
   binDirectedFormStatus,
-  binInstrument,
   binRouteLabel,
   binSectionColor,
   binSectionToBloco,
@@ -25,6 +24,7 @@ import {
   getBinQuestion,
   getBinSection,
   isQuestionVisible,
+  packFor,
   parseBinDirected,
   parseBinGeral,
   parseBinSection,
@@ -62,15 +62,16 @@ export function BinWorkspace({
 
   const persist = useCallback(
     async (payload: BinAnswers, nextFlow: BinFlowMeta) => {
-      const route = resolveBinRoute(payload);
+      const nextRoute = resolveBinRoute(payload);
+      const pack = packFor(nextRoute);
       const result = await upsertColecao({
         periodoId,
         tipo: "formulario",
-        payload: pruneHiddenAnswers(payload),
+        payload: pruneHiddenAnswers(payload, pack.instrument),
         metadata: {
           area: "formulario",
-          instrument: BIN_V2_INSTRUMENT,
-          route,
+          instrument: pack.instrument.instrument,
+          route: nextRoute,
           geralEnviadoEm: nextFlow.geralEnviadoEm,
           diagnosticoEnviadoEm: nextFlow.diagnosticoEnviadoEm,
           setoresEnviados: nextFlow.setoresEnviados,
@@ -119,19 +120,24 @@ export function BinWorkspace({
   }, [answers, readOnly, save]);
 
   const route = resolveBinRoute(answers);
+  const pack = packFor(route);
   const directedStatus = route ? binDirectedFormStatus(route) : null;
-  const geralSection = getBinSection("geral");
-  const directedSections = binInstrument.sections.filter(
+  const geralSection = getBinSection("geral", pack.instrument);
+  const directedSections = pack.instrument.sections.filter(
     (s) => s.id !== "geral",
   );
 
   function onFieldChange(id: string, value: unknown): void {
-    setAnswers((prev) =>
-      pruneHiddenAnswers({
+    setAnswers((prev) => {
+      const next = {
         ...prev,
         [id]: value as BinAnswers[string],
-      }),
-    );
+      };
+      return pruneHiddenAnswers(
+        next,
+        packFor(resolveBinRoute(next)).instrument,
+      );
+    });
     setErrors((prev) => {
       if (!prev[id]) return prev;
       const next = { ...prev };
@@ -141,7 +147,7 @@ export function BinWorkspace({
   }
 
   async function enviarGeral(): Promise<void> {
-    const parsed = parseBinGeral(answers);
+    const parsed = parseBinGeral(answers, pack.instrument);
     if (!parsed.success) {
       setErrors(parsed.errors);
       toast.error("Falta responder o diagnóstico geral");
@@ -176,7 +182,7 @@ export function BinWorkspace({
   }
 
   async function enviarSetor(id: string): Promise<void> {
-    const parsed = parseBinSection(id, answers);
+    const parsed = parseBinSection(id, answers, pack.instrument);
     if (!parsed.success) {
       setErrors(parsed.errors);
       toast.error("Falta responder este setor");
@@ -194,7 +200,9 @@ export function BinWorkspace({
       setFlow(nextFlow);
       setSectionId(null);
       notifyStaff("setor", id);
-      toast.success("Setor enviado. A Land Grow já foi avisada.");
+      toast.success(
+        "Setor enviado. Radar, Compass, Horizon e Route Planner deste recorte já foram gerados.",
+      );
     } catch {
       /* persist already toasts */
     } finally {
@@ -203,7 +211,7 @@ export function BinWorkspace({
   }
 
   async function enviarDiagnostico(): Promise<void> {
-    const parsed = parseBinDirected(answers);
+    const parsed = parseBinDirected(answers, pack.instrument);
     if (!parsed.success) {
       setErrors(parsed.errors);
       toast.error("Falta responder os setores");
@@ -227,14 +235,17 @@ export function BinWorkspace({
     }
   }
 
-  const section = sectionId ? getBinSection(sectionId) : undefined;
-  const bloco = useMemo(
-    () => (section ? binSectionToBloco(section) : null),
-    [section],
-  );
+  const section = sectionId
+    ? getBinSection(sectionId, pack.instrument)
+    : undefined;
+  const bloco = section ? binSectionToBloco(section, pack.instrument) : null;
 
   if (section && bloco) {
-    const { filled, total } = countBinSection(section, answers);
+    const { filled, total } = countBinSection(
+      section,
+      answers,
+      pack.instrument,
+    );
     const isGeral = section.id === "geral";
     return (
       <div className="space-y-6">
@@ -267,8 +278,8 @@ export function BinWorkspace({
           defaultOpen
           readOnly={readOnly || Boolean(flow.diagnosticoEnviadoEm)}
           isVisible={(id) => {
-            const q = getBinQuestion(id);
-            return q ? isQuestionVisible(q, answers) : true;
+            const q = getBinQuestion(id, pack.instrument);
+            return q ? isQuestionVisible(q, answers, pack.instrument) : true;
           }}
           onChange={onFieldChange}
         />
@@ -293,6 +304,9 @@ export function BinWorkspace({
     return (
       <DiagnosticoDisponivel
         route={route}
+        answers={answers}
+        flow={flow}
+        onOpenSection={(id) => setSectionId(id)}
         onBack={() =>
           setFlow((prev) => ({ ...prev, diagnosticoEnviadoEm: null }))
         }
@@ -303,7 +317,7 @@ export function BinWorkspace({
 
   if (!flow.geralEnviadoEm) {
     const geralCount = geralSection
-      ? countBinSection(geralSection, answers)
+      ? countBinSection(geralSection, answers, pack.instrument)
       : { filled: 0, total: 0 };
     return (
       <div className="space-y-6">
@@ -366,7 +380,7 @@ export function BinWorkspace({
 
   const directedCounts = directedSections.map((s) => ({
     section: s,
-    ...countBinSection(s, answers),
+    ...countBinSection(s, answers, pack.instrument),
   }));
   const directedFilled = directedCounts.reduce((n, c) => n + c.filled, 0);
   const directedTotal = directedCounts.reduce((n, c) => n + c.total, 0);
@@ -379,7 +393,7 @@ export function BinWorkspace({
     <div className="space-y-6">
       <Header
         status={status}
-        lead={`Formulário de ${binRouteLabel(route)}. Responda os setores e, no fim, envie para gerar a análise.`}
+        lead={`Formulário de ${binRouteLabel(route)}. Cada setor enviado já gera Radar, Compass, Horizon e Route Planner daquele recorte. Os quatro se atualizam conforme os outros setores entram.`}
       />
       <div className="space-y-2 rounded-lg border border-border bg-surface-1 p-4">
         <div className="flex items-center justify-between text-sm">
@@ -392,7 +406,7 @@ export function BinWorkspace({
         </div>
         <ProgressBar percent={directedPct} />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {directedCounts.map((c, i) => (
           <DiagCard
             key={c.section.id}
@@ -408,6 +422,9 @@ export function BinWorkspace({
           />
         ))}
       </div>
+      {Object.keys(flow.setoresEnviados).length > 0 ? (
+        <BinReadingPanel answers={answers} route={route} flow={flow} />
+      ) : null}
       {!readOnly ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button
@@ -422,7 +439,7 @@ export function BinWorkspace({
             disabled={submitting || directedPct < 100}
             onClick={() => void enviarDiagnostico()}
           >
-            Enviar
+            Enviar diagnóstico completo
           </Button>
         </div>
       ) : null}
@@ -453,10 +470,16 @@ function Header({
 
 function DiagnosticoDisponivel({
   route,
+  answers,
+  flow,
+  onOpenSection,
   onBack,
   canReopen,
 }: {
   route: BinRoute;
+  answers: BinAnswers;
+  flow: BinFlowMeta;
+  onOpenSection: (sectionId: string) => void;
   onBack: () => void;
   canReopen: boolean;
 }): JSX.Element {
@@ -467,24 +490,18 @@ function DiagnosticoDisponivel({
           Diagnóstico de {binRouteLabel(route)}
         </h2>
         <p className="text-sm text-text-2 mt-1">
-          As respostas foram enviadas. A análise deste segmento está em
-          andamento. Os entregáveis ficam nesta tela quando o time concluir.
+          As respostas foram enviadas. Portões, inconsistências e os quatro
+          entregáveis já estão calculados com o recorte respondido.
         </p>
       </div>
-      <div className="divide-y divide-border rounded-lg border border-border bg-surface-1 px-4">
-        {BIN_ENTREGAVEIS.map((d) => (
-          <div
-            key={d.nome}
-            className="flex items-center justify-between gap-3 py-3"
-          >
-            <div>
-              <p className="text-sm font-semibold">{d.nome}</p>
-              <p className="text-xs text-text-2 mt-0.5">{d.desc}</p>
-            </div>
-            <span className="shrink-0 text-xs text-text-2">Em análise</span>
-          </div>
-        ))}
-      </div>
+      <BinReadingPanel answers={answers} route={route} flow={flow} />
+      <BinSectorPanel
+        answers={answers}
+        flow={flow}
+        route={route}
+        showScore
+        onSelect={onOpenSection}
+      />
       {canReopen ? (
         <Button type="button" variant="outline" onClick={onBack}>
           Voltar às respostas

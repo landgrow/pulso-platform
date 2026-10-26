@@ -2,7 +2,7 @@ import { z } from "zod";
 import { specifyKey, selectedNeedsSpecify } from "./answers";
 import { binInstrument } from "./instrument";
 import { isQuestionVisible } from "./visibility";
-import type { BinAnswers, BinQuestion } from "./types";
+import type { BinAnswers, BinInstrument, BinQuestion } from "./types";
 
 function optionValues(question: BinQuestion): string[] {
   return question.options.map((o) => o.value);
@@ -36,14 +36,16 @@ function fieldSchema(question: BinQuestion): z.ZodTypeAny {
 export function parseBinAnswers(
   answers: BinAnswers,
   filter?: (question: BinQuestion) => boolean,
+  instrument: BinInstrument = binInstrument,
 ): {
   success: boolean;
   errors: Record<string, string>;
 } {
   const errors: Record<string, string> = {};
-  for (const question of binInstrument.questions) {
+  for (const question of instrument.questions) {
     if (filter && !filter(question)) continue;
-    if (!question.required || !isQuestionVisible(question, answers)) continue;
+    if (!question.required || !isQuestionVisible(question, answers, instrument))
+      continue;
     const parsed = fieldSchema(question).safeParse(answers[question.id]);
     if (!parsed.success) {
       errors[question.id] =
@@ -65,26 +67,33 @@ export function parseBinAnswers(
   return { success: Object.keys(errors).length === 0, errors };
 }
 
-export function parseBinGeral(answers: BinAnswers): {
+export function parseBinGeral(
+  answers: BinAnswers,
+  instrument: BinInstrument = binInstrument,
+): {
   success: boolean;
   errors: Record<string, string>;
 } {
-  return parseBinAnswers(answers, (q) => q.sectionId === "geral");
+  return parseBinAnswers(answers, (q) => q.sectionId === "geral", instrument);
 }
 
-export function parseBinDirected(answers: BinAnswers): {
+export function parseBinDirected(
+  answers: BinAnswers,
+  instrument: BinInstrument = binInstrument,
+): {
   success: boolean;
   errors: Record<string, string>;
 } {
-  return parseBinAnswers(answers, (q) => q.sectionId !== "geral");
+  return parseBinAnswers(answers, (q) => q.sectionId !== "geral", instrument);
 }
 
 export function parseBinSection(
   sectionId: string,
   answers: BinAnswers,
+  instrument: BinInstrument = binInstrument,
 ): {
   success: boolean;
   errors: Record<string, string>;
 } {
-  return parseBinAnswers(answers, (q) => q.sectionId === sectionId);
+  return parseBinAnswers(answers, (q) => q.sectionId === sectionId, instrument);
 }
