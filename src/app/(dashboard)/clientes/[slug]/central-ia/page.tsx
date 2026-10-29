@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
-import { Sparkles } from "lucide-react";
 import { authorizeClientSlug } from "@/lib/auth/org-access";
-import { EmptyState, PageHeader } from "@/components/ui/page-header";
+import { PageHeader } from "@/components/ui/page-header";
+import { PulsoChat } from "@/components/inteligencia/pulso-chat";
+import { resolveLlm } from "@/lib/inteligencia/llm";
 
 export default async function ClienteCentralIaPage({
   params,
@@ -12,16 +13,21 @@ export default async function ClienteCentralIaPage({
   const auth = await authorizeClientSlug(slug);
   if (!auth.ok) notFound();
 
+  const llm = resolveLlm();
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Central IA"
-        description="Perguntas sobre a sua empresa respondidas com base no BIN, no MIN e nas atividades."
+        description="Perguntas sobre a sua empresa, respondidas com o diagnóstico, as reuniões e as atividades que já estão no PULSO."
       />
-      <EmptyState
-        title="Em construção"
-        description="A Central IA vai cruzar o diagnóstico, o modelo de negócio e o plano de ação da sua empresa. Avisamos aqui quando estiver liberada."
-        action={<Sparkles className="h-5 w-5 text-text-3" aria-hidden />}
+      <PulsoChat
+        surface="client"
+        orgId={auth.org.id}
+        slug={slug}
+        {...("error" in llm
+          ? { llmError: llm.error }
+          : { llmLabel: llm.label })}
       />
     </div>
   );

@@ -34,6 +34,7 @@ describe("staffCan", () => {
     expect(DEFAULT_CONSULTANT_CAPABILITIES).not.toContain("financeiro");
     expect(DEFAULT_CONSULTANT_CAPABILITIES).not.toContain("equipe");
     expect(STAFF_CAPABILITY_IDS).toContain("bin");
+    expect(DEFAULT_CONSULTANT_CAPABILITIES).toContain("documentos");
   });
 
   it("lists Financeiro and Métricas as separate places", () => {

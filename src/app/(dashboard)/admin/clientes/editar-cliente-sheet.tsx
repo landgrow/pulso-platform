@@ -6,21 +6,25 @@ import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
 import { ClienteCadastroForm } from "./cliente-cadastro-form";
+import type { TeamMember } from "@/types/clientes";
 
 export function EditarClienteButton({
   orgId,
   organizationName,
   ownerName,
   ownerEmail,
+  members = [],
 }: {
   orgId: string;
   organizationName: string;
   ownerName: string;
   ownerEmail: string;
+  members?: TeamMember[];
 }): JSX.Element {
   const [open, setOpen] = useState(false);
 
@@ -37,16 +41,20 @@ export function EditarClienteButton({
       </Button>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="overflow-y-auto sm:max-w-lg">
-          <SheetHeader className="p-0">
+          <SheetHeader className="space-y-1 p-0 pr-8">
             <SheetTitle>Editar {organizationName}</SheetTitle>
+            <SheetDescription>
+              Nome do cliente, dono e outras pessoas da equipe.
+            </SheetDescription>
           </SheetHeader>
-          <div className="mt-4">
+          <div className="mt-6">
             <ClienteCadastroForm
               orgId={orgId}
               organizationName={organizationName}
               ownerName={ownerName}
               ownerEmail={ownerEmail}
               hasOwnerAccess={ownerEmail.length > 0}
+              members={members}
               onSaved={() => setOpen(false)}
             />
           </div>

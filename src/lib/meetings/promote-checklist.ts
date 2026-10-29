@@ -5,6 +5,7 @@ import {
   findDoneColumnId,
   findTodoColumnId,
 } from "@/lib/boards/plano-de-acao-template";
+import { relatedOrgIdFromMeeting } from "@/lib/trabalho/graph";
 
 type PromoteResult = {
   created: number;
@@ -60,6 +61,16 @@ export async function promoteMeetingChecklist(
   const doneId = findDoneColumnId(columns);
   if (!todoId) return result;
 
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("is_internal")
+    .eq("id", meeting.org_id)
+    .maybeSingle();
+  const relatedOrgId = relatedOrgIdFromMeeting(
+    Boolean((org as { is_internal: boolean | null } | null)?.is_internal),
+    meeting.org_id,
+  );
+
   for (const item of meeting.checklist) {
     if (!isLandGrowDeliverable(item.texto)) {
       result.skippedClientOps += 1;
@@ -98,6 +109,7 @@ export async function promoteMeetingChecklist(
       created_by: createdBy,
       source_meeting_id: meeting.id,
       source_checklist_item_id: item.id,
+      related_org_id: relatedOrgId,
       observacoes: `Da reunião “${meeting.titulo}” em ${meeting.data.slice(0, 10)}.`,
     });
     if (!error) result.created += 1;

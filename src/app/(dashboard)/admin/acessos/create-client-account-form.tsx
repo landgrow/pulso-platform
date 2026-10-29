@@ -42,7 +42,7 @@ const schema = z.object({
   email: optionalEmail,
   organizationName: z
     .string()
-    .min(2, "Nome da empresa deve ter no mínimo 2 caracteres"),
+    .min(2, "Nome do cliente deve ter no mínimo 2 caracteres"),
   additionalMembers: z.array(memberSchema),
 });
 
@@ -50,7 +50,11 @@ type FormData = z.infer<typeof schema>;
 
 type CreatedAccount = Extract<CreateClientAccountResult, { success: true }>;
 
-export function CreateClientAccountForm(): JSX.Element {
+export function CreateClientAccountForm({
+  compact = false,
+}: {
+  compact?: boolean;
+}): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [created, setCreated] = useState<CreatedAccount | null>(null);
 
@@ -96,140 +100,145 @@ export function CreateClientAccountForm(): JSX.Element {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">Criar acesso de cliente</CardTitle>
-          </div>
-          <CardDescription>
-            Cria a empresa na carteira. O email do dono é opcional: se
-            preencher, a pessoa recebe o convite para definir a própria senha.
-            Sem email, o cliente entra mesmo assim.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome do dono</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Nome de quem vai acessar"
-                  {...register("name")}
-                  disabled={isLoading}
-                />
-                {errors.name && (
-                  <p className="text-sm text-error">{errors.name.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email do dono (opcional)</Label>
-                <Input
-                  id="email"
-                  type="text"
-                  inputMode="email"
-                  placeholder="cliente@empresa.com"
-                  autoComplete="off"
-                  {...register("email")}
-                  disabled={isLoading}
-                />
-                {errors.email && (
-                  <p className="text-sm text-error">{errors.email.message}</p>
-                )}
-              </div>
-            </div>
+  const form = (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="name">Nome do dono</Label>
+          <Input
+            id="name"
+            type="text"
+            placeholder="Nome de quem vai acessar"
+            {...register("name")}
+            disabled={isLoading}
+          />
+          {errors.name && (
+            <p className="text-sm text-error">{errors.name.message}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email do dono (opcional)</Label>
+          <Input
+            id="email"
+            type="text"
+            inputMode="email"
+            placeholder="cliente@empresa.com"
+            autoComplete="off"
+            {...register("email")}
+            disabled={isLoading}
+          />
+          {errors.email && (
+            <p className="text-sm text-error">{errors.email.message}</p>
+          )}
+        </div>
+      </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="organizationName">Nome da empresa</Label>
-              <Input
-                id="organizationName"
-                type="text"
-                placeholder="Nome da empresa cliente"
-                {...register("organizationName")}
-                disabled={isLoading}
-              />
-              {errors.organizationName && (
-                <p className="text-sm text-error">
-                  {errors.organizationName.message}
-                </p>
-              )}
-            </div>
+      <div className="space-y-2">
+        <Label htmlFor="organizationName">Nome do cliente</Label>
+        <Input
+          id="organizationName"
+          type="text"
+          placeholder="Como a empresa entra na carteira"
+          {...register("organizationName")}
+          disabled={isLoading}
+        />
+        {errors.organizationName && (
+          <p className="text-sm text-error">
+            {errors.organizationName.message}
+          </p>
+        )}
+      </div>
 
-            {fields.length > 0 && (
-              <div className="space-y-3 pt-2 border-t border-border">
-                <p className="text-sm font-medium">
-                  Outros usuários dessa empresa
-                </p>
-                {fields.map((field, index) => (
-                  <div
-                    key={field.id}
-                    className="grid sm:grid-cols-[1fr_1fr_auto_auto] gap-2"
-                  >
-                    <Input
-                      type="text"
-                      placeholder="Nome"
-                      {...register(`additionalMembers.${index}.name`)}
-                      disabled={isLoading}
-                    />
-                    <Input
-                      type="email"
-                      placeholder="email@empresa.com"
-                      autoComplete="off"
-                      {...register(`additionalMembers.${index}.email`)}
-                      disabled={isLoading}
-                    />
-                    <select
-                      className="flex h-9 rounded-md border border-border bg-surface-1 px-2 text-sm shadow-sm"
-                      {...register(`additionalMembers.${index}.role`)}
-                      disabled={isLoading}
-                    >
-                      <option value="client_member">
-                        {TEAM_ROLE_LABELS.client_member}
-                      </option>
-                      <option value="client_viewer">
-                        {TEAM_ROLE_LABELS.client_viewer}
-                      </option>
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => remove(index)}
-                      disabled={isLoading}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
+      <div className="space-y-3 border-t border-border pt-4">
+        <div>
+          <p className="text-sm font-medium">Outras pessoas da equipe</p>
+          <p className="text-xs text-text-2">
+            Sócio, financeiro, comercial — cada um recebe o convite.
+          </p>
+        </div>
+        {fields.map((field, index) => (
+          <div
+            key={field.id}
+            className="grid sm:grid-cols-[1fr_1fr_auto_auto] gap-2"
+          >
+            <Input
+              type="text"
+              placeholder="Nome"
+              {...register(`additionalMembers.${index}.name`)}
+              disabled={isLoading}
+            />
+            <Input
+              type="email"
+              placeholder="email@empresa.com"
+              autoComplete="off"
+              {...register(`additionalMembers.${index}.email`)}
+              disabled={isLoading}
+            />
+            <select
+              className="flex h-9 rounded-md border border-border bg-surface-1 px-2 text-sm shadow-sm"
+              {...register(`additionalMembers.${index}.role`)}
+              disabled={isLoading}
+            >
+              <option value="client_member">
+                {TEAM_ROLE_LABELS.client_member}
+              </option>
+              <option value="client_viewer">
+                {TEAM_ROLE_LABELS.client_viewer}
+              </option>
+            </select>
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              onClick={() =>
-                append({ name: "", email: "", role: "client_member" })
-              }
+              size="icon"
+              onClick={() => remove(index)}
               disabled={isLoading}
             >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Adicionar usuário
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
+          </div>
+        ))}
+      </div>
 
-            <div>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Criar acesso
-              </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => append({ name: "", email: "", role: "client_member" })}
+        disabled={isLoading}
+      >
+        <Plus className="mr-1.5 h-3.5 w-3.5" />
+        Adicionar pessoa
+      </Button>
+
+      <div>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Criar acesso
+        </Button>
+      </div>
+    </form>
+  );
+
+  return (
+    <div className="space-y-6">
+      {compact ? (
+        form
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Criar acesso de cliente</CardTitle>
             </div>
-          </form>
-        </CardContent>
-      </Card>
+            <CardDescription>
+              Cria o cliente na carteira. O email do dono é opcional: se
+              preencher, a pessoa recebe o convite para definir a própria senha.
+              Sem email, o cliente entra mesmo assim.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>{form}</CardContent>
+        </Card>
+      )}
 
       {created && (
         <Card className="border-success/40">

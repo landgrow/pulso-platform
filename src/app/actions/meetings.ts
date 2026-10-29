@@ -31,7 +31,7 @@ const guestSchema = z.object({
   nome: z.string().trim().max(120).default(""),
 });
 
-const createMeetingSchema = z.object({
+const meetingFieldsSchema = z.object({
   orgId: z.string().uuid(),
   titulo: z.string().min(1, "Título é obrigatório"),
   data: z.string().min(1, "Data é obrigatória"),
@@ -57,6 +57,11 @@ const createMeetingSchema = z.object({
     .max(MAX_GUESTS, `No máximo ${MAX_GUESTS} convidados`)
     .default([]),
   enviarConvite: z.boolean().default(true),
+});
+
+const createMeetingSchema = meetingFieldsSchema;
+const updateMeetingSchema = meetingFieldsSchema.omit({ orgId: true }).extend({
+  meetingId: z.string().uuid(),
 });
 
 const toggleChecklistSchema = z.object({
@@ -250,6 +255,114 @@ export async function createMeeting(
   return { success: true, data: { id: data.id as string, invites } };
 }
 
+export async function updateMeeting(
+  raw: unknown,
+): Promise<Result<{ id: string; invites: InviteResult | null }>> {
+  const parsed = updateMeetingSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.errors[0]?.message ?? "Dados inválidos",
+    };
+  }
+  const {
+    meetingId,
+    titulo,
+    data: dataReuniao,
+    participantes,
+    resumo,
+    topicos,
+    horaInicio,
+    duracaoMin,
+    link,
+    enviarConvite,
+  } = parsed.data;
+  const convidados = [
+    ...new Map(parsed.data.convidados.map((g) => [g.email, g])).values(),
+  ];
+  if (convidados.length > 0 && !horaInicio) {
+    return {
+      success: false,
+      error: "Informe o horário para poder convidar participantes.",
+    };
+  }
+
+  const auth = await authorizeMeeting(meetingId, { write: true });
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { admin, access } = auth;
+
+  if (convidados.length > 0 && access.platformRole === null) {
+    const allowed = new Set(
+      (await listOrgAssignees(admin, access.orgId))
+        .map((a) => a.email?.toLowerCase())
+        .filter((e): e is string => Boolean(e)),
+    );
+    if (convidados.some((g) => !allowed.has(g.email))) {
+      return {
+        success: false,
+        error:
+          "Você só pode convidar pessoas da sua empresa ou da Land Grow. Para convidar outro e-mail, peça à Land Grow.",
+      };
+    }
+  }
+
+  const { data: existing } = await admin
+    .from("meetings")
+    .select("*")
+    .eq("id", meetingId)
+    .maybeSingle();
+  if (!existing) return { success: false, error: "Reunião não encontrada" };
+
+  const sequence =
+    ((existing as { ics_sequence?: number | null }).ics_sequence ?? 0) + 1;
+  const { data, error } = await admin
+    .from("meetings")
+    .update({
+      titulo,
+      data: dataReuniao,
+      participantes:
+        participantes.length > 0
+          ? participantes
+          : convidados.map((g) => g.nome || g.email),
+      resumo: resumo || null,
+      topicos: topicos || null,
+      hora_inicio: horaInicio ?? null,
+      duracao_min: horaInicio ? duracaoMin : null,
+      link: horaInicio ? link || null : null,
+      convidados,
+      ics_sequence: sequence,
+    })
+    .eq("id", meetingId)
+    .select("*")
+    .single();
+
+  if (error || !data)
+    return {
+      success: false,
+      error: error?.message ?? "Erro ao salvar reunião",
+    };
+
+  let invites: InviteResult | null = null;
+  const meeting = toInviteMeeting(data as Record<string, unknown>);
+  if (meeting && enviarConvite) {
+    invites = toResult(
+      await sendInvites(meeting, "REQUEST", organizerOf(access), {
+        update: true,
+      }),
+    );
+    if (invites.sent > 0) {
+      await admin
+        .from("meetings")
+        .update({ convite_enviado_at: new Date().toISOString() })
+        .eq("id", meeting.id);
+    }
+  }
+
+  revalidatePath("/admin/atividades");
+  revalidatePath("/admin/reunioes");
+  return { success: true, data: { id: meetingId, invites } };
+}
+
 /** Reenvia o convite (a agenda de quem já aceitou é atualizada, não duplicada). */
 export async function resendMeetingInvites(
   meetingId: string,
@@ -388,6 +501,7 @@ export async function toggleChecklistItem(
   }
 
   revalidatePath("/admin/atividades");
+  revalidatePath("/admin/trabalho");
   return { success: true, data: { id: meetingId } };
 }
 
@@ -417,6 +531,7 @@ export async function generateCardsFromMeeting(
     auth.access.user.id,
   );
   revalidatePath("/admin/atividades");
+  revalidatePath("/admin/trabalho");
   return {
     success: true,
     data: {

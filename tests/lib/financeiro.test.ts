@@ -4,6 +4,8 @@ import {
   cashflowFromLines,
   cashflowFromRange,
   composeReceitaAtiva,
+  formatMoneyBlur,
+  formatMoneyTyping,
   lastMonths,
   parseMoney,
   periodCaption,
@@ -18,7 +20,16 @@ describe("financeiro ledger", () => {
   it("parses Brazilian money", () => {
     expect(parseMoney("100000")).toBe(100000);
     expect(parseMoney("100.000,50")).toBe(100000.5);
+    expect(parseMoney("3.500,00")).toBe(3500);
     expect(Number.isNaN(parseMoney("abc"))).toBe(true);
+  });
+
+  it("masks money while typing", () => {
+    expect(formatMoneyTyping("3500")).toBe("3.500");
+    expect(formatMoneyTyping("3500,5")).toBe("3.500,5");
+    expect(formatMoneyTyping("3500,50")).toBe("3.500,50");
+    expect(formatMoneyBlur("3500")).toBe("3.500,00");
+    expect(formatMoneyBlur("3.500")).toBe("3.500,00");
   });
 
   it("builds a six-month cash window", () => {

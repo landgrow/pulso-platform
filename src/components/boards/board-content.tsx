@@ -28,7 +28,6 @@ import {
   UserRound,
   CircleDot,
   Tag,
-  Send,
   Paperclip,
   Plus,
   Loader2,
@@ -82,6 +81,13 @@ import { BoardSettingsPanel } from "@/components/boards/board-settings-panel";
 import { BoardFilterBar } from "@/components/boards/board-filter-bar";
 import { PropertyField } from "@/components/boards/property-field";
 import { BoardExportButton } from "@/components/boards/board-export-button";
+import { PeoplePicker } from "@/components/boards/people-picker";
+import { CommentBox, CommentText } from "@/components/boards/comment-box";
+import {
+  isShownBoardProperty,
+  personGivenName,
+  type CardPerson,
+} from "@/lib/boards/card-people";
 
 type BoardView = "board" | "table" | "panel";
 const VIEW_TABS: { key: BoardView; label: string }[] = [
@@ -187,14 +193,26 @@ function DraggableCard({
             </span>
           )}
         </div>
-        {card.responsavel_nome && (
+        {(card.responsaveis ?? []).length > 0 ? (
+          <div className="flex -space-x-1.5">
+            {(card.responsaveis ?? []).slice(0, 3).map((person) => (
+              <span
+                key={person.userId}
+                className="h-6 w-6 rounded-full bg-primary text-white text-[10px] font-semibold shrink-0 flex items-center justify-center border-2 border-surface-1"
+                title={person.name}
+              >
+                {getInitials(person.name)}
+              </span>
+            ))}
+          </div>
+        ) : card.responsavel_nome ? (
           <span
             className="h-6 w-6 rounded-full bg-primary text-white text-[10px] font-semibold shrink-0 flex items-center justify-center border-2 border-surface-1"
             title={card.responsavel_nome}
           >
             {getInitials(card.responsavel_nome)}
           </span>
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -474,6 +492,7 @@ export function BoardContent({
       <TaskModal open={!!selectedCard} onClose={closeCard}>
         {selectedCard && (
           <CardDetail
+            key={selectedCard.id}
             card={selectedCard}
             autoFocusTitle={selectedCard.id === freshCardId}
             columns={board.columns}
@@ -537,18 +556,17 @@ export function CardDetail({
   const [titulo, setTitulo] = useState(card.titulo);
   const [columnId, setColumnId] = useState(card.column_id);
   const [prioridade, setPrioridade] = useState(card.prioridade);
-  const [responsavelId, setResponsavelId] = useState(card.responsavel_id ?? "");
+  const [responsavelIds, setResponsavelIds] = useState<string[]>(
+    (card.responsaveis ?? []).map((person) => person.userId),
+  );
   const [setor, setSetor] = useState(card.setor ?? "");
   const [prazo, setPrazo] = useState(card.prazo ?? "");
   const [observacoes, setObservacoes] = useState(card.observacoes ?? "");
   const [novaSubtarefa, setNovaSubtarefa] = useState("");
-  const [novoComentario, setNovoComentario] = useState("");
   const [commentError, setCommentError] = useState<string | null>(null);
   const [commentSending, setCommentSending] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [team, setTeam] = useState<
-    { userId: string; name: string; kind: "staff" | "member" }[]
-  >([]);
+  const [team, setTeam] = useState<CardPerson[]>([]);
   const [convertEmail, setConvertEmail] = useState("");
   const [converting, setConverting] = useState(false);
   const [driveLink, setDriveLink] = useState("");
@@ -633,22 +651,6 @@ export function CardDetail({
     else onChanged();
   }
 
-  async function handleAddComentario(): Promise<void> {
-    const texto = novoComentario.trim();
-    if (!texto || commentSending) return;
-    setCommentError(null);
-    setCommentSending(true);
-    const result = await addComentario({ cardId: card.id, texto });
-    setCommentSending(false);
-    if (!result.success) {
-      setCommentError(result.error);
-      toast.error(result.error);
-      return;
-    }
-    setNovoComentario("");
-    onChanged();
-  }
-
   async function handleConvert(): Promise<void> {
     const ownerEmail = convertEmail.trim();
     if (!ownerEmail) return;
@@ -680,7 +682,7 @@ export function CardDetail({
     onClose();
   }
 
-  const visibleProperties = properties.filter((p) => p.visible);
+  const visibleProperties = properties.filter((p) => isShownBoardProperty(p));
   const doneCount = card.subtarefas.filter((s) => s.done).length;
   const fiveH2W = parse5h2wNotes(observacoes);
 
@@ -758,22 +760,14 @@ export function CardDetail({
             />
           </PropertyRow>
           <PropertyRow icon={UserRound} label="Responsáveis">
-            <MenuSelect
-              value={responsavelId}
-              onChange={(v) => {
-                setResponsavelId(v);
-                void save({ responsavelId: v || null });
-              }}
+            <PeoplePicker
+              people={team}
+              selectedIds={responsavelIds}
               disabled={saving}
-              aria-label="Responsáveis"
-              placeholder="Vazio"
-              options={[
-                { value: "", label: "Vazio" },
-                ...team.map((t) => ({
-                  value: t.userId,
-                  label: t.kind === "staff" ? `${t.name} · Land Grow` : t.name,
-                })),
-              ]}
+              onChange={(ids) => {
+                setResponsavelIds(ids);
+                void save({ responsavelIds: ids });
+              }}
             />
           </PropertyRow>
           <PropertyRow icon={Calendar} label="Vencimento">
@@ -892,18 +886,44 @@ export function CardDetail({
                 type="checkbox"
                 checked={s.done}
                 onChange={() => void handleToggleSub(s.id)}
-                className="h-4 w-4"
+                className="h-4 w-4 shrink-0"
               />
               <span
-                className={
-                  s.done ? "line-through text-text-2 flex-1" : "flex-1"
-                }
+                className={cn(
+                  "min-w-0 flex-1",
+                  s.done ? "line-through text-text-2" : "text-text-1",
+                )}
               >
                 {s.texto}
               </span>
+              <MenuSelect
+                value={s.responsavel_id ?? ""}
+                onChange={(userId) => {
+                  void toggleSubtarefa({
+                    cardId: card.id,
+                    subtarefaId: s.id,
+                    assigneeId: userId || null,
+                  }).then((result) => {
+                    if (!result.success) toast.error(result.error);
+                    else onChanged();
+                  });
+                }}
+                disabled={saving}
+                aria-label={`Responsável da subtarefa ${s.texto}`}
+                placeholder="Quem faz"
+                className="h-7 w-auto max-w-[10.5rem] shrink-0"
+                options={[
+                  { value: "", label: "Sem responsável" },
+                  ...team.map((person) => ({
+                    value: person.userId,
+                    label: personGivenName(person),
+                  })),
+                ]}
+              />
               <button
                 onClick={() => void handleRemoveSub(s.id)}
                 aria-label="Remover"
+                className="shrink-0"
               >
                 <X className="h-3.5 w-3.5 text-text-2 hover:text-error" />
               </button>
@@ -1068,43 +1088,32 @@ export function CardDetail({
                   {" · "}
                   {formatDate(c.created_at)}
                 </p>
-                <p className="mt-0.5 whitespace-pre-wrap leading-relaxed">
-                  {c.texto}
-                </p>
+                <CommentText text={c.texto} people={team} />
               </div>
             </div>
           ))}
         </div>
-        <div className="border-t border-border p-3 space-y-2">
-          <textarea
-            value={novoComentario}
-            onChange={(e) => {
-              setNovoComentario(e.target.value);
-              if (commentError) setCommentError(null);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-                void handleAddComentario();
-              }
-            }}
-            rows={3}
-            className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-            placeholder="Escreva um comentário..."
-            disabled={commentSending}
-          />
-          {commentError && <p className="text-xs text-error">{commentError}</p>}
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              onClick={() => void handleAddComentario()}
-              disabled={commentSending || !novoComentario.trim()}
-            >
-              <Send className="mr-1.5 h-3.5 w-3.5" />
-              {commentSending ? "Enviando..." : "Enviar"}
-            </Button>
-          </div>
-        </div>
+        <CommentBox
+          people={team}
+          sending={commentSending}
+          error={commentError}
+          onSend={async (texto, mentions) => {
+            setCommentError(null);
+            setCommentSending(true);
+            const result = await addComentario({
+              cardId: card.id,
+              texto,
+              mentions,
+            });
+            setCommentSending(false);
+            if (!result.success) {
+              setCommentError(result.error);
+              toast.error(result.error);
+              return;
+            }
+            onChanged();
+          }}
+        />
       </aside>
     </div>
   );

@@ -45,7 +45,7 @@ export default async function AdminBinPage(): Promise<JSX.Element> {
     <div className="space-y-6">
       <PageHeader
         title="BIN"
-        description="Inbox do que o cliente enviou. Abra a ficha para ler as respostas e fazer o diagnóstico. Quem preenche é o cliente, no PULSO dele."
+        description="Um diagnóstico por empresa. Clique no cliente para abrir a ficha, ler as respostas e fazer o diagnóstico."
       />
       <BinInbox items={events.data} />
     </div>

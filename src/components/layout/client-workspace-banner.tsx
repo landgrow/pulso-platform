@@ -20,7 +20,7 @@ export function ClientWorkspaceBanner({
       <Button
         type="button"
         size="sm"
-        onClick={() => void returnToLandGrowHq("/dashboard")}
+        onClick={() => void returnToLandGrowHq("/admin/painel")}
       >
         Voltar à Land Grow
       </Button>

@@ -82,6 +82,7 @@ export default async function AdminClienteDetailPage({
 
       <AdminClienteTabs
         orgId={org.id}
+        orgSlug={org.slug}
         entry={entry}
         bin={bin}
         min={min}

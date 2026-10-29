@@ -44,6 +44,12 @@ export function clientNav(slug: string): NavLink[] {
       icon: "calendar",
     },
     {
+      href: `${base}/calendario`,
+      label: "Calendário",
+      short: "Agenda",
+      icon: "calendar-range",
+    },
+    {
       href: `${base}/projeto`,
       label: "Projeto",
       short: "Projeto",
@@ -103,6 +109,14 @@ export const HQ_NAV: HqNavItem[] = [
     group: "trabalho",
   },
   {
+    href: "/admin/sala",
+    label: "Sala",
+    short: "Sala",
+    icon: "hash",
+    visibility: "sala",
+    group: "trabalho",
+  },
+  {
     href: "/admin/objetivos",
     label: "Objetivos",
     short: "Metas",
@@ -116,6 +130,22 @@ export const HQ_NAV: HqNavItem[] = [
     short: "Reuniões",
     icon: "calendar",
     visibility: "atividades",
+    group: "trabalho",
+  },
+  {
+    href: "/admin/calendario",
+    label: "Calendário",
+    short: "Agenda",
+    icon: "calendar-range",
+    visibility: "calendario",
+    group: "trabalho",
+  },
+  {
+    href: "/admin/documentos",
+    label: "Documentos",
+    short: "Docs",
+    icon: "folder",
+    visibility: "documentos",
     group: "trabalho",
   },
   {
@@ -156,6 +186,14 @@ export const HQ_NAV: HqNavItem[] = [
     short: "BIN",
     icon: "radar",
     visibility: "bin",
+    group: "carteira",
+  },
+  {
+    href: "/admin/central-ia",
+    label: "Central IA",
+    short: "IA",
+    icon: "sparkles",
+    visibility: "painel",
     group: "carteira",
   },
   {

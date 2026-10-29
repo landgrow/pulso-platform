@@ -3,16 +3,37 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireCapability } from "@/lib/supabase/platform-role-server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  getPlatformRole,
+  requireAnyCapability,
+  requireCapability,
+} from "@/lib/supabase/platform-role-server";
 import {
   accountBalance,
   currentMonth,
   parseMoney,
   summarizeLedger,
   summarizeMonth,
+  addMonthsIso,
+  contractCompetenceDates,
+  contractDueState,
+  contractEndFromMonths,
+  contractMonthCount,
+  dealAmountFromCustom,
+  defaultMonthsForPrograma,
+  dueDateForMonth,
+  isMonthlyPrograma,
+  qualifiesCrmCashInbox,
   taxOnInvoice,
   todayIso,
 } from "@/lib/financeiro/ledger";
+import {
+  financeEntryFingerprint,
+  reviewFinanceCsv,
+  type FinanceImportReview,
+  type FinanceImportRow,
+} from "@/lib/financeiro/import-csv";
 import { PROGRAMA_CATEGORY_SLUG } from "@/types/financeiro";
 import type {
   FinanceAccount,
@@ -20,6 +41,7 @@ import type {
   FinanceCategory,
   FinanceCategoryKind,
   FinanceClientOption,
+  FinanceContractRow,
   FinanceDeduction,
   FinanceDeductionKind,
   FinanceEntry,
@@ -27,10 +49,14 @@ import type {
   FinanceEntryOrigin,
   FinanceEntrySource,
   FinanceEntryStatus,
+  FinanceFixedCost,
+  FinanceInboxItem,
   FinanceInvoice,
   FinanceInvoiceKind,
   FinanceInvoiceStatus,
   FinanceMoeda,
+  FinanceOrgRow,
+  FinanceRecorrencia,
   FinanceTax,
   FinanceTaxKind,
   FinanceTaxStatus,
@@ -66,6 +92,7 @@ function toNumber(value: unknown): number {
 
 function revalidateFinance(): void {
   revalidatePath("/admin/financeiro");
+  revalidatePath("/admin/clientes");
   revalidatePath("/admin/metricas");
   revalidatePath("/dashboard");
 }
@@ -149,7 +176,9 @@ const createInvoiceSchema = z.object({
   number: z.string().trim().min(1, "Número da nota é obrigatório"),
   series: z.string().nullable().optional(),
   kind: z.enum(["nfe", "nfse", "nfce", "recibo"]).default("nfse"),
-  status: z.enum(["rascunho", "emitida", "cancelada"]).default("emitida"),
+  status: z.enum(["rascunho", "emitida", "cancelada"]).default("rascunho"),
+  filePath: z.string().max(500).nullable().optional(),
+  fileName: z.string().max(240).nullable().optional(),
   issueDate: z.string().min(8),
   amount: moneySchema,
   taxAmount: moneySchema.optional(),
@@ -253,6 +282,8 @@ export async function getFinanceWorkspace(
       ? year
       : Number(selectedMonth.slice(0, 4));
 
+  await ensureFixedCostPayables(supabase, orgId);
+
   const [
     accountsRes,
     categoriesRes,
@@ -290,7 +321,7 @@ export async function getFinanceWorkspace(
     supabase
       .from("finance_invoices")
       .select(
-        "id, org_id, number, series, kind, status, issue_date, amount, tax_amount, description, recipient_org_id, entry_id",
+        "id, org_id, number, series, kind, status, issue_date, amount, tax_amount, description, recipient_org_id, entry_id, file_path, file_name",
       )
       .eq("org_id", orgId)
       .order("issue_date", { ascending: false })
@@ -476,6 +507,8 @@ export async function getFinanceWorkspace(
       description: string | null;
       recipient_org_id: string | null;
       entry_id: string | null;
+      file_path?: string | null;
+      file_name?: string | null;
     }>
   ).map((row) => ({
     id: row.id,
@@ -493,6 +526,8 @@ export async function getFinanceWorkspace(
       ? (clientNameById.get(row.recipient_org_id) ?? null)
       : null,
     entryId: row.entry_id,
+    filePath: row.file_path ?? null,
+    fileName: row.file_name ?? null,
   }));
 
   const taxes: FinanceTax[] = (
@@ -566,6 +601,13 @@ export async function getFinanceWorkspace(
     selectedMonth,
   );
 
+  const admin = await createAdminClient();
+  const [portfolio, inbox, fixedCosts] = await Promise.all([
+    loadFinancePortfolio(admin, entries, today),
+    loadFinanceInbox(admin, supabase, orgId),
+    loadFinanceFixedCosts(supabase, orgId),
+  ]);
+
   const summary = summarizeLedger({
     today,
     month: selectedMonth,
@@ -608,8 +650,333 @@ export async function getFinanceWorkspace(
       taxes,
       deductions,
       clients,
+      orgs: portfolio.orgs,
+      contracts: portfolio.contracts,
+      fixedCosts,
+      inbox,
     },
   };
+}
+
+function mapContractRow(
+  row: {
+    id: string;
+    cliente_id: string;
+    programa: string;
+    valor: unknown;
+    moeda?: FinanceMoeda | null;
+    data_inicio: string;
+    data_fim: string | null;
+    status: string;
+    recorrencia?: FinanceRecorrencia | null;
+  },
+  orgId: string | null,
+  orgName: string,
+  entries: FinanceEntry[],
+  today: string,
+): FinanceContractRow {
+  const related = entries.filter((entry) => entry.relatedContratoId === row.id);
+  const dataInicio = String(row.data_inicio).slice(0, 10);
+  const dataFim = row.data_fim ? String(row.data_fim).slice(0, 10) : null;
+  const recorrencia =
+    row.recorrencia ??
+    (isMonthlyPrograma(String(row.programa)) ? "mensal" : "unico");
+  const meses =
+    dataFim != null
+      ? contractMonthCount(dataInicio, dataFim)
+      : defaultMonthsForPrograma(String(row.programa));
+  return {
+    id: row.id,
+    clienteId: row.cliente_id,
+    orgId,
+    orgName,
+    programa: row.programa,
+    valor: toNumber(row.valor),
+    moeda: row.moeda ?? "BRL",
+    dataInicio,
+    dataFim,
+    meses,
+    status: row.status,
+    recorrencia,
+    dueState: contractDueState(today, dataFim),
+    geradas: related.length,
+    abertas: related.filter((entry) => entry.status === "previsto").length,
+    recebidas: related.filter((entry) => entry.status === "realizado").length,
+    parcelas: related
+      .map((entry) => ({
+        id: entry.id,
+        competenceDate: entry.competenceDate,
+        status: entry.status,
+        amount: entry.amount,
+      }))
+      .sort((a, b) => a.competenceDate.localeCompare(b.competenceDate)),
+  };
+}
+
+async function loadFinancePortfolio(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  entries: FinanceEntry[],
+  today: string,
+): Promise<{ orgs: FinanceOrgRow[]; contracts: FinanceContractRow[] }> {
+  const [{ data: orgsData }, { data: clientesData }, { data: contratosData }] =
+    await Promise.all([
+      admin
+        .from("organizations")
+        .select("id, name, deleted_at, is_internal")
+        .eq("is_internal", false)
+        .order("name"),
+      admin.from("clientes").select("id, org_id, nome"),
+      admin
+        .from("contratos")
+        .select(
+          "id, cliente_id, programa, valor, moeda, data_inicio, data_fim, status, recorrencia",
+        )
+        .order("data_inicio", { ascending: false }),
+    ]);
+
+  const clientes = (clientesData ?? []) as Array<{
+    id: string;
+    org_id: string;
+    nome: string;
+  }>;
+  const clienteByOrg = new Map(clientes.map((row) => [row.org_id, row]));
+  const contratosByCliente = new Map<string, typeof contratosData>();
+  for (const contrato of contratosData ?? []) {
+    const clienteId = contrato.cliente_id as string;
+    const list = contratosByCliente.get(clienteId) ?? [];
+    list.push(contrato);
+    contratosByCliente.set(clienteId, list);
+  }
+
+  const contracts: FinanceContractRow[] = [];
+  const orgs: FinanceOrgRow[] = (
+    (orgsData ?? []) as Array<{
+      id: string;
+      name: string;
+      deleted_at: string | null;
+    }>
+  ).map((org) => {
+    const cliente = clienteByOrg.get(org.id);
+    const rows = cliente
+      ? (contratosByCliente.get(cliente.id) ?? []).map((row) =>
+          mapContractRow(
+            {
+              id: row.id as string,
+              cliente_id: row.cliente_id as string,
+              programa: String(row.programa),
+              valor: row.valor,
+              moeda: row.moeda as FinanceMoeda | null,
+              data_inicio: String(row.data_inicio),
+              data_fim: row.data_fim ? String(row.data_fim) : null,
+              status: String(row.status),
+              recorrencia: row.recorrencia as FinanceRecorrencia | null,
+            },
+            org.id,
+            org.name,
+            entries,
+            today,
+          ),
+        )
+      : [];
+    contracts.push(...rows);
+    return {
+      orgId: org.id,
+      clienteId: cliente?.id ?? null,
+      orgName: org.name,
+      deleted: Boolean(org.deleted_at),
+      contratos: rows,
+    };
+  });
+
+  return { orgs, contracts };
+}
+
+function nestedLabel(
+  value:
+    | { label?: string; name?: string; module?: string }
+    | { label?: string; name?: string; module?: string }[]
+    | null,
+  key: "label" | "name",
+): string {
+  const row = Array.isArray(value) ? value[0] : value;
+  return row?.[key] ?? "";
+}
+
+async function loadFinanceInbox(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  supabase: ServerSupabase,
+  orgId: string,
+): Promise<FinanceInboxItem[]> {
+  const [{ data: cards }, { data: ignored }, { data: posted }] =
+    await Promise.all([
+      admin
+        .from("board_cards")
+        .select(
+          "id, titulo, prazo, related_org_id, custom_values, boards!inner(module, name), board_columns!inner(label)",
+        )
+        .eq("boards.module", "crm")
+        .limit(200),
+      supabase.from("finance_inbox_ignore").select("card_id"),
+      supabase
+        .from("finance_entries")
+        .select("related_card_id")
+        .eq("org_id", orgId)
+        .eq("source", "crm")
+        .not("related_card_id", "is", null),
+    ]);
+  if (!cards) return [];
+  const skip = new Set<string>([
+    ...((ignored ?? []) as Array<{ card_id: string }>).map(
+      (row) => row.card_id,
+    ),
+    ...((posted ?? []) as Array<{ related_card_id: string | null }>)
+      .map((row) => row.related_card_id)
+      .filter((id): id is string => Boolean(id)),
+  ]);
+  const orgIds = [
+    ...new Set(
+      cards
+        .map((row) => row.related_org_id as string | null)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const orgName = new Map<string, string>();
+  if (orgIds.length > 0) {
+    const { data: orgs } = await admin
+      .from("organizations")
+      .select("id, name")
+      .in("id", orgIds);
+    for (const org of orgs ?? []) {
+      orgName.set(org.id as string, org.name as string);
+    }
+  }
+  const inbox: FinanceInboxItem[] = [];
+  for (const row of cards) {
+    const id = row.id as string;
+    if (skip.has(id)) continue;
+    const board = nestedLabel(
+      row.boards as { name?: string } | { name?: string }[] | null,
+      "name",
+    );
+    const column = nestedLabel(
+      row.board_columns as { label?: string } | { label?: string }[] | null,
+      "label",
+    );
+    const amount = dealAmountFromCustom(
+      (row.custom_values as Record<string, unknown> | null) ?? null,
+    );
+    if (!qualifiesCrmCashInbox({ board, column, amount })) continue;
+    const relatedOrgId = row.related_org_id as string | null;
+    inbox.push({
+      id,
+      title: row.titulo as string,
+      column,
+      relatedOrgId,
+      orgName: relatedOrgId ? (orgName.get(relatedOrgId) ?? null) : null,
+      dueOn: row.prazo ? String(row.prazo).slice(0, 10) : null,
+      amount: amount ?? 0,
+    });
+  }
+  return inbox;
+}
+
+async function loadFinanceFixedCosts(
+  supabase: ServerSupabase,
+  orgId: string,
+): Promise<FinanceFixedCost[]> {
+  const { data, error } = await supabase
+    .from("finance_fixed_costs")
+    .select("id, org_id, description, amount, due_day, category_id, active")
+    .eq("org_id", orgId)
+    .order("due_day");
+  if (error || !data) return [];
+  return (
+    data as Array<{
+      id: string;
+      org_id: string;
+      description: string;
+      amount: unknown;
+      due_day: number;
+      category_id: string | null;
+      active: boolean;
+    }>
+  ).map((row) => ({
+    id: row.id,
+    orgId: row.org_id,
+    description: row.description,
+    amount: toNumber(row.amount),
+    dueDay: Number(row.due_day),
+    categoryId: row.category_id,
+    active: Boolean(row.active),
+  }));
+}
+
+async function ensureFixedCostPayables(
+  supabase: ServerSupabase,
+  orgId: string,
+): Promise<void> {
+  const [{ data: costs }, { data: account }, { data: existing }] =
+    await Promise.all([
+      supabase
+        .from("finance_fixed_costs")
+        .select("id, description, amount, due_day, category_id, active")
+        .eq("org_id", orgId)
+        .eq("active", true),
+      supabase
+        .from("finance_accounts")
+        .select("id")
+        .eq("org_id", orgId)
+        .eq("archived", false)
+        .order("kind")
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("finance_entries")
+        .select("related_fixed_cost_id, competence_date")
+        .eq("org_id", orgId)
+        .eq("source", "fixo"),
+    ]);
+  if (!costs || costs.length === 0) return;
+  const already = new Set(
+    (existing ?? []).map(
+      (row: {
+        related_fixed_cost_id: string | null;
+        competence_date: string;
+      }) =>
+        `${row.related_fixed_cost_id}:${String(row.competence_date).slice(0, 10)}`,
+    ),
+  );
+  const today = todayIso();
+  const months = [0, 1, 2].map((offset) =>
+    addMonthsIso(today, offset).slice(0, 7),
+  );
+  const rows = [];
+  for (const cost of costs) {
+    for (const month of months) {
+      const date = dueDateForMonth(month, Number(cost.due_day));
+      const key = `${cost.id as string}:${date}`;
+      if (already.has(key)) continue;
+      rows.push({
+        org_id: orgId,
+        account_id: account?.id ?? null,
+        category_id: cost.category_id ?? null,
+        kind: "saida" as const,
+        status: "previsto" as const,
+        amount: toNumber(cost.amount),
+        competence_date: date,
+        due_date: date,
+        description: `${cost.description as string} · ${month}`,
+        source: "fixo" as const,
+        origin: "despesa" as const,
+        related_fixed_cost_id: cost.id,
+      });
+    }
+  }
+  if (rows.length === 0) return;
+  const { error } = await supabase.from("finance_entries").insert(rows);
+  if (error && !isMissingRelation(error)) {
+    console.warn("[financeiro] despesa fixa→a pagar:", error.message);
+  }
 }
 
 async function currentUserId(supabase: ServerSupabase): Promise<string | null> {
@@ -807,6 +1174,8 @@ export async function createFinanceInvoice(
       tax_amount: parsed.data.taxAmount ?? 0,
       description: parsed.data.description || null,
       recipient_org_id: parsed.data.recipientOrgId,
+      file_path: parsed.data.filePath || null,
+      file_name: parsed.data.fileName || null,
       created_by: userId,
     })
     .select("id")
@@ -845,6 +1214,56 @@ export async function createFinanceInvoice(
 
   revalidateFinance();
   return { success: true, data: { id: data.id as string } };
+}
+
+const NOTA_BUCKET = "evidencias";
+
+export async function createFinanceInvoiceUploadUrl(
+  fileName: string,
+  size: number,
+): Promise<Result<{ path: string; token: string; name: string }>> {
+  const gated = await gate();
+  if (!gated.success) return gated;
+  const org = await internalOrgId(gated.data);
+  if (!org.success) return org;
+  const safe = fileName.replace(/[^\w.\- ()]+/g, "_").slice(0, 120);
+  if (!safe) return { success: false, error: "Nome de arquivo inválido." };
+  if (size <= 0) return { success: false, error: "O arquivo está vazio." };
+  if (size > 20 * 1024 * 1024) {
+    return { success: false, error: "Arquivo maior que 20 MB." };
+  }
+  const path = `${org.data}/financeiro/notas/${crypto.randomUUID()}-${safe}`;
+  const admin = await createAdminClient();
+  const { data, error } = await admin.storage
+    .from(NOTA_BUCKET)
+    .createSignedUploadUrl(path);
+  if (error || !data) {
+    return { success: false, error: "Não consegui preparar o envio da nota." };
+  }
+  return {
+    success: true,
+    data: { path: data.path, token: data.token, name: safe },
+  };
+}
+
+export async function getFinanceInvoiceFileUrl(
+  path: string,
+): Promise<Result<{ url: string }>> {
+  const gated = await gate();
+  if (!gated.success) return gated;
+  const org = await internalOrgId(gated.data);
+  if (!org.success) return org;
+  if (!path.startsWith(`${org.data}/financeiro/notas/`)) {
+    return { success: false, error: "Arquivo inválido." };
+  }
+  const admin = await createAdminClient();
+  const { data, error } = await admin.storage
+    .from(NOTA_BUCKET)
+    .createSignedUrl(path, 300);
+  if (error || !data) {
+    return { success: false, error: "Arquivo não encontrado." };
+  }
+  return { success: true, data: { url: data.signedUrl } };
 }
 
 export async function createFinanceTax(
@@ -1026,64 +1445,583 @@ export async function syncReceivableFromContrato(input: {
   valor: number;
   moeda: FinanceMoeda;
   dataInicio: string;
+  dataFim?: string | null;
+  recorrencia?: FinanceRecorrencia;
 }): Promise<void> {
   const supabase = await createClient();
-  try {
-    await requireCapability(supabase, "financeiro");
-  } catch {
-    return;
+  const role = await getPlatformRole(supabase);
+  if (role !== "platform_admin") {
+    try {
+      await requireCapability(supabase, "financeiro");
+    } catch {
+      return;
+    }
   }
   const org = await internalOrgId(supabase);
   if (!org.success) return;
-
-  const [{ data: cliente }, { data: category }, { data: account }] =
-    await Promise.all([
-      supabase
-        .from("clientes")
-        .select("org_id")
-        .eq("id", input.clienteId)
-        .maybeSingle(),
-      supabase
-        .from("finance_categories")
-        .select("id")
-        .eq("org_id", org.data)
-        .eq("slug", PROGRAMA_CATEGORY_SLUG[input.programa] ?? "receita-outros")
-        .maybeSingle(),
-      supabase
-        .from("finance_accounts")
-        .select("id")
-        .eq("org_id", org.data)
-        .eq("archived", false)
-        .order("kind")
-        .limit(1)
-        .maybeSingle(),
-    ]);
-
-  const { error } = await supabase.from("finance_entries").insert({
-    org_id: org.data,
-    account_id: account?.id ?? null,
-    category_id: category?.id ?? null,
-    kind: "entrada",
-    status: "previsto",
-    amount: input.valor,
-    currency: input.moeda,
-    competence_date: input.dataInicio,
-    due_date: input.dataInicio,
-    description: `Contrato ${input.programa.toUpperCase()}`,
-    source: "contrato",
-    origin:
-      input.programa === "scale" || input.programa === "conselho"
-        ? "fee_mensal"
-        : "projeto",
-    related_org_id: (cliente?.org_id as string | undefined) ?? null,
-    related_contrato_id: input.contratoId,
+  await insertContractReceivables(org.data, {
+    ...input,
+    dataFim: input.dataFim ?? null,
+    recorrencia:
+      input.recorrencia ??
+      (isMonthlyPrograma(input.programa) ? "mensal" : "unico"),
   });
-  if (
-    error &&
-    !isMissingRelation(error) &&
-    !error.message.includes("idx_finance_entries_contrato")
-  ) {
-    console.warn("[financeiro] contrato→a receber:", error.message);
+  revalidateFinance();
+}
+
+export async function generateContractReceivables(
+  contratoId: string,
+): Promise<Result<{ created: number }>> {
+  const gated = await gate();
+  if (!gated.success) return gated;
+  const parsed = z.string().uuid().safeParse(contratoId);
+  if (!parsed.success) return { success: false, error: "Contrato inválido." };
+  const org = await internalOrgId(gated.data);
+  if (!org.success) return org;
+  const admin = await createAdminClient();
+  const { data: contrato, error } = await admin
+    .from("contratos")
+    .select(
+      "id, cliente_id, programa, valor, moeda, data_inicio, data_fim, recorrencia, status",
+    )
+    .eq("id", parsed.data)
+    .maybeSingle();
+  if (error || !contrato) {
+    return { success: false, error: "Contrato não encontrado." };
+  }
+  if (contrato.status === "encerrado") {
+    return { success: false, error: "Contrato encerrado." };
+  }
+  const created = await insertContractReceivables(org.data, {
+    contratoId: contrato.id as string,
+    clienteId: contrato.cliente_id as string,
+    programa: contrato.programa as Programa,
+    valor: toNumber(contrato.valor),
+    moeda: (contrato.moeda as FinanceMoeda | undefined) ?? "BRL",
+    dataInicio: String(contrato.data_inicio).slice(0, 10),
+    dataFim: contrato.data_fim ? String(contrato.data_fim).slice(0, 10) : null,
+    recorrencia:
+      (contrato.recorrencia as FinanceRecorrencia | null) ??
+      (isMonthlyPrograma(String(contrato.programa)) ? "mensal" : "unico"),
+  });
+  revalidateFinance();
+  return { success: true, data: { created } };
+}
+
+const createFinanceContractSchema = z.object({
+  orgId: z.string().uuid(),
+  programa: z.enum(["bin", "scale", "conselho", "foco"]),
+  valor: moneySchema,
+  meses: z.coerce.number().int().min(1).max(60),
+  dataInicio: z.string().min(8),
+});
+
+export async function createFinanceContract(
+  raw: unknown,
+): Promise<Result<{ id: string }>> {
+  const gated = await gate();
+  if (!gated.success) return gated;
+  const parsed = createFinanceContractSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.errors[0]?.message ?? "Dados inválidos",
+    };
+  }
+  const org = await internalOrgId(gated.data);
+  if (!org.success) return org;
+  const admin = await createAdminClient();
+  const { orgId, programa, valor, meses, dataInicio } = parsed.data;
+  const dataFim = contractEndFromMonths(dataInicio, meses);
+  const recorrencia: FinanceRecorrencia = isMonthlyPrograma(programa)
+    ? "mensal"
+    : "unico";
+
+  let { data: cliente } = await admin
+    .from("clientes")
+    .select("id")
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (!cliente) {
+    const { data: orgRow } = await admin
+      .from("organizations")
+      .select("name")
+      .eq("id", orgId)
+      .maybeSingle();
+    const inserted = await admin
+      .from("clientes")
+      .insert({ org_id: orgId, nome: orgRow?.name ?? "Cliente" })
+      .select("id")
+      .single();
+    if (inserted.error || !inserted.data) {
+      return {
+        success: false,
+        error: inserted.error?.message ?? "Não foi possível criar o cliente.",
+      };
+    }
+    cliente = inserted.data;
+  }
+
+  const userId = await currentUserId(gated.data);
+  const { data, error } = await admin
+    .from("contratos")
+    .insert({
+      cliente_id: cliente.id,
+      programa,
+      valor,
+      moeda: "BRL",
+      data_inicio: dataInicio,
+      data_fim: dataFim,
+      recorrencia,
+      created_by: userId,
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    if (error?.message?.includes("idx_contratos_ativo_unico")) {
+      return {
+        success: false,
+        error: "Já existe um contrato ativo desse programa para este cliente.",
+      };
+    }
+    return {
+      success: false,
+      error: error?.message ?? "Erro ao criar contrato",
+    };
+  }
+
+  await insertContractReceivables(org.data, {
+    contratoId: data.id as string,
+    clienteId: cliente.id as string,
+    programa,
+    valor,
+    moeda: "BRL",
+    dataInicio,
+    dataFim,
+    recorrencia,
+  });
+  revalidateFinance();
+  return { success: true, data: { id: data.id as string } };
+}
+
+const createFixedCostSchema = z.object({
+  description: z.string().trim().min(1, "Descrição é obrigatória"),
+  amount: moneySchema,
+  dueDay: z.coerce.number().int().min(1).max(28),
+  categoryId: optionalUuid,
+});
+
+export async function createFinanceFixedCost(
+  raw: unknown,
+): Promise<Result<{ id: string }>> {
+  const gated = await gate();
+  if (!gated.success) return gated;
+  const parsed = createFixedCostSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.errors[0]?.message ?? "Dados inválidos",
+    };
+  }
+  const org = await internalOrgId(gated.data);
+  if (!org.success) return org;
+  const { data, error } = await gated.data
+    .from("finance_fixed_costs")
+    .insert({
+      org_id: org.data,
+      description: parsed.data.description,
+      amount: parsed.data.amount,
+      due_day: parsed.data.dueDay,
+      category_id: parsed.data.categoryId,
+      active: true,
+    })
+    .select("id")
+    .single();
+  if (error || !data) return { success: false, error: missingOr(error) };
+  await ensureFixedCostPayables(gated.data, org.data);
+  revalidateFinance();
+  return { success: true, data: { id: data.id as string } };
+}
+
+export async function archiveFinanceFixedCost(
+  id: string,
+): Promise<Result<{ id: string }>> {
+  const gated = await gate();
+  if (!gated.success) return gated;
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) return { success: false, error: "Despesa inválida." };
+  const { error } = await gated.data
+    .from("finance_fixed_costs")
+    .update({ active: false })
+    .eq("id", parsed.data);
+  if (error) return { success: false, error: missingOr(error) };
+  revalidateFinance();
+  return { success: true, data: { id: parsed.data } };
+}
+
+export async function confirmCrmCashInbox(
+  cardId: string,
+): Promise<Result<{ id: string }>> {
+  const gated = await gate();
+  if (!gated.success) return gated;
+  const parsed = z.string().uuid().safeParse(cardId);
+  if (!parsed.success) return { success: false, error: "Card inválido." };
+  const org = await internalOrgId(gated.data);
+  if (!org.success) return org;
+  const admin = await createAdminClient();
+  const { data: card, error } = await admin
+    .from("board_cards")
+    .select(
+      "id, titulo, related_org_id, custom_values, boards!inner(module, name), board_columns!inner(label)",
+    )
+    .eq("id", parsed.data)
+    .maybeSingle();
+  if (error || !card) return { success: false, error: "Card não encontrado." };
+  const board = nestedLabel(
+    card.boards as { name?: string } | { name?: string }[] | null,
+    "name",
+  );
+  const column = nestedLabel(
+    card.board_columns as { label?: string } | { label?: string }[] | null,
+    "label",
+  );
+  const amount = dealAmountFromCustom(
+    (card.custom_values as Record<string, unknown> | null) ?? null,
+  );
+  if (!qualifiesCrmCashInbox({ board, column, amount })) {
+    return {
+      success: false,
+      error: "Só entra no caixa card ganho do board Clientes com valor.",
+    };
+  }
+  const { data: existing } = await gated.data
+    .from("finance_entries")
+    .select("id")
+    .eq("related_card_id", parsed.data)
+    .eq("source", "crm")
+    .maybeSingle();
+  if (existing) return { success: true, data: { id: existing.id as string } };
+
+  const { data: account } = await gated.data
+    .from("finance_accounts")
+    .select("id")
+    .eq("org_id", org.data)
+    .eq("archived", false)
+    .order("kind")
+    .limit(1)
+    .maybeSingle();
+  const today = todayIso();
+  const { data, error: insertError } = await gated.data
+    .from("finance_entries")
+    .insert({
+      org_id: org.data,
+      account_id: account?.id ?? null,
+      kind: "entrada",
+      status: "realizado",
+      amount: amount ?? 0,
+      competence_date: today,
+      due_date: today,
+      paid_at: today,
+      description: `CRM · ${card.titulo as string}`,
+      source: "crm",
+      origin: "projeto",
+      related_org_id: (card.related_org_id as string | null) ?? null,
+      related_card_id: parsed.data,
+    })
+    .select("id")
+    .single();
+  if (insertError || !data) {
+    return { success: false, error: missingOr(insertError) };
   }
   revalidateFinance();
+  return { success: true, data: { id: data.id as string } };
+}
+
+export async function ignoreCrmCashInbox(
+  cardId: string,
+): Promise<Result<{ id: string }>> {
+  const gated = await gate();
+  if (!gated.success) return gated;
+  const parsed = z.string().uuid().safeParse(cardId);
+  if (!parsed.success) return { success: false, error: "Card inválido." };
+  const userId = await currentUserId(gated.data);
+  const { error } = await gated.data.from("finance_inbox_ignore").upsert({
+    card_id: parsed.data,
+    ignored_by: userId,
+  });
+  if (error) return { success: false, error: missingOr(error) };
+  revalidateFinance();
+  return { success: true, data: { id: parsed.data } };
+}
+
+async function insertContractReceivables(
+  orgId: string,
+  input: {
+    contratoId: string;
+    clienteId: string;
+    programa: Programa;
+    valor: number;
+    moeda: FinanceMoeda;
+    dataInicio: string;
+    dataFim: string | null;
+    recorrencia: FinanceRecorrencia;
+  },
+): Promise<number> {
+  const supabase = await createAdminClient();
+  const horizon =
+    input.dataFim ??
+    contractEndFromMonths(
+      input.dataInicio,
+      defaultMonthsForPrograma(input.programa),
+    );
+  const dates = contractCompetenceDates({
+    start: input.dataInicio,
+    end: input.dataFim,
+    monthly: input.recorrencia === "mensal",
+    horizon,
+  });
+  const [
+    { data: cliente },
+    { data: category },
+    { data: account },
+    { data: existing },
+  ] = await Promise.all([
+    supabase
+      .from("clientes")
+      .select("org_id")
+      .eq("id", input.clienteId)
+      .maybeSingle(),
+    supabase
+      .from("finance_categories")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("slug", PROGRAMA_CATEGORY_SLUG[input.programa] ?? "receita-outros")
+      .maybeSingle(),
+    supabase
+      .from("finance_accounts")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("archived", false)
+      .order("kind")
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("finance_entries")
+      .select("competence_date")
+      .eq("related_contrato_id", input.contratoId)
+      .eq("source", "contrato"),
+  ]);
+  const already = new Set(
+    (existing ?? []).map((row: { competence_date: string }) =>
+      String(row.competence_date).slice(0, 10),
+    ),
+  );
+  const missing = dates.filter((date) => !already.has(date));
+  if (missing.length === 0) return 0;
+  const origin: FinanceEntryOrigin =
+    input.recorrencia === "mensal" ? "fee_mensal" : "projeto";
+  const label = input.programa.toUpperCase();
+  const rows = missing.map((date) => ({
+    org_id: orgId,
+    account_id: account?.id ?? null,
+    category_id: category?.id ?? null,
+    kind: "entrada" as const,
+    status: "previsto" as const,
+    amount: input.valor,
+    currency: input.moeda,
+    competence_date: date,
+    due_date: date,
+    description:
+      input.recorrencia === "mensal"
+        ? `Fee ${label} · ${date.slice(0, 7)}`
+        : `Contrato ${label}`,
+    source: "contrato" as const,
+    origin,
+    related_org_id: (cliente?.org_id as string | undefined) ?? null,
+    related_contrato_id: input.contratoId,
+  }));
+  const { error } = await supabase.from("finance_entries").insert(rows);
+  if (error) {
+    if (
+      !isMissingRelation(error) &&
+      !error.message.includes("idx_finance_entries_contrato")
+    ) {
+      console.warn("[financeiro] contrato→a receber:", error.message);
+    }
+    return 0;
+  }
+  return rows.length;
+}
+
+export type FinanceCsvPreview = {
+  reviews: FinanceImportReview[];
+  counts: { new: number; duplicate: number; invalid: number };
+};
+
+async function gateFinanceOrMetricas(): Promise<Result<ServerSupabase>> {
+  const supabase = await createClient();
+  try {
+    await requireAnyCapability(supabase, ["financeiro", "metricas"]);
+  } catch (e) {
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : "Acesso negado",
+    };
+  }
+  return { success: true, data: supabase };
+}
+
+/** Prévia do CSV: marca novos, duplicados e inválidos sem gravar. */
+export async function previewFinanceCsvImport(
+  csvText: string,
+): Promise<Result<FinanceCsvPreview>> {
+  const gated = await gateFinanceOrMetricas();
+  if (!gated.success) return gated;
+  const org = await internalOrgId(gated.data);
+  if (!org.success) return org;
+
+  const { data, error } = await gated.data
+    .from("finance_entries")
+    .select("competence_date, kind, amount, description")
+    .eq("org_id", org.data)
+    .neq("status", "cancelado");
+  if (error) {
+    return { success: false, error: missingOr(error) };
+  }
+
+  const fingerprints = new Set(
+    (
+      (data ?? []) as {
+        competence_date: string;
+        kind: string;
+        amount: number | string;
+        description: string;
+      }[]
+    ).map((row) =>
+      financeEntryFingerprint({
+        competenceDate: row.competence_date,
+        kind: row.kind,
+        amount: toNumber(row.amount),
+        description: row.description ?? "",
+      }),
+    ),
+  );
+
+  const reviews = reviewFinanceCsv(csvText, fingerprints);
+  const counts = {
+    new: reviews.filter((r) => r.verdict === "new").length,
+    duplicate: reviews.filter((r) => r.verdict === "duplicate").length,
+    invalid: reviews.filter((r) => r.verdict === "invalid").length,
+  };
+  return { success: true, data: { reviews, counts } };
+}
+
+const confirmImportSchema = z.object({
+  rows: z
+    .array(
+      z.object({
+        competenceDate: z.string().min(8),
+        kind: z.enum(["entrada", "saida"]),
+        amount: z.number().finite().min(0),
+        description: z.string().trim().min(1),
+        status: z.enum(["previsto", "realizado", "cancelado"]),
+        origin: z.enum([
+          "fee_mensal",
+          "projeto",
+          "edital",
+          "outros",
+          "despesa",
+        ]),
+        line: z.number().int().positive(),
+      }),
+    )
+    .min(1, "Nenhuma linha nova para importar"),
+});
+
+/**
+ * Grava só as linhas novas (já filtradas no cliente). Revalida fingerprint
+ * no servidor para não duplicar se outro upload rodou no meio.
+ */
+export async function confirmFinanceCsvImport(
+  raw: unknown,
+): Promise<Result<{ inserted: number; skipped: number }>> {
+  const gated = await gateFinanceOrMetricas();
+  if (!gated.success) return gated;
+  const parsed = confirmImportSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.errors[0]?.message ?? "Dados inválidos",
+    };
+  }
+  const org = await internalOrgId(gated.data);
+  if (!org.success) return org;
+  const userId = await currentUserId(gated.data);
+
+  const { data: existing, error: existingError } = await gated.data
+    .from("finance_entries")
+    .select("competence_date, kind, amount, description")
+    .eq("org_id", org.data)
+    .neq("status", "cancelado");
+  if (existingError) {
+    return { success: false, error: missingOr(existingError) };
+  }
+
+  const fingerprints = new Set(
+    (
+      (existing ?? []) as {
+        competence_date: string;
+        kind: string;
+        amount: number | string;
+        description: string;
+      }[]
+    ).map((row) =>
+      financeEntryFingerprint({
+        competenceDate: row.competence_date,
+        kind: row.kind,
+        amount: toNumber(row.amount),
+        description: row.description ?? "",
+      }),
+    ),
+  );
+
+  const toInsert: FinanceImportRow[] = [];
+  let skipped = 0;
+  for (const row of parsed.data.rows) {
+    const fp = financeEntryFingerprint(row);
+    if (fingerprints.has(fp)) {
+      skipped += 1;
+      continue;
+    }
+    fingerprints.add(fp);
+    toInsert.push(row);
+  }
+
+  if (toInsert.length === 0) {
+    return { success: true, data: { inserted: 0, skipped } };
+  }
+
+  const payload = toInsert.map((row) => ({
+    org_id: org.data,
+    kind: row.kind,
+    origin: row.origin,
+    status: row.status,
+    amount: row.amount,
+    tax_rate: 0,
+    tax_amount: 0,
+    competence_date: row.competenceDate,
+    due_date: row.competenceDate,
+    paid_at: row.status === "realizado" ? row.competenceDate : null,
+    description: row.description,
+    source: "manual" as const,
+    notes: `Importado CSV (linha ${row.line})`,
+    created_by: userId,
+  }));
+
+  const { error } = await gated.data.from("finance_entries").insert(payload);
+  if (error) {
+    return { success: false, error: missingOr(error) };
+  }
+  revalidateFinance();
+  return { success: true, data: { inserted: toInsert.length, skipped } };
 }

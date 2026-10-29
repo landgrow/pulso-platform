@@ -44,6 +44,7 @@ import {
   PROPERTY_TYPE_LABELS,
   type Board,
 } from "@/types/boards";
+import { isShownBoardProperty } from "@/lib/boards/card-people";
 import { cn } from "@/lib/utils";
 
 type FieldRow =
@@ -75,16 +76,18 @@ function buildFieldRows(board: Board): FieldRow[] {
       position: cfg?.position ?? i,
     };
   });
-  const customRows: FieldRow[] = board.properties.map((p) => ({
-    kind: "custom",
-    key: p.key,
-    propertyId: p.id,
-    label: p.label,
-    typeLabel: PROPERTY_TYPE_LABELS[p.type],
-    visible: p.visible,
-    // customs entram depois dos campos fixos por padrão — só vira posição explícita quando alguém reordena.
-    position: p.position + 100,
-  }));
+  const customRows: FieldRow[] = board.properties
+    .filter((p) => isShownBoardProperty({ ...p, visible: true }))
+    .map((p) => ({
+      kind: "custom",
+      key: p.key,
+      propertyId: p.id,
+      label: p.label,
+      typeLabel: PROPERTY_TYPE_LABELS[p.type],
+      visible: p.visible,
+      // customs entram depois dos campos fixos por padrão — só vira posição explícita quando alguém reordena.
+      position: p.position + 100,
+    }));
   return [...builtinRows, ...customRows].sort(
     (a, b) => a.position - b.position,
   );

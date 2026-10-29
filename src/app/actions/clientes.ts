@@ -9,20 +9,36 @@ import {
   getPlatformRole,
   requireCapability,
 } from "@/lib/supabase/platform-role-server";
+import { authorizeOrg } from "@/lib/auth/org-access";
 import { inviteRedirectTo } from "@/lib/auth/invite-callback";
 import { setActiveOrganizationCookie } from "@/lib/supabase/organization-server";
+import { parseMoney, isMonthlyPrograma } from "@/lib/financeiro/ledger";
 import type { ClientDirectoryEntry, Programa } from "@/types/clientes";
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
+const moneySchema = z.preprocess(
+  (value) => {
+    if (typeof value === "number") return value;
+    if (typeof value === "string") return parseMoney(value);
+    return Number.NaN;
+  },
+  z.number().finite().min(0, "Valor não pode ser negativo"),
+);
+
 const createContratoSchema = z.object({
   clienteId: z.string().uuid("Cliente inválido"),
+  orgId: z.string().uuid("Organização inválida"),
+  slug: z.string().min(1).optional(),
   programa: z.enum(["bin", "scale", "conselho", "foco"]),
-  valor: z.number().min(0, "Valor não pode ser negativo"),
+  valor: moneySchema,
   moeda: z.enum(["BRL", "USD", "EUR"]).default("BRL"),
   dataInicio: z.string().min(1, "Data de início é obrigatória"),
   dataFim: z.string().optional(),
   observacoes: z.string().optional(),
+  recorrencia: z.enum(["unico", "mensal"]).optional(),
+  arquivoPath: z.string().max(1000).optional(),
+  arquivoNome: z.string().max(120).optional(),
 });
 
 const encerrarContratoSchema = z.object({
@@ -107,8 +123,8 @@ export type CreateContratoResult = Result<{ id: string }>;
 export async function createContrato(
   raw: unknown,
 ): Promise<CreateContratoResult> {
-  const supabase = await createClient();
-  const role = await getPlatformRole(supabase);
+  const session = await createClient();
+  const role = await getPlatformRole(session);
   if (role !== "platform_admin") {
     return {
       success: false,
@@ -126,19 +142,41 @@ export async function createContrato(
 
   const {
     clienteId,
+    orgId,
+    slug,
     programa,
     valor,
     moeda,
     dataInicio,
     dataFim,
     observacoes,
+    arquivoPath,
+    arquivoNome,
   } = parsed.data;
+
+  const recorrencia =
+    parsed.data.recorrencia ??
+    (isMonthlyPrograma(programa) ? "mensal" : "unico");
+
+  if (arquivoPath && !arquivoPath.startsWith(`${orgId}/documentos/`)) {
+    return { success: false, error: "Arquivo do contrato inválido." };
+  }
+
+  const admin = await createAdminClient();
+  const { data: cliente } = await admin
+    .from("clientes")
+    .select("id, org_id")
+    .eq("id", clienteId)
+    .maybeSingle();
+  if (!cliente || cliente.org_id !== orgId) {
+    return { success: false, error: "Cliente não encontrado." };
+  }
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await session.auth.getUser();
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("contratos")
     .insert({
       cliente_id: clienteId,
@@ -148,6 +186,9 @@ export async function createContrato(
       data_inicio: dataInicio,
       data_fim: dataFim || null,
       observacoes: observacoes || null,
+      recorrencia,
+      arquivo_path: arquivoPath || null,
+      arquivo_nome: arquivoNome || null,
       created_by: user?.id ?? null,
     })
     .select("id")
@@ -173,7 +214,13 @@ export async function createContrato(
     valor,
     moeda,
     dataInicio,
+    dataFim: dataFim || null,
+    recorrencia,
   });
+
+  revalidatePath("/admin/clientes");
+  revalidatePath("/admin/financeiro");
+  if (slug) revalidatePath(`/admin/clientes/${slug}`);
 
   return { success: true, data: { id: data.id } };
 }
@@ -198,7 +245,8 @@ export async function encerrarContrato(
     };
   }
 
-  const { data, error } = await supabase
+  const admin = await createAdminClient();
+  const { data, error } = await admin
     .from("contratos")
     .update({
       status: "encerrado",
@@ -405,7 +453,7 @@ const updateClientCadastroSchema = z.object({
   organizationName: z
     .string()
     .trim()
-    .min(2, "Nome da empresa deve ter no mínimo 2 caracteres"),
+    .min(2, "Nome do cliente deve ter no mínimo 2 caracteres"),
   ownerName: z
     .string()
     .trim()
@@ -572,7 +620,29 @@ export async function viewClienteAsAdmin(orgId: string): Promise<void> {
   if (!role) {
     throw new Error("Acesso negado. Apenas administradores da plataforma.");
   }
+  const orgAccess = await authorizeOrg(orgId);
+  if (!orgAccess.ok) {
+    throw new Error(orgAccess.error);
+  }
+
+  const admin = await createAdminClient();
+  const { data: org } = await admin
+    .from("organizations")
+    .select("slug, is_internal, deleted_at")
+    .eq("id", orgId)
+    .maybeSingle();
+
+  if (!org) {
+    throw new Error("Organização não encontrada");
+  }
 
   await setActiveOrganizationCookie(orgId);
-  redirect("/dashboard");
+
+  if (org.deleted_at) {
+    redirect(`/admin/clientes/${org.slug as string}`);
+  }
+  if (org.is_internal) {
+    redirect("/dashboard");
+  }
+  redirect(`/clientes/${org.slug as string}`);
 }

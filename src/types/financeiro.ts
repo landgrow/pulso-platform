@@ -5,7 +5,7 @@ export type FinanceEntryOrigin =
   "fee_mensal" | "projeto" | "edital" | "outros" | "despesa";
 export type FinanceEntryStatus = "previsto" | "realizado" | "cancelado";
 export type FinanceEntrySource =
-  "manual" | "contrato" | "nota" | "imposto" | "deducao";
+  "manual" | "contrato" | "nota" | "imposto" | "deducao" | "fixo" | "crm";
 export type FinanceInvoiceKind = "nfe" | "nfse" | "nfce" | "recibo";
 export type FinanceInvoiceStatus = "rascunho" | "emitida" | "cancelada";
 export type FinanceTaxKind =
@@ -63,8 +63,21 @@ export const INVOICE_KIND_LABELS: Record<FinanceInvoiceKind, string> = {
 
 export const INVOICE_STATUS_LABELS: Record<FinanceInvoiceStatus, string> = {
   rascunho: "Rascunho",
-  emitida: "Emitida",
+  emitida: "Anexada",
   cancelada: "Cancelada",
+};
+
+export type FinanceRecorrencia = "unico" | "mensal";
+export type FinanceHqTab =
+  "livro" | "semana" | "contratos" | "contas" | "notas" | "caixa";
+
+export const FINANCE_TAB_LABELS: Record<FinanceHqTab, string> = {
+  livro: "Lançamentos",
+  semana: "Semana",
+  contratos: "Contratos",
+  contas: "Contas",
+  notas: "Notas",
+  caixa: "Caixa CRM",
 };
 
 export const TAX_KIND_LABELS: Record<FinanceTaxKind, string> = {
@@ -170,6 +183,66 @@ export interface FinanceInvoice {
   recipientOrgId: string | null;
   recipientName: string | null;
   entryId: string | null;
+  filePath: string | null;
+  fileName: string | null;
+}
+
+export type FinanceContractDueState =
+  "vencido" | "vence_breve" | "vigente" | "sem_fim";
+
+export interface FinanceContractParcela {
+  id: string;
+  competenceDate: string;
+  status: FinanceEntryStatus;
+  amount: number;
+}
+
+export interface FinanceContractRow {
+  id: string;
+  clienteId: string;
+  orgId: string | null;
+  orgName: string;
+  programa: string;
+  valor: number;
+  moeda: FinanceMoeda;
+  dataInicio: string;
+  dataFim: string | null;
+  meses: number;
+  status: string;
+  recorrencia: FinanceRecorrencia;
+  dueState: FinanceContractDueState;
+  geradas: number;
+  abertas: number;
+  recebidas: number;
+  parcelas: FinanceContractParcela[];
+}
+
+export interface FinanceOrgRow {
+  orgId: string;
+  clienteId: string | null;
+  orgName: string;
+  deleted: boolean;
+  contratos: FinanceContractRow[];
+}
+
+export interface FinanceFixedCost {
+  id: string;
+  orgId: string;
+  description: string;
+  amount: number;
+  dueDay: number;
+  categoryId: string | null;
+  active: boolean;
+}
+
+export interface FinanceInboxItem {
+  id: string;
+  title: string;
+  column: string;
+  orgName: string | null;
+  relatedOrgId: string | null;
+  dueOn: string | null;
+  amount: number;
 }
 
 export interface FinanceTax {
@@ -248,4 +321,8 @@ export interface FinanceWorkspace {
   taxes: FinanceTax[];
   deductions: FinanceDeduction[];
   clients: FinanceClientOption[];
+  orgs: FinanceOrgRow[];
+  contracts: FinanceContractRow[];
+  fixedCosts: FinanceFixedCost[];
+  inbox: FinanceInboxItem[];
 }

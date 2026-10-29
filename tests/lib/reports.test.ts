@@ -99,6 +99,10 @@ const workspace: FinanceWorkspace = {
   taxes: [],
   deductions: [],
   clients: [],
+  orgs: [],
+  contracts: [],
+  fixedCosts: [],
+  inbox: [],
 };
 
 const objective: WorksmartObjective = {

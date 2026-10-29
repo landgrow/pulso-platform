@@ -19,6 +19,8 @@ import {
   FolderOpen,
   Target,
   CalendarDays,
+  Hash,
+  CalendarRange,
 } from "lucide-react";
 import type { MeInfo } from "@/app/actions/me";
 import {
@@ -55,6 +57,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   folder: FolderOpen,
   target: Target,
   calendar: CalendarDays,
+  hash: Hash,
+  "calendar-range": CalendarRange,
 };
 
 const GROUP_ORDER: NavGroup[] = ["mesa", "trabalho", "carteira", "sistema"];

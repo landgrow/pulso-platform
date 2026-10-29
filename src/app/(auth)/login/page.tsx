@@ -132,6 +132,7 @@ function LoginFormContent(): JSX.Element {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-text-2 hover:text-text-1"
               >
                 {showPassword ? (

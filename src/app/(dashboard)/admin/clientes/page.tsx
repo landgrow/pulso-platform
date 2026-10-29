@@ -105,61 +105,75 @@ export default async function AdminClientesPage(): Promise<JSX.Element> {
                 {clientes.map((c) => {
                   const ativos = contratosAtivos(c);
                   const isEncerrado = !!c.deleted_at;
+                  const href = `/admin/clientes/${c.slug}`;
+                  const cellLink = "block hover:text-primary";
                   return (
                     <TableRow
                       key={c.org_id}
                       className={isEncerrado ? "opacity-60" : undefined}
                     >
-                      <TableCell className="font-medium">
-                        <Link
-                          href={`/admin/clientes/${c.slug}`}
-                          className="hover:text-primary hover:underline"
-                        >
+                      <TableCell className="font-medium p-0">
+                        <Link href={href} className={`${cellLink} px-4 py-3`}>
                           {c.name}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-text-2">
-                        {c.owner_name ?? c.owner_email ?? "—"}
+                      <TableCell className="text-text-2 p-0">
+                        <Link href={href} className={`${cellLink} px-4 py-3`}>
+                          {c.owner_name ?? c.owner_email ?? "—"}
+                        </Link>
                       </TableCell>
-                      <TableCell className="text-text-2">
-                        {c.member_emails.length}{" "}
-                        {c.member_emails.length === 1 ? "usuário" : "usuários"}
+                      <TableCell className="text-text-2 p-0">
+                        <Link href={href} className={`${cellLink} px-4 py-3`}>
+                          {c.member_emails.length}{" "}
+                          {c.member_emails.length === 1
+                            ? "usuário"
+                            : "usuários"}
+                        </Link>
                       </TableCell>
-                      <TableCell>
-                        {ativos.length === 0 ? (
-                          <span className="text-text-2">—</span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {ativos.map((ct) => (
-                              <Badge
-                                key={ct.id}
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                {PROGRAMA_LABELS[ct.programa].split(" —")[0]}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
+                      <TableCell className="p-0">
+                        <Link href={href} className={`${cellLink} px-4 py-3`}>
+                          {ativos.length === 0 ? (
+                            <span className="text-text-2">—</span>
+                          ) : (
+                            <span className="flex flex-wrap gap-1">
+                              {ativos.map((ct) => (
+                                <Badge
+                                  key={ct.id}
+                                  variant="outline"
+                                  className="text-xs"
+                                >
+                                  {PROGRAMA_LABELS[ct.programa].split(" —")[0]}
+                                </Badge>
+                              ))}
+                            </span>
+                          )}
+                        </Link>
                       </TableCell>
-                      <TableCell className="text-text-2">
-                        {valorTotal(c)}
+                      <TableCell className="text-text-2 p-0">
+                        <Link href={href} className={`${cellLink} px-4 py-3`}>
+                          {valorTotal(c)}
+                        </Link>
                       </TableCell>
-                      <TableCell className="text-text-2 whitespace-nowrap">
-                        {periodoContrato(c)}
+                      <TableCell className="text-text-2 whitespace-nowrap p-0">
+                        <Link href={href} className={`${cellLink} px-4 py-3`}>
+                          {periodoContrato(c)}
+                        </Link>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant={isEncerrado ? "outline" : "success"}>
-                          {isEncerrado ? "Encerrado" : "Ativo"}
-                        </Badge>
+                      <TableCell className="p-0">
+                        <Link href={href} className={`${cellLink} px-4 py-3`}>
+                          <Badge variant={isEncerrado ? "outline" : "success"}>
+                            {isEncerrado ? "Encerrado" : "Ativo"}
+                          </Badge>
+                        </Link>
                       </TableCell>
                       {isAdmin ? (
-                        <TableCell>
+                        <TableCell className="relative z-10">
                           <EditarClienteButton
                             orgId={c.org_id}
                             organizationName={c.name}
                             ownerName={c.owner_name ?? ""}
                             ownerEmail={c.owner_email ?? ""}
+                            members={c.members}
                           />
                         </TableCell>
                       ) : null}

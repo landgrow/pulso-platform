@@ -92,7 +92,7 @@ export function OrgSwitcher({
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => void returnToLandGrowHq("/dashboard")}
+        onClick={() => void returnToLandGrowHq("/admin/painel")}
         title="Administração"
         className={
           compact

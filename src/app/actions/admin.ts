@@ -29,7 +29,7 @@ const createClientAccountSchema = z.object({
   email: optionalEmail,
   organizationName: z
     .string()
-    .min(2, "Nome da empresa deve ter no mínimo 2 caracteres"),
+    .min(2, "Nome do cliente deve ter no mínimo 2 caracteres"),
   additionalMembers: z.array(additionalMemberSchema).default([]),
 });
 

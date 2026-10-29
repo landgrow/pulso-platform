@@ -12,6 +12,8 @@ export interface Subtarefa {
   id: string;
   texto: string;
   done: boolean;
+  responsavel_id?: string | null;
+  responsavel_nome?: string | null;
 }
 
 export interface Comentario {
@@ -20,6 +22,13 @@ export interface Comentario {
   autor_nome: string;
   texto: string;
   created_at: string;
+  mentions?: string[];
+}
+
+export interface CardAssignee {
+  userId: string;
+  name: string;
+  kind?: "staff" | "member";
 }
 
 export interface CardFile {
@@ -80,6 +89,7 @@ export interface BoardCard {
   prioridade: Prioridade;
   responsavel_id: string | null;
   responsavel_nome: string | null;
+  responsaveis: CardAssignee[];
   setor: string | null;
   prazo: string | null;
   related_org_id: string | null;

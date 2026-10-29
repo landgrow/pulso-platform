@@ -1,6 +1,10 @@
 export type Programa = "bin" | "scale" | "conselho" | "foco";
 export type ContratoStatus = "ativo" | "pausado" | "encerrado";
+export type ContratoRecorrencia = "unico" | "mensal";
 export type Moeda = "BRL" | "USD" | "EUR";
+
+/** Pasta do Drive de Documentos do cliente onde o PDF do contrato cai. */
+export const CONTRATOS_DRIVE_FOLDER = "Contratos";
 
 export const PROGRAMA_LABELS: Record<Programa, string> = {
   bin: "BIN — Diagnóstico dos 10 Setores",
@@ -25,6 +29,9 @@ export interface Contrato {
   data_inicio: string;
   data_fim: string | null;
   status: ContratoStatus;
+  recorrencia?: ContratoRecorrencia;
+  arquivo_path?: string | null;
+  arquivo_nome?: string | null;
 }
 
 export interface TeamMember {

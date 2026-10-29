@@ -20,6 +20,8 @@ import {
   FolderOpen,
   Target,
   CalendarDays,
+  Hash,
+  CalendarRange,
 } from "lucide-react";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
@@ -32,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import type { MeInfo } from "@/app/actions/me";
 import { buildNav, type NavLink } from "@/lib/nav/destinations";
+import { SalaUnreadBadge } from "@/components/sala/sala-unread-badge";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "layout-dashboard": LayoutDashboard,
@@ -50,6 +53,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   folder: FolderOpen,
   target: Target,
   calendar: CalendarDays,
+  hash: Hash,
+  "calendar-range": CalendarRange,
 };
 
 /** Raiz do portal (/clientes/x) só fica ativa na própria página, não nas filhas. */
@@ -182,9 +187,23 @@ export function Sidebar({
                         ),
                   )}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
+                  <span
+                    className={cn("relative shrink-0", !isFull && "mx-auto")}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {!isFull && item.href === "/admin/sala" ? (
+                      <span className="absolute -right-1.5 -top-1.5">
+                        <SalaUnreadBadge compact />
+                      </span>
+                    ) : null}
+                  </span>
                   {isFull ? (
-                    <span className="truncate">{item.label}</span>
+                    <>
+                      <span className="min-w-0 flex-1 truncate">
+                        {item.label}
+                      </span>
+                      {item.href === "/admin/sala" ? <SalaUnreadBadge /> : null}
+                    </>
                   ) : (
                     <span className="max-w-full truncate text-center text-[10px] font-medium leading-none">
                       {item.label}

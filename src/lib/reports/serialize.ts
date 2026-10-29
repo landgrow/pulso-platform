@@ -23,7 +23,10 @@ export function boardToRows(board: Board): BoardExportRow[] {
       Coluna: columns.get(card.column_id) ?? "",
       Titulo: card.titulo,
       Prioridade: PRIORIDADE_LABELS[card.prioridade],
-      Responsavel: card.responsavel_nome ?? "",
+      Responsavel:
+        (card.responsaveis ?? []).length > 0
+          ? card.responsaveis.map((person) => person.name).join(", ")
+          : (card.responsavel_nome ?? ""),
       Setor: card.setor ?? "",
       Prazo: card.prazo ?? "",
       Cliente: card.related_org_name ?? "",

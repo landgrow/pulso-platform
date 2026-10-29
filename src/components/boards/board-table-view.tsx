@@ -27,6 +27,7 @@ import {
   type CustomValue,
   type FieldConfig,
 } from "@/types/boards";
+import { isShownBoardProperty } from "@/lib/boards/card-people";
 
 function isFieldVisible(fieldConfig: FieldConfig, key: string): boolean {
   return fieldConfig[key]?.visible ?? true;
@@ -70,7 +71,9 @@ export function BoardTableView({
     const colB = columnById[b.column_id]?.position ?? 0;
     return colA - colB || a.position - b.position;
   });
-  const visibleProperties = board.properties.filter((p) => p.visible);
+  const visibleProperties = board.properties.filter((p) =>
+    isShownBoardProperty(p),
+  );
   const fc = board.field_config;
   const showStatus = isFieldVisible(fc, "status");
   const showPrioridade = isFieldVisible(fc, "prioridade");
@@ -272,7 +275,11 @@ export function BoardTableView({
                 )}
                 {showResponsavel && (
                   <TableCell className="text-text-2">
-                    {card.responsavel_nome ?? "—"}
+                    {(card.responsaveis ?? []).length > 0
+                      ? card.responsaveis
+                          .map((person) => person.name)
+                          .join(", ")
+                      : (card.responsavel_nome ?? "—")}
                   </TableCell>
                 )}
                 {showPrazo && (

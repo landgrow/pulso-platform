@@ -62,7 +62,7 @@ export function MinPageContent(): JSX.Element {
               {fase.blocos.length} blocos
             </span>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid auto-rows-fr sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {fase.blocos.map((b) => {
               cardIndex++;
               return (

@@ -17,6 +17,7 @@ import { Header } from "@/components/layout/header";
 import { ClientWorkspaceBanner } from "@/components/layout/client-workspace-banner";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { MainCanvas } from "@/components/layout/main-canvas";
+import { SalaUnreadProvider } from "@/components/sala/sala-unread-badge";
 import { getMyPlatformRole } from "@/app/actions/me";
 
 export default async function DashboardLayout({
@@ -37,22 +38,18 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <CommandPalette me={me} />
-      <div className="flex h-screen overflow-hidden bg-background">
-        {/* Sidebar — visível em desktop */}
-        <Sidebar user={user} me={me} />
-
-        {/* Mobile drawer (Sheet) */}
-        <MobileSidebar user={user} me={me} />
-
-        {/* Main content area */}
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          <Header />
-          <ClientWorkspaceBanner me={me} />
-
-          <MainCanvas>{children}</MainCanvas>
+      <SalaUnreadProvider enabled={me.capabilities.includes("sala")}>
+        <CommandPalette me={me} />
+        <div className="flex h-screen overflow-hidden bg-background">
+          <Sidebar user={user} me={me} />
+          <MobileSidebar user={user} me={me} />
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <Header />
+            <ClientWorkspaceBanner me={me} />
+            <MainCanvas>{children}</MainCanvas>
+          </div>
         </div>
-      </div>
+      </SalaUnreadProvider>
     </SidebarProvider>
   );
 }

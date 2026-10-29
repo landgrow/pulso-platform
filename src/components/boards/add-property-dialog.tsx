@@ -119,7 +119,7 @@ export function AddPropertyDialog({
                 autoFocus
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="Ex: Orçamento, Fase..."
+                placeholder="Ex: Fase, Canal..."
                 disabled={saving}
               />
             </div>

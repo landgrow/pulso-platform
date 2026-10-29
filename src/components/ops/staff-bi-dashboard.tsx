@@ -90,35 +90,13 @@ export function StaffBiDashboard({
 
   return (
     <div className="w-full space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-text-3">
-            Operação · {today}
-          </p>
-          <h1 className="mt-1 text-[1.75rem] font-semibold tracking-tight text-text-1">
-            {userName}
-          </h1>
-        </div>
-        <nav className="flex flex-wrap gap-4 text-sm text-text-2">
-          <Link href="/admin/atividades" className="hover:text-text-1">
-            Atividades
-          </Link>
-          <Link href="/admin/crm" className="hover:text-text-1">
-            CRM
-          </Link>
-          <Link href="/admin/financeiro" className="hover:text-text-1">
-            Financeiro
-          </Link>
-          <Link href="/admin/clientes" className="hover:text-text-1">
-            Clientes
-          </Link>
-          <Link href="/admin/bin" className="hover:text-text-1">
-            BIN
-          </Link>
-          <Link href="/admin/painel" className="hover:text-text-1">
-            Painel
-          </Link>
-        </nav>
+      <header>
+        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-text-3">
+          Operação · {today}
+        </p>
+        <h1 className="mt-1 text-[1.75rem] font-semibold tracking-tight text-text-1">
+          {userName}
+        </h1>
       </header>
 
       <section className="overflow-hidden rounded-xl border border-border bg-surface-1">

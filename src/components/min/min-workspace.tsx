@@ -235,7 +235,7 @@ export function MinWorkspace({
             <h2 className="text-xs font-semibold uppercase tracking-wide text-text-2">
               {MIN_FASE_LABEL[fase]}
             </h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {blocos.map((b) => {
                 const index = MIN_BLOCK_CATALOG.findIndex(
                   (x) => x.bloco === b.bloco,

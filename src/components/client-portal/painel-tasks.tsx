@@ -110,6 +110,7 @@ export function PainelTasks({ tasks }: { tasks: PainelTask[] }): JSX.Element {
       <TaskModal open={!!card} onClose={close}>
         {open && card ? (
           <CardDetail
+            key={card.id}
             card={card}
             columns={open.board.columns}
             properties={open.board.properties}

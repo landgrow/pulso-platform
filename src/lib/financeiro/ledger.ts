@@ -44,6 +44,38 @@ export function parseMoney(raw: string): number {
   return Number.isFinite(value) ? value : Number.NaN;
 }
 
+/** Máscara ao digitar: 3500 → 3.500 ; 3500,5 → 3.500,5 */
+export function formatMoneyTyping(raw: string): string {
+  const cleaned = raw.replace(/[^\d,]/g, "");
+  if (!cleaned) return "";
+  const comma = cleaned.indexOf(",");
+  const intRaw = comma === -1 ? cleaned : cleaned.slice(0, comma);
+  const fracRaw =
+    comma === -1
+      ? ""
+      : cleaned
+          .slice(comma + 1)
+          .replace(/,/g, "")
+          .slice(0, 2);
+  const intDigits = intRaw.replace(/^0+(?=\d)/, "");
+  const grouped = (intDigits || (comma !== -1 ? "0" : "")).replace(
+    /\B(?=(\d{3})+(?!\d))/g,
+    ".",
+  );
+  if (comma === -1) return grouped;
+  return `${grouped},${fracRaw}`;
+}
+
+/** Ao sair do campo: 3.500 → 3.500,00 */
+export function formatMoneyBlur(raw: string): string {
+  const n = parseMoney(raw);
+  if (!Number.isFinite(n) || raw.trim() === "") return "";
+  return n.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export function monthKey(isoDate: string): string {
   return isoDate.slice(0, 7);
 }
@@ -66,12 +98,14 @@ export function monthLabel(month: string): string {
   return `${label.replace(".", "")} ${year}`;
 }
 
-export type FinanceRange = "7d" | "30d" | "90d" | "12m" | "year";
+export type FinanceRange = "7d" | "15d" | "30d" | "90d" | "6m" | "12m" | "year";
 
 export const FINANCE_RANGE_OPTIONS: { value: FinanceRange; label: string }[] = [
   { value: "7d", label: "Últimos 7 dias" },
+  { value: "15d", label: "Últimos 15 dias" },
   { value: "30d", label: "Últimos 30 dias" },
   { value: "90d", label: "Últimos 90 dias" },
+  { value: "6m", label: "Últimos 6 meses" },
   { value: "12m", label: "Últimos 12 meses" },
   { value: "year", label: "Ano inteiro" },
 ];
@@ -130,12 +164,14 @@ export function rangeBounds(
   if (range === "year") {
     return { from: `${selectedYear}-01-01`, to };
   }
-  if (range === "12m") {
-    const start = new Date(end.getFullYear(), end.getMonth() - 11, 1);
+  if (range === "12m" || range === "6m") {
+    const monthsBack = range === "12m" ? 11 : 5;
+    const start = new Date(end.getFullYear(), end.getMonth() - monthsBack, 1);
     return { from: todayIso(start), to };
   }
   const start = new Date(end);
-  const days = range === "7d" ? 6 : range === "30d" ? 29 : 89;
+  const days =
+    range === "7d" ? 6 : range === "15d" ? 14 : range === "30d" ? 29 : 89;
   start.setDate(start.getDate() - days);
   return { from: todayIso(start), to };
 }
@@ -186,6 +222,229 @@ export function taxOnInvoice(
   }
   if (rate <= 0 || amount <= 0) return 0;
   return Math.round(amount * (rate / 100) * 100) / 100;
+}
+
+export type FinancePeriodView = "hoje" | "semana" | "mes";
+export type FinanceBillBadge =
+  "recebido" | "pago" | "a_receber" | "a_pagar" | "vence_hoje" | "vencido";
+
+export const BILL_BADGE_LABELS: Record<FinanceBillBadge, string> = {
+  recebido: "Recebido",
+  pago: "Pago",
+  a_receber: "A receber",
+  a_pagar: "A pagar",
+  vence_hoje: "Vence hoje",
+  vencido: "Vencido",
+};
+
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function isoParts(iso: string): { year: number; month: number; day: number } {
+  const [yearRaw = "0", monthRaw = "1", dayRaw = "1"] = iso.split("-");
+  return {
+    year: Number(yearRaw),
+    month: Number(monthRaw),
+    day: Number(dayRaw),
+  };
+}
+
+export function addDaysIso(iso: string, days: number): string {
+  const { year, month, day } = isoParts(iso);
+  return todayIso(new Date(year, month - 1, day + days));
+}
+
+export function addMonthsIso(iso: string, months: number): string {
+  const { year, month, day } = isoParts(iso);
+  const cursor = new Date(year, month - 1 + months, 1);
+  const last = new Date(
+    cursor.getFullYear(),
+    cursor.getMonth() + 1,
+    0,
+  ).getDate();
+  return `${cursor.getFullYear()}-${pad2(cursor.getMonth() + 1)}-${pad2(Math.min(day, last))}`;
+}
+
+export function startOfWeekSundayIso(iso: string): string {
+  const { year, month, day } = isoParts(iso);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() - date.getDay());
+  return todayIso(date);
+}
+
+export function lastDayOfMonth(month: string): string {
+  const { year, month: mm } = isoParts(`${month}-01`);
+  const last = new Date(year, mm, 0).getDate();
+  return `${year}-${pad2(mm)}-${pad2(last)}`;
+}
+
+export function dueDateForMonth(month: string, dueDay: number): string {
+  const last = lastDayOfMonth(month);
+  const lastDay = Number(last.slice(8, 10));
+  const day = Math.min(Math.max(1, Math.floor(dueDay)), lastDay);
+  return `${month}-${pad2(day)}`;
+}
+
+export function periodViewBounds(
+  view: FinancePeriodView,
+  today: string,
+): { from: string; to: string } {
+  if (view === "hoje") return { from: today, to: today };
+  if (view === "semana") {
+    const from = startOfWeekSundayIso(today);
+    return { from, to: addDaysIso(from, 6) };
+  }
+  const month = today.slice(0, 7);
+  return { from: `${month}-01`, to: lastDayOfMonth(month) };
+}
+
+export function billSortDate(entry: {
+  dueDate: string | null;
+  competenceDate: string;
+}): string {
+  return entry.dueDate ?? entry.competenceDate;
+}
+
+export function inBillPeriod(
+  entry: {
+    dueDate: string | null;
+    competenceDate: string;
+    paidAt: string | null;
+  },
+  from: string,
+  to: string,
+): boolean {
+  const day = billSortDate(entry);
+  if (day >= from && day <= to) return true;
+  if (entry.paidAt && entry.paidAt >= from && entry.paidAt <= to) return true;
+  return false;
+}
+
+export function billBadge(
+  entry: {
+    kind: FinanceEntryKind;
+    status: FinanceEntryStatus;
+    dueDate: string | null;
+    competenceDate: string;
+  },
+  today: string,
+): FinanceBillBadge {
+  if (entry.status === "realizado") {
+    return entry.kind === "entrada" ? "recebido" : "pago";
+  }
+  const due = billSortDate(entry);
+  if (due < today) return "vencido";
+  if (due === today) return "vence_hoje";
+  return entry.kind === "entrada" ? "a_receber" : "a_pagar";
+}
+
+export function isMonthlyPrograma(programa: string): boolean {
+  return programa === "scale" || programa === "conselho";
+}
+
+export function contractCompetenceDates(input: {
+  start: string;
+  end: string | null;
+  monthly: boolean;
+  horizon: string;
+}): string[] {
+  if (!input.monthly) return [input.start];
+  const stop =
+    input.end && input.end < input.horizon ? input.end : input.horizon;
+  const dates: string[] = [];
+  let step = 0;
+  while (step < 60) {
+    const cursor = addMonthsIso(input.start, step);
+    if (cursor > stop) break;
+    if (cursor >= input.start) dates.push(cursor);
+    step += 1;
+  }
+  return dates;
+}
+
+export function defaultMonthsForPrograma(programa: string): number {
+  if (programa === "scale") return 6;
+  if (programa === "conselho") return 12;
+  return 1;
+}
+
+export function contractEndFromMonths(start: string, months: number): string {
+  const count = Math.max(1, Math.floor(months));
+  return addMonthsIso(start, count - 1);
+}
+
+export function contractMonthCount(start: string, end: string | null): number {
+  if (!end) return 0;
+  let count = 0;
+  while (count < 120) {
+    const cursor = addMonthsIso(start, count);
+    if (cursor > end) break;
+    count += 1;
+  }
+  return count;
+}
+
+export type ContractDueState =
+  "vencido" | "vence_breve" | "vigente" | "sem_fim";
+
+export const CONTRACT_DUE_LABELS: Record<ContractDueState, string> = {
+  vencido: "Contrato vencido",
+  vence_breve: "Vence em breve",
+  vigente: "Vigente",
+  sem_fim: "Sem data de fim",
+};
+
+export function contractDueState(
+  today: string,
+  end: string | null,
+): ContractDueState {
+  if (!end) return "sem_fim";
+  if (end < today) return "vencido";
+  const horizon = addDaysIso(today, 30);
+  if (end <= horizon) return "vence_breve";
+  return "vigente";
+}
+
+export function isSalesCrmBoard(name: string): boolean {
+  return name.trim().toLowerCase() === "clientes";
+}
+
+export function isWonCrmColumn(label: string): boolean {
+  return (
+    /ganho|conclu|fechado|won|closed/i.test(label) &&
+    !/perdid|cancel|lost/i.test(label)
+  );
+}
+
+export function qualifiesCrmCashInbox(input: {
+  board: string;
+  column: string;
+  amount: number | null;
+}): boolean {
+  return (
+    isSalesCrmBoard(input.board) &&
+    isWonCrmColumn(input.column) &&
+    input.amount != null &&
+    input.amount > 0
+  );
+}
+
+export function dealAmountFromCustom(
+  custom: Record<string, unknown> | null | undefined,
+): number | null {
+  if (!custom) return null;
+  for (const [key, value] of Object.entries(custom)) {
+    if (!/valor|preco|preço|fee|ticket|amount|r\$/i.test(key)) continue;
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+      return value;
+    }
+    if (typeof value === "string") {
+      const parsed = parseMoney(value);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+  }
+  return null;
 }
 
 export function summarizeMonth(
@@ -369,6 +628,9 @@ export function cashflowFromRange(
   }
   if (range === "12m") {
     return cashflowFromLines(lines, to.slice(0, 7), 12);
+  }
+  if (range === "6m") {
+    return cashflowFromLines(lines, to.slice(0, 7), 6);
   }
 
   const keys = range === "90d" ? weeklyKeys(from, to) : eachDay(from, to);

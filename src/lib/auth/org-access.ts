@@ -23,7 +23,7 @@ export type OrgAccessResult =
 /**
  * Checagem única de acesso a uma org, pra toda action que depois usa o client
  * admin. `can_access_org` já respeita atribuição de consultor e membership;
- * `write` barra client_viewer (a RLS de escrita não diferencia viewer).
+ * `write` barra client_viewer (espelha org_member_can_write na RLS).
  */
 // Uma página chama authorizeOrg várias vezes pra mesma org (página + actions
 // de leitura): cacheado por requisição, e as 3 consultas rodam em paralelo.

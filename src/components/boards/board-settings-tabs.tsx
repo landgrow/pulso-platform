@@ -20,6 +20,7 @@ import {
 } from "@/app/actions/boards";
 import { listTeamMembers } from "@/app/actions/team";
 import { BUILTIN_FIELDS, PRIORIDADE_LABELS, type Board } from "@/types/boards";
+import { isShownBoardProperty } from "@/lib/boards/card-people";
 import { SETOR_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
@@ -142,20 +143,22 @@ export function VisibilidadeTab({
             </button>
           );
         })}
-        {board.properties.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => void toggleCustom(p.id, !p.visible)}
-            className="w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-surface-2"
-          >
-            {p.label}
-            {p.visible ? (
-              <Eye className="h-3.5 w-3.5 text-text-2" />
-            ) : (
-              <EyeOff className="h-3.5 w-3.5 text-text-2" />
-            )}
-          </button>
-        ))}
+        {board.properties
+          .filter((p) => isShownBoardProperty({ ...p, visible: true }))
+          .map((p) => (
+            <button
+              key={p.id}
+              onClick={() => void toggleCustom(p.id, !p.visible)}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-surface-2"
+            >
+              {p.label}
+              {p.visible ? (
+                <Eye className="h-3.5 w-3.5 text-text-2" />
+              ) : (
+                <EyeOff className="h-3.5 w-3.5 text-text-2" />
+              )}
+            </button>
+          ))}
       </div>
     </div>
   );

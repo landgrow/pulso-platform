@@ -261,6 +261,7 @@ describe("board export", () => {
           prioridade: "alta",
           responsavel_id: null,
           responsavel_nome: null,
+          responsaveis: [],
           setor: "Estratégico",
           prazo: "2026-09-20",
           related_org_id: null,

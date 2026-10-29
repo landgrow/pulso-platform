@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -23,10 +24,15 @@ export function NovoClienteSheet(): JSX.Element {
       </Button>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="overflow-y-auto sm:max-w-lg">
-          <SheetHeader className="p-0">
+          <SheetHeader className="space-y-1 p-0 pr-8">
             <SheetTitle>Novo cliente</SheetTitle>
+            <SheetDescription>
+              Nome do cliente, dono e outras pessoas da equipe.
+            </SheetDescription>
           </SheetHeader>
-          <CreateClientAccountForm />
+          <div className="mt-6">
+            <CreateClientAccountForm compact />
+          </div>
         </SheetContent>
       </Sheet>
     </>

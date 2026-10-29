@@ -12,6 +12,11 @@ import {
   type Assignee,
 } from "@/lib/boards/assignees";
 import {
+  CARD_ASSIGNEES_KEY,
+  mergeCardAssignees,
+  parseStoredAssignees,
+} from "@/lib/boards/card-people";
+import {
   BUILTIN_FIELDS,
   type Board,
   type BoardAutomation,
@@ -85,6 +90,7 @@ const updateCardSchema = z.object({
   titulo: z.string().min(1).optional(),
   prioridade: z.enum(["alta", "media", "baixa"]).optional(),
   responsavelId: z.string().uuid().nullable().optional(),
+  responsavelIds: z.array(z.string().uuid()).optional(),
   setor: z.string().nullable().optional(),
   prazo: z.string().nullable().optional(),
   relatedOrgId: z.string().uuid().nullable().optional(),
@@ -108,11 +114,13 @@ const toggleSubtarefaSchema = z.object({
   subtarefaId: z.string().optional(),
   texto: z.string().optional(),
   removeId: z.string().optional(),
+  assigneeId: z.union([z.string().uuid(), z.null()]).optional(),
 });
 
 const addComentarioSchema = z.object({
   cardId: z.string().uuid(),
   texto: z.string().min(1, "Comentário não pode ser vazio"),
+  mentions: z.array(z.string().uuid()).optional(),
 });
 
 const createPropertySchema = z.object({
@@ -299,6 +307,15 @@ function mapBoard(row: RawBoardRow): Board {
         prioridade: c.prioridade,
         responsavel_id: c.responsavel_id,
         responsavel_nome: c.responsavel?.full_name ?? null,
+        responsaveis: mergeCardAssignees(
+          c.responsavel_id
+            ? {
+                userId: c.responsavel_id,
+                name: c.responsavel?.full_name ?? "—",
+              }
+            : null,
+          parseStoredAssignees((c.custom_values ?? {})[CARD_ASSIGNEES_KEY]),
+        ),
         setor: c.setor,
         prazo: c.prazo,
         related_org_id: c.related_org_id,
@@ -1062,6 +1079,36 @@ export async function updateCard(
     }
     patch.responsavel_id = rest.responsavelId;
   }
+  if (rest.responsavelIds !== undefined) {
+    const uniqueIds = [...new Set(rest.responsavelIds)];
+    for (const userId of uniqueIds) {
+      if (!(await canBeAssignee(admin, board.org_id, userId))) {
+        return {
+          success: false,
+          error: "Esse usuário não é desta organização",
+        };
+      }
+    }
+    const people = await listOrgAssignees(admin, board.org_id);
+    const byId = new Map(people.map((person) => [person.userId, person]));
+    const stored = uniqueIds.flatMap((userId) => {
+      const person = byId.get(userId);
+      return person
+        ? [{ userId: person.userId, name: person.name, kind: person.kind }]
+        : [];
+    });
+    const { data: current } = await admin
+      .from("board_cards")
+      .select("custom_values")
+      .eq("id", cardId)
+      .maybeSingle();
+    const customValues = {
+      ...((current?.custom_values as Record<string, CustomValue> | null) ?? {}),
+      [CARD_ASSIGNEES_KEY]: stored,
+    };
+    patch.responsavel_id = uniqueIds[0] ?? null;
+    patch.custom_values = customValues;
+  }
   if (rest.setor !== undefined) patch.setor = rest.setor;
   if (rest.prazo !== undefined) patch.prazo = rest.prazo || null;
   if (rest.relatedOrgId !== undefined) patch.related_org_id = rest.relatedOrgId;
@@ -1182,7 +1229,7 @@ export async function toggleSubtarefa(
 
   const auth = await authorizeCardById(cardId, { write: true });
   if (!auth.ok) return { success: false, error: auth.error };
-  const { admin } = auth;
+  const { admin, board } = auth;
 
   const { data: card, error: fetchError } = await admin
     .from("board_cards")
@@ -1198,6 +1245,29 @@ export async function toggleSubtarefa(
   let subtarefas = (card.subtarefas ?? []) as Subtarefa[];
   if (removeId) {
     subtarefas = subtarefas.filter((s) => s.id !== removeId);
+  } else if (subtarefaId && parsed.data.assigneeId !== undefined) {
+    let assigneeName: string | null = null;
+    const assigneeId = parsed.data.assigneeId;
+    if (assigneeId) {
+      if (!(await canBeAssignee(admin, board.org_id, assigneeId))) {
+        return {
+          success: false,
+          error: "Esse usuário não é desta organização",
+        };
+      }
+      const people = await listOrgAssignees(admin, board.org_id);
+      assigneeName =
+        people.find((person) => person.userId === assigneeId)?.name ?? null;
+    }
+    subtarefas = subtarefas.map((s) =>
+      s.id === subtarefaId
+        ? {
+            ...s,
+            responsavel_id: assigneeId,
+            responsavel_nome: assigneeName,
+          }
+        : s,
+    );
   } else if (subtarefaId) {
     subtarefas = subtarefas.map((s) =>
       s.id === subtarefaId ? { ...s, done: !s.done } : s,
@@ -1229,7 +1299,7 @@ export async function addComentario(
       error: parsed.error.errors[0]?.message ?? "Dados inválidos",
     };
   }
-  const { cardId, texto } = parsed.data;
+  const { cardId, texto, mentions } = parsed.data;
 
   const auth = await authorizeCardById(cardId, { write: true });
   if (!auth.ok) return { success: false, error: auth.error };
@@ -1262,6 +1332,7 @@ export async function addComentario(
       autor_nome: autorNome ?? "—",
       texto,
       created_at: new Date().toISOString(),
+      ...(mentions && mentions.length > 0 ? { mentions } : {}),
     },
   ];
 

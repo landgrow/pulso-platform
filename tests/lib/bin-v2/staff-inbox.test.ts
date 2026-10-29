@@ -75,11 +75,16 @@ describe("formatBinAnswer", () => {
 });
 
 describe("inbox do HQ", () => {
-  it("mostra envio de geral na ficha do cliente", () => {
+  it("mostra uma empresa, não um card por envio", () => {
     const items = binInboxItemsFromRows([
       {
         metadata: {
           route: "servicos",
+          geralEnviadoEm: "2026-09-20T20:00:00.000Z",
+          setoresEnviados: {
+            marketing: "2026-09-27T21:17:00.000Z",
+            lideranca: "2026-10-03T10:50:00.000Z",
+          },
           events: [
             {
               at: "2026-09-20T20:00:00.000Z",
@@ -87,10 +92,22 @@ describe("inbox do HQ", () => {
               sectionId: "geral",
               route: "servicos",
             },
+            {
+              at: "2026-09-27T21:17:00.000Z",
+              kind: "setor",
+              sectionId: "marketing",
+              route: "servicos",
+            },
+            {
+              at: "2026-10-03T10:50:00.000Z",
+              kind: "setor",
+              sectionId: "lideranca",
+              route: "servicos",
+            },
           ],
         },
         payload: { G06: "G06:3" },
-        updatedAt: "2026-09-20T20:00:00.000Z",
+        updatedAt: "2026-10-03T10:50:00.000Z",
         orgName: "TechFlow",
         orgSlug: "techflow",
         isInternal: false,
@@ -98,7 +115,7 @@ describe("inbox do HQ", () => {
     ]);
     expect(items).toHaveLength(1);
     expect(items[0]?.href).toBe("/admin/clientes/techflow?tab=bin");
-    expect(items[0]?.headline).toMatch(/geral/i);
+    expect(items[0]?.headline).toBe("2 setores enviados · Serviços");
   });
 
   it("mostra rascunho quando há respostas sem Enviar", () => {
@@ -113,6 +130,37 @@ describe("inbox do HQ", () => {
       },
     ]);
     expect(items[0]?.kind).toBe("rascunho");
+  });
+
+  it("ignora formulário descartado mesmo se for o mais novo", () => {
+    const items = binInboxItemsFromRows([
+      {
+        metadata: {
+          events: [{ at: "2026-09-20T20:00:00.000Z", kind: "geral" }],
+        },
+        payload: { G06: "G06:3" },
+        updatedAt: "2026-10-20T20:00:00.000Z",
+        orgName: "TechFlow",
+        orgSlug: "techflow",
+        isInternal: false,
+        status: "descartado",
+      },
+      {
+        metadata: {
+          geralEnviadoEm: "2026-09-19T20:00:00.000Z",
+          events: [{ at: "2026-09-19T20:00:00.000Z", kind: "geral" }],
+        },
+        payload: { G01: "x" },
+        updatedAt: "2026-09-19T20:00:00.000Z",
+        orgName: "TechFlow",
+        orgSlug: "techflow",
+        isInternal: false,
+        status: "pronto",
+      },
+    ]);
+    expect(items).toHaveLength(1);
+    expect(items[0]?.kind).toBe("geral");
+    expect(items[0]?.at).toBe("2026-09-19T20:00:00.000Z");
   });
 
   it("ignora org interna da Land Grow", () => {

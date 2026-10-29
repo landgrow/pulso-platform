@@ -3,6 +3,8 @@ import { isAuthorizedCronRequest } from "@/lib/notify/cron-auth";
 import { runNotificationJob } from "@/lib/notify/run-job";
 import { isDigestHour } from "@/lib/notify/calendar";
 import { sendMeetingReminders } from "@/lib/meetings/send-invites";
+import { sendCalendarEventReminders } from "@/lib/calendario/reminders";
+import { runDueSalaWorkflows } from "@/lib/sala/run-workflows";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -16,8 +18,16 @@ async function handle(request: Request): Promise<NextResponse> {
     // Lembrete de reunião (1h antes) roda em toda execução do cron; o resumo
     // diário só na hora do resumo (o cron pode rodar a cada 15 min).
     const reminders = await sendMeetingReminders(now);
+    const calendarReminders = await sendCalendarEventReminders(now);
+    const workflows = await runDueSalaWorkflows(now);
     const result = isDigestHour(now) ? await runNotificationJob(now) : null;
-    return NextResponse.json({ ok: true, reminders, ...(result ?? {}) });
+    return NextResponse.json({
+      ok: true,
+      reminders,
+      calendarReminders,
+      workflows,
+      ...(result ?? {}),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha no job";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });

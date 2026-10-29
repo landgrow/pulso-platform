@@ -15,8 +15,7 @@ function clientSecret(): string {
 
 function signingSecret(): string {
   const secret =
-    process.env.GOOGLE_DRIVE_CLIENT_SECRET || process.env.CRON_SECRET;
-  // Sem segredo não assina nada — um fallback fixo deixaria forjar o state.
+    process.env.OAUTH_STATE_SECRET || process.env.GOOGLE_DRIVE_CLIENT_SECRET;
   if (!secret) throw new Error("Integração Google sem segredo configurado.");
   return secret;
 }
