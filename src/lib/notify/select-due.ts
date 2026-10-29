@@ -124,6 +124,31 @@ export function shouldSendDigest(
   return user.prefs.resumoDiario && digestHour;
 }
 
+/** Chave única do e-mail de prazos: só um a cada 23h por pessoa. */
+export const PRAZOS_ENTITY_KEY = "prazos";
+const MAX_ITEMS_PER_SECTION = 15;
+
+function pushSection(lines: string[], title: string, cards: OpenCard[]): void {
+  if (cards.length === 0) return;
+  lines.push(`${title} (${cards.length}):`);
+  for (const card of cards.slice(0, MAX_ITEMS_PER_SECTION)) {
+    lines.push(`- ${card.titulo} · ${card.boardName} · prazo ${card.prazo}`);
+  }
+  if (cards.length > MAX_ITEMS_PER_SECTION) {
+    lines.push(`- e mais ${cards.length - MAX_ITEMS_PER_SECTION}`);
+  }
+  lines.push("");
+}
+
+function prazosSubject(atrasadas: number, hoje: number, breve: number): string {
+  const parts: string[] = [];
+  if (atrasadas > 0)
+    parts.push(`${atrasadas} atrasada${atrasadas === 1 ? "" : "s"}`);
+  if (hoje > 0) parts.push(`${hoje} para hoje`);
+  if (parts.length === 0) parts.push(`${breve} vencendo em breve`);
+  return `Prazos: ${parts.join(", ")}`;
+}
+
 export type OutboundKind = "prazo" | "reuniao" | "resumo" | "cliente_atraso";
 
 export interface OutboundEmail {
@@ -149,81 +174,43 @@ export function buildOutboundEmails(input: {
   for (const user of input.users) {
     if (!user.email) continue;
 
+    // Um único e-mail de prazos por pessoa (antes saía um por tarefa, todo dia).
     const due = cardsForPrazoEmail(input.cards, user, input.today);
-    for (const card of due) {
-      const atrasado = card.prazo < input.today;
-      out.push({
-        userId: user.id,
-        email: user.email,
-        kind: "prazo",
-        entityKey: card.id,
-        subject: atrasado
-          ? `Prazo atrasado: ${card.titulo}`
-          : `Prazo hoje: ${card.titulo}`,
-        text: [
-          `Olá, ${user.fullName || "equipe"}.`,
-          "",
-          `${atrasado ? "Este card passou do prazo." : "Este card vence hoje."}`,
-          `Tarefa: ${card.titulo}`,
-          `Kanban: ${card.boardName}`,
-          `Coluna: ${card.columnLabel}`,
-          `Prazo: ${card.prazo}`,
-          "",
-          "Abra Atividades no PULSO para atualizar.",
-        ].join("\n"),
-      });
-    }
-
     const upcoming = cardsForUpcomingEmail(
       input.cards,
       user,
       input.today,
       input.horizon,
     );
-    for (const card of upcoming) {
-      out.push({
-        userId: user.id,
-        email: user.email,
-        kind: "prazo",
-        entityKey: `${card.id}:soon`,
-        subject: `Prazo perto: ${card.titulo}`,
-        text: [
-          `Olá, ${user.fullName || "equipe"}.`,
-          "",
-          "Este card vence em breve.",
-          `Tarefa: ${card.titulo}`,
-          `Kanban: ${card.boardName}`,
-          `Coluna: ${card.columnLabel}`,
-          `Prazo: ${card.prazo}`,
-          "",
-          "Abra Atividades no PULSO para atualizar.",
-        ].join("\n"),
-      });
-    }
-
     const clientLate = cardsForStaffClientOverdue(
       input.cards,
       user,
       input.today,
       input.clientUserIds,
     );
-    for (const card of clientLate) {
+    const atrasados = due.filter((card) => card.prazo < input.today);
+    const hoje = due.filter((card) => card.prazo >= input.today);
+    const sections: string[] = [];
+    pushSection(sections, "Atrasadas", atrasados);
+    pushSection(sections, "Vencem hoje", hoje);
+    pushSection(sections, "Vencem em breve", upcoming);
+    pushSection(sections, "Atrasadas do cliente", clientLate);
+    if (sections.length > 0) {
       out.push({
         userId: user.id,
         email: user.email,
-        kind: "cliente_atraso",
-        entityKey: card.id,
-        subject: `Cliente atrasou: ${card.titulo}`,
+        kind: "prazo",
+        entityKey: PRAZOS_ENTITY_KEY,
+        subject: prazosSubject(
+          atrasados.length + clientLate.length,
+          hoje.length,
+          upcoming.length,
+        ),
         text: [
           `Olá, ${user.fullName || "equipe"}.`,
           "",
-          "Uma tarefa do cliente passou do prazo.",
-          `Tarefa: ${card.titulo}`,
-          `Kanban: ${card.boardName}`,
-          `Coluna: ${card.columnLabel}`,
-          `Prazo: ${card.prazo}`,
-          "",
-          "Abra Atividades no PULSO.",
+          ...sections,
+          "Abra Atividades no PULSO para atualizar.",
         ].join("\n"),
       });
     }

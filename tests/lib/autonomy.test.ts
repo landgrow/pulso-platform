@@ -104,10 +104,10 @@ describe("notification job selection", () => {
       clientUserIds: new Set(),
     });
 
-    expect(emails.some((e) => e.kind === "prazo" && e.entityKey === "c1")).toBe(
-      true,
-    );
-    expect(emails.some((e) => e.entityKey === "c2")).toBe(false);
+    const prazos = emails.filter((e) => e.kind === "prazo");
+    expect(prazos).toHaveLength(1);
+    expect(prazos[0]?.text).toContain("Entregar HORIZON");
+    expect(prazos[0]?.text).not.toContain("Já feito");
     expect(emails.some((e) => e.kind === "reuniao")).toBe(true);
     expect(emails.some((e) => e.kind === "resumo")).toBe(true);
   });
@@ -156,14 +156,12 @@ describe("notification job selection", () => {
       digestHour: false,
       clientUserIds: new Set(["client1"]),
     });
-    expect(
-      emails.some((e) => e.kind === "prazo" && e.entityKey === "soon:soon"),
-    ).toBe(true);
-    expect(
-      emails.some(
-        (e) => e.kind === "cliente_atraso" && e.entityKey === "late-client",
-      ),
-    ).toBe(true);
+    const prazos = emails.filter((e) => e.kind === "prazo");
+    expect(prazos).toHaveLength(1);
+    expect(prazos[0]?.text).toContain("Vencem em breve");
+    expect(prazos[0]?.text).toContain("Enviar proposta");
+    expect(prazos[0]?.text).toContain("Atrasadas do cliente");
+    expect(prazos[0]?.text).toContain("Enviar extrato");
   });
 });
 

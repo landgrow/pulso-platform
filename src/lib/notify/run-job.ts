@@ -19,6 +19,8 @@ import {
 } from "@/lib/notify/select-due";
 import { sendTransactionalEmail } from "@/lib/notify/send-email";
 
+const MIN_GAP_MS = 23 * 60 * 60 * 1000;
+
 export interface NotificationJobResult {
   scannedUsers: number;
   candidates: number;
@@ -209,7 +211,22 @@ export async function runNotificationJob(
     failed: 0,
   };
 
+  // Mesmo aviso para a mesma pessoa: no máximo um a cada 23h (folga para o
+  // horário do cron variar alguns minutos), mesmo que o job rode de novo.
+  const since = new Date(now.getTime() - MIN_GAP_MS).toISOString();
   for (const item of outbound) {
+    const { data: recent } = await admin
+      .from("notification_deliveries")
+      .select("id")
+      .eq("user_id", item.userId)
+      .eq("kind", item.kind)
+      .eq("entity_key", item.entityKey)
+      .gte("sent_at", since)
+      .limit(1);
+    if ((recent ?? []).length > 0) {
+      result.skippedDuplicate += 1;
+      continue;
+    }
     const { error: dupError } = await admin
       .from("notification_deliveries")
       .insert({
