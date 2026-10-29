@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { requireCapability } from "@/lib/supabase/platform-role-server";
 import { MindMapCanvas } from "@/components/mindmaps/mind-map-canvas";
+
+export const metadata: Metadata = { title: "Mapa Mental" };
 
 export default async function AdminMapaMentalPage(): Promise<JSX.Element> {
   const supabase = await createClient();

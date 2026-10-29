@@ -116,6 +116,7 @@ export function AtividadesShell({
 
   return (
     <div className="flex w-full min-w-0 items-stretch">
+      <h1 className="sr-only">Atividades</h1>
       <CollapsibleSubnav storageKey="pulso-nav-atividades">
         <aside className="flex h-full min-h-[calc(100vh-9rem)] flex-col border-r border-border bg-surface-1">
           <div className="flex-1 overflow-y-auto p-2">

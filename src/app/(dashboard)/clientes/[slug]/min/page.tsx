@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { authorizeClientSlug } from "@/lib/auth/org-access";
 import { getMinSummaryForOrg } from "@/app/actions/min";
 import { MinWorkspace } from "@/components/min/min-workspace";
 import { PageHeader } from "@/components/ui/page-header";
 import { MIN_GUIDES, type MinBlocoNome } from "@/lib/min/blocks";
+
+export const metadata: Metadata = { title: "MIN" };
 
 export default async function ClienteMinPage({
   params,
@@ -32,7 +35,7 @@ export default async function ClienteMinPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Modelo Integrado de Negócios"
+        title="MIN · Modelo de negócio"
         description={`${auth.org.name} · 13 blocos em 3 fases. Responda uma pergunta por vez — cada resposta é salva e chega na Land Grow.`}
       />
       {!summary.success ? (

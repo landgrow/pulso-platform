@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { authorizeClientSlug } from "@/lib/auth/org-access";
 import { WorksmartPanel } from "@/components/atividades/worksmart-panel";
 import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata: Metadata = { title: "Objetivos" };
 
 export default async function ClienteObjetivosPage({
   params,

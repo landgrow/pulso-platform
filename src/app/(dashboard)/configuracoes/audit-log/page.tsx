@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Activity, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Card,
@@ -9,6 +10,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getAuditLog } from "@/app/actions/audit-log";
+
+export const metadata: Metadata = { title: "Registro de atividades" };
 
 interface PageProps {
   searchParams: Promise<{ page?: string }>;

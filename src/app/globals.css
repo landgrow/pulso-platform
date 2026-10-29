@@ -19,7 +19,7 @@
   --border-strong: #b7c0d3;
   --text-1: #1a2340;
   --text-2: #5b6788;
-  --text-3: #8a93ab;
+  --text-3: #65708c; /* ≥4,5:1 sobre bg e surface-1 (WCAG AA) */
 
   --primary: #6366f1;
   --primary-foreground: #ffffff;
@@ -79,7 +79,7 @@
   --border-strong: #38446b;
   --text-1: #e8ecf5;
   --text-2: #9aa5c0;
-  --text-3: #6b7699;
+  --text-3: #8590b3; /* ≥4,5:1 sobre bg, surface-1 e surface-2 */
 
   --primary: #6366f1;
   --primary-foreground: #ffffff;

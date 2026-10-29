@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SignOutButton } from "@/components/auth/signout-button";
 import { ChevronRight } from "lucide-react";
@@ -7,6 +8,8 @@ import {
   getStaffCapabilities,
 } from "@/lib/supabase/platform-role-server";
 import { visibleSettingsNav } from "@/lib/settings/nav";
+
+export const metadata: Metadata = { title: "Configurações" };
 
 export default async function ConfiguracoesPage(): Promise<JSX.Element> {
   const supabase = await createClient();

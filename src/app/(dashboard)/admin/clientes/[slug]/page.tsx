@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, LogIn } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,8 @@ import { getBinSummaryForOrg } from "@/app/actions/bin";
 import { getMinSummaryForOrg } from "@/app/actions/min";
 import { ToggleClienteStatusButton } from "./toggle-cliente-status-button";
 import { AdminClienteTabs } from "./cliente-tabs";
+
+export const metadata: Metadata = { title: "Cliente" };
 
 export default async function AdminClienteDetailPage({
   params,

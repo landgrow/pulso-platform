@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { requireInternalOrg } from "@/lib/auth/internal-org";
 import { WorksmartPanel } from "@/components/atividades/worksmart-panel";
 import { AccessDenied } from "@/components/admin/access-denied";
 import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata: Metadata = { title: "Objetivos" };
 
 export default async function AdminWorksmartPanelPage(): Promise<JSX.Element> {
   const internal = await requireInternalOrg("atividades");

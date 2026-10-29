@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffCapabilities } from "@/lib/supabase/platform-role-server";
@@ -12,6 +13,8 @@ import {
 } from "@/components/settings/operacao-actions";
 import { LaunchReadyCard } from "@/components/ops/launch-ready";
 import { PLANO_DE_ACAO_COLUMNS } from "@/lib/boards/plano-de-acao-template";
+
+export const metadata: Metadata = { title: "Operação" };
 
 export default async function OperacaoPage(): Promise<JSX.Element> {
   const supabase = await createClient();

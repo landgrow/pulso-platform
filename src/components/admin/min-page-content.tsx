@@ -33,7 +33,7 @@ export function MinPageContent(): JSX.Element {
       <div>
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Briefcase className="h-5 w-5 text-text-2" />
-          Modelo Integrado de Negócios
+          MIN · Modelo de negócio
         </h2>
         <p className="text-sm text-text-2">Os 13 blocos do MIN.</p>
       </div>

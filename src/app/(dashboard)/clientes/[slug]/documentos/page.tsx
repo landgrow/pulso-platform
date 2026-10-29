@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { authorizeClientSlug } from "@/lib/auth/org-access";
 import { DocumentsDrive } from "@/components/documentos/documents-drive";
 import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata: Metadata = { title: "Documentos" };
 
 export default async function ClienteDocumentosPage({
   params,

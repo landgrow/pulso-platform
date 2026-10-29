@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPeriod } from "@/app/actions/periods";
 import { listColecaoRevisions } from "@/app/actions/revisions";
 import { authorizeClientSlug, authorizePeriodo } from "@/lib/auth/org-access";
 import { Timeline } from "@/components/collections/historico/timeline";
 import { History } from "lucide-react";
+
+export const metadata: Metadata = { title: "Histórico" };
 
 interface HistoricoPageProps {
   params: Promise<{ slug: string; id: string }>;

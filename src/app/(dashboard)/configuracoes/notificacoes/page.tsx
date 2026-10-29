@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { getSession } from "@/lib/supabase/get-session";
 import { createClient } from "@/lib/supabase/server";
 import { isPlatformStaff } from "@/lib/supabase/platform-role-server";
 import { parseNotificationPrefs } from "@/lib/settings/notifications";
 import { NotificationPrefsForm } from "./notification-prefs-form";
+
+export const metadata: Metadata = { title: "Notificações" };
 
 export default async function NotificacoesPage(): Promise<JSX.Element> {
   const session = await getSession();

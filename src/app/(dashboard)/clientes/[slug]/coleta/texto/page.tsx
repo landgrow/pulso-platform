@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getOrCreateCurrentPeriod, getPeriod } from "@/app/actions/periods";
 import { listTextoLivre } from "@/app/actions/texto";
@@ -5,6 +6,8 @@ import { authorizeClientSlug } from "@/lib/auth/org-access";
 import { TextoPageClient } from "@/components/collections/texto/texto-page-client";
 import { Badge } from "@/components/ui/badge";
 import { NotebookPen } from "lucide-react";
+
+export const metadata: Metadata = { title: "Textos" };
 
 interface TextoPageProps {
   params: Promise<{ slug: string }>;

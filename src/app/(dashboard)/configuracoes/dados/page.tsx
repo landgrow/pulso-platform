@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Download, FileJson, Shield } from "lucide-react";
 import {
   Card,
@@ -10,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { exportMyData } from "@/app/actions/data-export";
 import { getSession } from "@/lib/supabase/get-session";
+
+export const metadata: Metadata = { title: "Dados" };
 
 export default async function DadosPage(): Promise<JSX.Element> {
   const session = await getSession();

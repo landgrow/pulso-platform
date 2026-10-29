@@ -33,10 +33,10 @@ export function OriginMixChart({
     <ChartFrame
       eyebrow="Origem"
       title={`De onde entrou · ${periodLabel ?? monthLabel(month)}`}
-      hint="Fee, projeto, edital e outros do recorte aberto."
+      hint="Fee, projeto, edital e outros no período."
     >
       {total === 0 ? (
-        <ChartEmpty>Nenhuma entrada neste recorte.</ChartEmpty>
+        <ChartEmpty>Nenhuma entrada neste período.</ChartEmpty>
       ) : (
         <div className="grid items-center gap-6 sm:grid-cols-[160px_1fr]">
           <div className="relative mx-auto h-40 w-40">

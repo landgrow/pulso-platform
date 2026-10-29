@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { listPeriods } from "@/app/actions/periods";
 import { authorizeClientSlug } from "@/lib/auth/org-access";
 import { StatusBadge } from "@/components/collections/periodo/status-badge";
 import { AbrirPeriodoAtualButton } from "@/components/collections/periodo/abrir-periodo-atual-button";
+
+export const metadata: Metadata = { title: "Coleta" };
 
 interface ClientePageProps {
   params: Promise<{ slug: string }>;

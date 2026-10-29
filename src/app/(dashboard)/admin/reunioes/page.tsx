@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { requireInternalOrg } from "@/lib/auth/internal-org";
 import { MeetingsPanel } from "@/components/atividades/meetings-panel";
 import { AccessDenied } from "@/components/admin/access-denied";
 import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata: Metadata = { title: "Reuniões" };
 
 export default async function AdminMeetingsPanelPage(): Promise<JSX.Element> {
   const internal = await requireInternalOrg("atividades");

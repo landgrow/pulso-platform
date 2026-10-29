@@ -28,7 +28,7 @@ export function FinanceCharts({
       <CashflowChart
         data={cashflow}
         title={`Balanço · ${caption}`}
-        hint={`Competência no recorte ${caption}.`}
+        hint="Pela data de cada lançamento, não pelo extrato do banco."
         summary={livroMes}
       />
       <div className="grid gap-4 xl:grid-cols-2">

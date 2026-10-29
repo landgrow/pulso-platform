@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
@@ -6,6 +7,8 @@ import { AccessDenied } from "@/components/admin/access-denied";
 import { listRecentBinEvents } from "@/app/actions/bin";
 import { BinInbox } from "@/components/bin/bin-inbox";
 import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata: Metadata = { title: "BIN" };
 
 export default async function AdminBinPage(): Promise<JSX.Element> {
   const supabase = await createClient();

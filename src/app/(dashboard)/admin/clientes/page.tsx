@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertCircle, Building2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +18,8 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { NovoClienteSheet } from "./novo-cliente-sheet";
 import { EditarClienteButton } from "./editar-cliente-sheet";
+
+export const metadata: Metadata = { title: "Organizações" };
 
 function contratosAtivos(entry: ClientDirectoryEntry) {
   return entry.contratos.filter((c) => c.status === "ativo");

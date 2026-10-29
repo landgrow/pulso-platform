@@ -393,7 +393,7 @@ export function BinReadingPanel({
       ) : (
         <p className="text-sm text-text-2">
           Envie um setor para gerar Radar, Compass, Horizon e Route Planner
-          daquele recorte. Os quatro se atualizam a cada novo setor.
+          daquele setor. Os quatro se atualizam a cada novo setor.
         </p>
       )}
     </div>

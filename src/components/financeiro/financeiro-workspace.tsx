@@ -465,7 +465,7 @@ export function FinanceiroWorkspace(): JSX.Element {
                   {compose === "nota"
                     ? "Sobe o PDF ou XML da nota. Não emitimos documento fiscal daqui."
                     : compose === "saida"
-                      ? "Despesa do recorte. O valor fica em branco até você preencher."
+                      ? "Despesa do período. O valor fica em branco até você preencher."
                       : "Fee, projeto ou edital. Entra no livro na data de competência."}
                 </DialogDescription>
               </DialogHeader>
@@ -560,7 +560,7 @@ function LivroBoard({
             hint={`${saidas.length} despesa${saidas.length === 1 ? "" : "s"}`}
           />
           <Kpi
-            label="Balanço do recorte"
+            label="Balanço do período"
             value={formatCurrency(balance.balanco)}
             hint={`líquido ${formatCurrency(balance.liquido)}`}
             tone={balance.balanco >= 0 ? "positive" : "danger"}
@@ -583,7 +583,7 @@ function LivroBoard({
       <div className="grid gap-4 xl:grid-cols-2">
         <MonthColumn
           title="Entradas"
-          empty="Nenhuma entrada neste recorte. Use Entrada acima para lançar."
+          empty="Nenhuma entrada neste período. Use Entrada acima para lançar."
           lines={entradas}
           income
           clients={clients}
@@ -592,7 +592,7 @@ function LivroBoard({
         />
         <MonthColumn
           title="Saídas"
-          empty="Nenhuma despesa neste recorte. Use Saída acima para lançar."
+          empty="Nenhuma despesa neste período. Use Saída acima para lançar."
           lines={saidas}
           income={false}
           clients={clients}
@@ -756,7 +756,7 @@ function WeekBoard({
           title="A receber"
           total={openReceber}
           done={doneReceber}
-          empty="Nada a receber neste recorte."
+          empty="Nada a receber neste período."
           lines={receber}
           today={today}
           income
@@ -766,7 +766,7 @@ function WeekBoard({
           title="A pagar"
           total={openPagar}
           done={donePagar}
-          empty="Nada a pagar neste recorte."
+          empty="Nada a pagar neste período."
           lines={pagar}
           today={today}
           income={false}
@@ -774,7 +774,7 @@ function WeekBoard({
         />
       </div>
       <footer className="flex items-center justify-between border-t border-border px-4 py-3 text-sm">
-        <span className="text-text-2">Saldo previsto do recorte</span>
+        <span className="text-text-2">Saldo previsto do período</span>
         <span
           className={cn(
             "font-semibold tabular-nums",
@@ -1414,7 +1414,7 @@ function BillsTable({
       </div>
       {entries.length === 0 ? (
         <p className="px-4 py-8 text-sm text-text-2">
-          Nenhuma conta neste recorte.
+          Nenhuma conta neste período.
         </p>
       ) : (
         <ul className="divide-y divide-border">

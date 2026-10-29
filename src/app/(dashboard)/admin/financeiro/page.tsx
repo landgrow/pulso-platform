@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { requireCapability } from "@/lib/supabase/platform-role-server";
 import { AccessDenied } from "@/components/admin/access-denied";
 import { FinanceiroWorkspace } from "@/components/financeiro/financeiro-workspace";
+
+export const metadata: Metadata = { title: "Financeiro" };
 
 export default async function AdminFinanceiroPage(): Promise<JSX.Element> {
   const supabase = await createClient();

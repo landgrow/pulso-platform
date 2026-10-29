@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { authorizeClientSlug } from "@/lib/auth/org-access";
@@ -13,6 +14,8 @@ import {
   resolveBinShareSection,
   type BinAnswers,
 } from "@/lib/bin-v2";
+
+export const metadata: Metadata = { title: "BIN" };
 
 interface BinPageProps {
   params: Promise<{ slug: string }>;

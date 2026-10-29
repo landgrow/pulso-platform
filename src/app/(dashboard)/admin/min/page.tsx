@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
 import { requireCapability } from "@/lib/supabase/platform-role-server";
@@ -5,6 +6,8 @@ import { AccessDenied } from "@/components/admin/access-denied";
 import { listRecentMinBlocks } from "@/app/actions/min";
 import { MinResults } from "@/components/admin/min-results";
 import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata: Metadata = { title: "MIN" };
 
 export default async function AdminMinPage(): Promise<JSX.Element> {
   const supabase = await createClient();

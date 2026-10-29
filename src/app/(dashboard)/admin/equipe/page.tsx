@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AlertCircle, Users } from "lucide-react";
 import {
   Card,
@@ -14,6 +15,8 @@ import { RemovePlatformTeamMemberButton } from "./remove-team-member-button";
 import { ManageConsultantOrgs } from "./manage-consultant-orgs";
 import { ManageConsultantFunctions } from "./manage-consultant-functions";
 import { ResendInviteButton } from "./resend-invite-button";
+
+export const metadata: Metadata = { title: "Equipe" };
 
 export default async function EquipePage(): Promise<JSX.Element> {
   const [teamResult, clientesResult] = await Promise.all([

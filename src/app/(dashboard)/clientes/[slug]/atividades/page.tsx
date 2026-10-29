@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { authorizeClientSlug } from "@/lib/auth/org-access";
 import { AtividadesShell } from "@/components/atividades/atividades-shell";
+
+export const metadata: Metadata = { title: "Atividades" };
 
 export default async function ClienteAtividadesPage({
   params,

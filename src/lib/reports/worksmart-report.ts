@@ -16,7 +16,7 @@ export function worksmartPdfBlocks(
     return [
       {
         type: "p",
-        text: "Nenhum objetivo WorkSmart neste recorte.",
+        text: "Nenhum objetivo WorkSmart neste período.",
       },
     ];
   }

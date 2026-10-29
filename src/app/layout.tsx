@@ -14,7 +14,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "PULSO — Plataforma de Inteligência de Negócios",
+  title: {
+    default: "PULSO — Plataforma de Inteligência de Negócios",
+    template: "%s · PULSO",
+  },
   description:
     "Plataforma da Land Grow para diagnóstico e aceleração de empresas",
   // Área de cliente: nada aqui deve aparecer em buscadores.

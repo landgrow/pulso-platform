@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import {
   getAccessibleOrganizations,
@@ -12,6 +13,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, Check } from "lucide-react";
+
+export const metadata: Metadata = { title: "Organizações" };
 
 const CLIENT_ROLES = new Set([
   "client_owner",

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
@@ -10,6 +11,8 @@ import { BinInbox } from "@/components/bin/bin-inbox";
 import { MinResults } from "@/components/admin/min-results";
 import { PageHeader } from "@/components/ui/page-header";
 import { PainelLive } from "@/components/ops/painel-live";
+
+export const metadata: Metadata = { title: "Painel" };
 
 export default async function AdminPainelPage(): Promise<JSX.Element> {
   const supabase = await createClient();

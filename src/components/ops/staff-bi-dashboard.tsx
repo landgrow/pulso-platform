@@ -146,19 +146,19 @@ export function StaffBiDashboard({
             href="/admin/financeiro"
             label="Contratos"
             value={formatCurrency(receitaContratosBrl)}
-            hint="receita ativa em BRL"
+            hint="receita ativa em reais"
           />
           <Kpi
             href="/admin/bin"
             label="BIN"
             value={String(house.binInbox)}
-            hint="eventos na fila"
+            hint={`evento${house.binInbox === 1 ? "" : "s"} na fila`}
           />
           <Kpi
             href="/admin/equipe"
-            label="Casa"
+            label="Equipe"
             value={String(house.equipe)}
-            hint={`${house.mapas} mapa${house.mapas === 1 ? "" : "s"} · equipe`}
+            hint={`pessoas · ${house.mapas} mapa${house.mapas === 1 ? "" : "s"} mental${house.mapas === 1 ? "" : "is"}`}
             last
           />
         </div>
@@ -182,7 +182,7 @@ export function StaffBiDashboard({
 
           {total === 0 ? (
             <p className="mt-8 text-sm text-text-2">
-              Sem cards internos ainda. O Plano de Ação alimenta este recorte.
+              Sem cards internos ainda. As Atividades alimentam este quadro.
             </p>
           ) : (
             <div className="mt-4 grid gap-6 lg:grid-cols-[200px_1fr] lg:items-center">

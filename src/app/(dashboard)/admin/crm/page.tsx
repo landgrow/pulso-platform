@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
 import { requireCapability } from "@/lib/supabase/platform-role-server";
 import { AccessDenied } from "@/components/admin/access-denied";
 import { CrmShell } from "@/components/crm/crm-shell";
+
+export const metadata: Metadata = { title: "CRM" };
 
 export default async function AdminCrmPage(): Promise<JSX.Element> {
   const supabase = await createClient();

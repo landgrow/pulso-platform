@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { authorizeClientSlug } from "@/lib/auth/org-access";
@@ -7,6 +8,8 @@ import {
 } from "@/lib/client-portal/overview";
 import { SimpleBars } from "@/components/client-portal/portal-charts";
 import { EmptyState, KpiCard, PageHeader } from "@/components/ui/page-header";
+
+export const metadata: Metadata = { title: "Métricas" };
 
 const STATUS_LABEL: Record<string, string> = {
   rascunho: "Rascunho",

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -16,6 +17,8 @@ import { listTeamMembers } from "@/app/actions/team";
 import { StaffBiDashboard } from "@/components/ops/staff-bi-dashboard";
 import { EmptyState, PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+
+export const metadata: Metadata = { title: "Dashboard" };
 
 export default async function DashboardPage(): Promise<JSX.Element> {
   const supabase = await createClient();

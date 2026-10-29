@@ -262,7 +262,7 @@ export function BinWorkspace({
       notifyStaff("setor", id);
       void refreshView();
       toast.success(
-        "Setor enviado. Radar, Compass, Horizon e Route Planner deste recorte já foram gerados.",
+        "Setor enviado. Radar, Compass, Horizon e Route Planner deste setor já foram gerados.",
       );
     } catch {
       /* persist already toasts */
@@ -466,7 +466,7 @@ export function BinWorkspace({
     <div className="space-y-6">
       <Header
         status={status}
-        lead={`Formulário de ${binRouteLabel(route)}. Cada setor enviado já gera Radar, Compass, Horizon e Route Planner daquele recorte. Os quatro se atualizam conforme os outros setores entram.`}
+        lead={`Formulário de ${binRouteLabel(route)}. Cada setor enviado já gera Radar, Compass, Horizon e Route Planner daquele setor. Os quatro se atualizam conforme os outros setores entram.`}
       />
       <div className="space-y-2 rounded-lg border border-border bg-surface-1 p-4">
         <div className="flex items-center justify-between text-sm">
@@ -535,7 +535,7 @@ function Header({
       <div>
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <Radar className="h-5 w-5 text-text-2" />
-          Business Insights Navigator
+          BIN · Diagnóstico da empresa
         </h2>
         <p className="text-sm text-text-2">{lead}</p>
       </div>
@@ -571,7 +571,7 @@ function DiagnosticoDisponivel({
         </h2>
         <p className="text-sm text-text-2 mt-1">
           As respostas foram enviadas. Portões, inconsistências e os quatro
-          entregáveis já estão calculados com o recorte respondido.
+          entregáveis já estão calculados com o que foi respondido.
         </p>
       </div>
       {view ? (

@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { authorizeClientSlug } from "@/lib/auth/org-access";
 import { CalendarWorkspace } from "@/components/calendario/calendar-workspace";
+
+export const metadata: Metadata = { title: "Calendário" };
 
 export default async function ClienteCalendarioPage({
   params,

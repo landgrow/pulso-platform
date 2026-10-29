@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { authorizeClientSlug } from "@/lib/auth/org-access";
 import { PageHeader } from "@/components/ui/page-header";
 import { PulsoChat } from "@/components/inteligencia/pulso-chat";
 import { resolveLlm } from "@/lib/inteligencia/llm";
+
+export const metadata: Metadata = { title: "Central IA" };
 
 export default async function ClienteCentralIaPage({
   params,

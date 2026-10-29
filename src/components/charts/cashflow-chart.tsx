@@ -28,8 +28,8 @@ type CashflowRow = FinanceCashMonth & {
 
 export function CashflowChart({
   data,
-  title = "Balanço do recorte",
-  hint = "Competência no recorte aberto, não caixa de banco.",
+  title = "Balanço do período",
+  hint = "Pela data de cada lançamento, não pelo extrato do banco.",
   summary = null,
 }: {
   data: FinanceCashMonth[];
@@ -244,7 +244,7 @@ export function CashflowChart({
         </>
       ) : (
         <ChartEmpty>
-          Sem movimento neste recorte. O que entrar no livro aparece aqui.
+          Sem movimento neste período. O que entrar no livro aparece aqui.
         </ChartEmpty>
       )}
     </ChartFrame>

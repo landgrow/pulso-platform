@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
 import { requireAnyCapability } from "@/lib/supabase/platform-role-server";
@@ -6,6 +7,8 @@ import { listClientDirectory } from "@/app/actions/clientes";
 import { PulsoChat } from "@/components/inteligencia/pulso-chat";
 import { resolveLlm } from "@/lib/inteligencia/llm";
 import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata: Metadata = { title: "Central IA" };
 
 export default async function AdminCentralIaPage(): Promise<JSX.Element> {
   const supabase = await createClient();

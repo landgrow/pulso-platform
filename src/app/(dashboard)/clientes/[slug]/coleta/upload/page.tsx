@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getOrCreateCurrentPeriod, getPeriod } from "@/app/actions/periods";
 import { authorizeClientSlug } from "@/lib/auth/org-access";
 import { UploadQueue } from "@/components/collections/upload/upload-queue";
 import { Badge } from "@/components/ui/badge";
 import { UploadCloud } from "lucide-react";
+
+export const metadata: Metadata = { title: "Arquivos" };
 
 interface UploadPageProps {
   params: Promise<{ slug: string }>;

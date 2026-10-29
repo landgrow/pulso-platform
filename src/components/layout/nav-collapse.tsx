@@ -144,7 +144,7 @@ export function CollapsibleSubnav({
         <button
           type="button"
           onClick={handleToggle}
-          className="absolute top-3 -right-3 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-1 text-text-2 shadow-sm hover:bg-surface-2 hover:text-text-1"
+          className="absolute top-3 -right-3.5 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-surface-1 text-text-2 shadow-sm hover:bg-surface-2 hover:text-text-1"
           title="Recolher menu"
           aria-label="Recolher menu"
         >

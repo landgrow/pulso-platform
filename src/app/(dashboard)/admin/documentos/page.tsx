@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { requireInternalOrg } from "@/lib/auth/internal-org";
 import { DocumentsDrive } from "@/components/documentos/documents-drive";
 import { AccessDenied } from "@/components/admin/access-denied";
 import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata: Metadata = { title: "Documentos" };
 
 export default async function AdminDocumentosPage(): Promise<JSX.Element> {
   const internal = await requireInternalOrg("documentos");

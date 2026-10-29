@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   Card,
   CardContent,
@@ -9,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getSession } from "@/lib/supabase/get-session";
 import { ChangePasswordForm, DisplayNameForm } from "./account-forms";
+
+export const metadata: Metadata = { title: "Conta" };
 
 export default async function ContaPage(): Promise<JSX.Element> {
   const session = await getSession();

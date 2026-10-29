@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { isPlatformStaff } from "@/lib/supabase/platform-role-server";
 import { getSession } from "@/lib/supabase/get-session";
 import { GoogleConnectButton } from "./google-connect-button";
 import { IntegrationsWorkspace } from "@/components/settings/integrations-workspace";
+
+export const metadata: Metadata = { title: "Integrações" };
 
 export default async function IntegracoesPage(): Promise<JSX.Element> {
   const session = await getSession();

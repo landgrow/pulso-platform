@@ -70,7 +70,7 @@ export function StatusDonut({
   return (
     <ChartFrame title={title} hint={hint}>
       {total === 0 ? (
-        <ChartEmpty>Nenhuma tarefa no recorte.</ChartEmpty>
+        <ChartEmpty>Nenhuma tarefa no período.</ChartEmpty>
       ) : (
         <div className="space-y-3">
           <div className="relative h-56">
@@ -122,7 +122,7 @@ export function SimpleBars({
   colors = SERIES,
   unit,
   max,
-  emptyText = "Nada para mostrar no recorte.",
+  emptyText = "Nada para mostrar no período.",
 }: {
   title: string;
   hint?: string;

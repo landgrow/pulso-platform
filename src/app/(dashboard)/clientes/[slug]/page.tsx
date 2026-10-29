@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Briefcase, Radar } from "lucide-react";
@@ -14,6 +15,8 @@ import {
   StatusDonut,
 } from "@/components/client-portal/portal-charts";
 import { EmptyState, KpiCard } from "@/components/ui/page-header";
+
+export const metadata: Metadata = { title: "Painel" };
 
 function firstName(user: {
   user_metadata?: Record<string, unknown>;
@@ -54,7 +57,7 @@ export default async function ClientePainelPage({
             {name ? `Olá, ${name}` : `Seja bem-vindo(a), ${auth.org.name}`}
           </h1>
           <p className="text-sm text-text-2">
-            {auth.org.name} · BIN, MIN, tarefas e métricas no recorte escolhido.
+            {auth.org.name} · BIN, MIN, tarefas e métricas do período escolhido.
           </p>
         </div>
         <RangeSelect value={range} />
@@ -70,16 +73,16 @@ export default async function ClientePainelPage({
             icon={<Radar className="h-5 w-5" />}
             accent="var(--primary)"
             title="BIN"
-            subtitle="Business Insights Navigator"
+            subtitle="Diagnóstico da empresa"
             pct={data.binPct}
-            text="Diagnóstico geral e os setores da empresa."
+            text="Uma parte geral e depois cada setor da empresa."
           />
           <InsightCard
             href={`/clientes/${slug}/min`}
             icon={<Briefcase className="h-5 w-5" />}
             accent="#8b5cf6"
             title="MIN"
-            subtitle="Modelo Integrado de Negócios"
+            subtitle="Modelo de negócio"
             pct={data.minPct}
             text={`${data.minBlocos} de 13 blocos com respostas.`}
           />
@@ -100,7 +103,7 @@ export default async function ClientePainelPage({
         </div>
         {upcoming.length === 0 ? (
           <EmptyState
-            title="Nenhuma tarefa pendente neste recorte"
+            title="Nenhuma tarefa pendente neste período"
             description="Quando a Land Grow ou o seu time criar tarefas no Plano de Ação, as próximas aparecem aqui."
           />
         ) : (
@@ -146,7 +149,7 @@ export default async function ClientePainelPage({
             hint={PERIOD_RANGE_LABEL[range]}
             data={data.byPrazo}
             colors={["var(--primary)", "var(--error)", "var(--success)"]}
-            emptyText="Nenhuma tarefa no recorte."
+            emptyText="Nenhuma tarefa no período."
           />
         </div>
       </section>

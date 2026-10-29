@@ -230,7 +230,7 @@ export function WorkGraphView({ data }: { data: WorkGraphData }): JSX.Element {
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-sm font-medium text-text-1">
-              Nada neste recorte
+              Nada neste período
             </p>
             <p className="mt-1 text-sm text-text-2">
               Abra Reuniões, marque o que a Land Grow entrega, e a tarefa

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getPeriod } from "@/app/actions/periods";
@@ -9,6 +10,8 @@ import { BotaoMarcarPronto } from "@/components/collections/periodo/botao-marcar
 import { ListaColecoes } from "@/components/collections/periodo/lista-colecoes";
 import { ListaEvidenciasPeriodo } from "@/components/collections/periodo/lista-evidencias-periodo";
 import { FileText, UploadCloud, NotebookPen, Mic, History } from "lucide-react";
+
+export const metadata: Metadata = { title: "Período" };
 
 interface PeriodoPageProps {
   params: Promise<{ slug: string; id: string }>;

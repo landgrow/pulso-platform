@@ -472,7 +472,7 @@ function conjuntoRoute(
     );
   }
   if (bullets.length === 0) {
-    bullets.push("Sem ação bloqueante com o recorte já respondido.");
+    bullets.push("Sem ação bloqueante com o que já foi respondido.");
   }
   if (parcial) {
     bullets.push("A ordem se recalcula quando um setor novo é enviado.");

@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { requireCapability } from "@/lib/supabase/platform-role-server";
 import { AccessDenied } from "@/components/admin/access-denied";
 import { SalaWorkspace } from "@/components/sala/sala-workspace";
+
+export const metadata: Metadata = { title: "Sala" };
 
 export default async function AdminSalaPage(): Promise<JSX.Element> {
   const supabase = await createClient();
