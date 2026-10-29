@@ -6,15 +6,15 @@ import type { BinInboxItem } from "@/app/actions/bin";
 
 function kindLabel(kind: BinInboxItem["kind"]): string {
   if (kind === "geral") return "Geral";
-  if (kind === "setor") return "Setor";
+  if (kind === "setor") return "Setores";
   if (kind === "rascunho") return "Rascunho";
   return "Completo";
 }
 
 export function BinInbox({
   items,
-  title = "BIN — o que o cliente enviou",
-  empty = "Nenhum envio ainda. Quando o cliente mandar o diagnóstico geral ou um setor, aparece aqui e no e-mail da equipe.",
+  title = "BIN por cliente",
+  empty = "Nenhum cliente no BIN ainda. Quando alguém começar a responder, a empresa aparece aqui.",
 }: {
   items: BinInboxItem[];
   title?: string;
@@ -27,9 +27,8 @@ export function BinInbox({
           <Radar className="h-5 w-5 text-text-2" />
           {title}
         </h2>
-        <p className="text-sm text-text-2 mt-1">
-          É da ficha do cliente que a Land Grow lê as respostas e faz o
-          diagnóstico.
+        <p className="mt-1 text-sm text-text-2">
+          Um diagnóstico por empresa. Clique para abrir a ficha.
         </p>
       </div>
       {items.length === 0 ? (
@@ -39,16 +38,16 @@ export function BinInbox({
       ) : (
         <ul className="divide-y divide-border rounded-lg border border-border bg-surface-1">
           {items.map((item) => (
-            <li key={`${item.orgSlug}-${item.kind}-${item.at}`}>
+            <li key={item.orgSlug}>
               <Link
                 href={item.href}
                 className="flex flex-wrap items-start justify-between gap-3 px-4 py-3 hover:bg-surface-2"
               >
                 <div>
                   <p className="text-sm font-medium">{item.orgName}</p>
-                  <p className="text-sm text-text-2 mt-0.5">{item.headline}</p>
+                  <p className="mt-0.5 text-sm text-text-2">{item.headline}</p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex shrink-0 items-center gap-2">
                   <Badge variant="outline">{kindLabel(item.kind)}</Badge>
                   <span className="text-xs text-text-2">
                     {formatDate(item.at, {

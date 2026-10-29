@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformRole } from "@/lib/supabase/platform-role-server";
@@ -12,6 +13,10 @@ import {
   binInboxItemsFromRows,
   binProgressFromPayload,
   binRouteLabel,
+  binShareSections,
+  buildBinReadingView,
+  packIdFor,
+  publicBinInstruments,
   getBinSection,
   pruneHiddenAnswers,
   readBinFlow,
@@ -22,7 +27,10 @@ import type {
   BinEventKind,
   BinFlowMeta,
   BinInboxItem,
+  BinInstrument,
+  BinReadingView,
   BinRoute,
+  BinShareSection,
 } from "@/lib/bin-v2";
 
 type Result<T> = { success: true; data: T } | { success: false; error: string };
@@ -34,6 +42,11 @@ export interface BinSummary {
   payload: Partial<BinAnswers> | null;
   route: BinRoute | null;
   flow: BinFlowMeta;
+  /** Leitura já calculada no servidor (o navegador não recebe o método). */
+  view: BinReadingView | null;
+  /** Questionário público da categoria (enunciados para a revisão do HQ). */
+  instrument: BinInstrument;
+  shareSections: BinShareSection[];
 }
 
 export type { BinInboxItem };
@@ -103,6 +116,9 @@ export async function getBinSummaryForOrg(
     payload: null,
     route: null,
     flow: readBinFlow(undefined),
+    view: null,
+    instrument: publicBinInstruments().servicos,
+    shareSections: binShareSections(),
   };
 
   const db = await createAdminClient();
@@ -144,6 +160,8 @@ export async function getBinSummaryForOrg(
   const metadata = (colecao?.metadata ?? undefined) as
     Record<string, unknown> | undefined;
   const answers = (payload ?? {}) as BinAnswers;
+  const route = resolveBinRoute(answers);
+  const flow = readBinFlow(metadata);
 
   return {
     success: true,
@@ -154,9 +172,49 @@ export async function getBinSummaryForOrg(
         : null,
       progresso: payload ? binProgressFromPayload(payload) : null,
       payload,
-      route: resolveBinRoute(answers),
-      flow: readBinFlow(metadata),
+      route,
+      flow,
+      view: buildBinReadingView(answers, route, flow, { staff: true }),
+      instrument: publicBinInstruments()[packIdFor(route)],
+      shareSections: binShareSections(),
     },
+  };
+}
+
+/**
+ * Leitura do BIN calculada no servidor a partir das respostas GRAVADAS do
+ * período (não de respostas enviadas pela tela — senão o cálculo viraria um
+ * oráculo para descobrir pesos testando combinações).
+ */
+export async function loadBinReadingView(
+  periodoId: string,
+): Promise<Result<BinReadingView>> {
+  if (!z.string().uuid().safeParse(periodoId).success) {
+    return { success: false, error: "Período inválido." };
+  }
+  const auth = await authorizePeriodo(periodoId);
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const db = await createAdminClient();
+  const { data: colecao } = await db
+    .from("colecoes")
+    .select("payload, metadata")
+    .eq("periodo_id", periodoId)
+    .eq("tipo", "formulario")
+    .neq("status", "descartado")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const answers = (colecao?.payload ?? {}) as BinAnswers;
+  const flow = readBinFlow(
+    (colecao?.metadata ?? undefined) as Record<string, unknown> | undefined,
+  );
+  return {
+    success: true,
+    data: buildBinReadingView(answers, resolveBinRoute(answers), flow, {
+      staff: auth.access.platformRole !== null,
+    }),
   };
 }
 
@@ -169,11 +227,12 @@ export async function listRecentBinEvents(): Promise<Result<BinInboxItem[]>> {
   const { data, error } = await db
     .from("colecoes")
     .select(
-      "metadata, payload, updated_at, periodos_dados!inner(cliente_id, clientes!inner(org_id))",
+      "metadata, payload, updated_at, status, periodos_dados!inner(cliente_id, clientes!inner(org_id))",
     )
     .eq("tipo", "formulario")
+    .neq("status", "descartado")
     .order("updated_at", { ascending: false })
-    .limit(80);
+    .limit(400);
 
   if (error) {
     return { success: false, error: error.message };
@@ -185,6 +244,7 @@ export async function listRecentBinEvents(): Promise<Result<BinInboxItem[]>> {
     metadata: Record<string, unknown> | null;
     payload: unknown;
     updated_at: string;
+    status: string | null;
     periodos_dados: NestedPeriodo | NestedPeriodo[];
   };
 
@@ -234,6 +294,7 @@ export async function listRecentBinEvents(): Promise<Result<BinInboxItem[]>> {
         orgName: org.name,
         orgSlug: org.slug,
         isInternal: Boolean(org.is_internal),
+        status: raw.status,
       },
     ];
   });

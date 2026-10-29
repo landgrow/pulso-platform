@@ -2,7 +2,7 @@ import type {
   FormularioBloco,
   FormularioCampo,
 } from "@/lib/formulario-questions";
-import { questionsInSection } from "./instrument";
+import { questionsInSection } from "./instrument-core";
 import type { BinInstrument, BinQuestion, BinSection } from "./types";
 
 function uiToCampoTipo(ui: BinQuestion["ui"]): FormularioCampo["tipo"] {

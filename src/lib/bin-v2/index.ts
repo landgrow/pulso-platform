@@ -59,6 +59,15 @@ export type { BinRoute, BinDirectedFormStatus } from "./route";
 export { binSectionToBloco, binQuestionToCampo } from "./to-blocos";
 export { BIN_SECTION_DESCRIPTIONS, binSectionColor } from "./section-meta";
 export {
+  binSharePath,
+  binShareSections,
+  binShareUrl,
+  isBinShareSection,
+  resolveBinShareSection,
+} from "./share";
+export type { BinShareSection } from "./share";
+export { shareSectionsOf, resolveShareSectionAmong } from "./share-core";
+export {
   emptyBinFlow,
   readBinFlow,
   appendBinEvent,
@@ -66,7 +75,7 @@ export {
 } from "./flow";
 export type { BinEventKind, BinFlowMeta, BinStaffEvent } from "./flow";
 export { formatBinAnswer } from "./format-answer";
-export { binInboxItemsFromRows } from "./inbox";
+export { binInboxItemFromRow, binInboxItemsFromRows } from "./inbox";
 export type { BinInboxItem, BinInboxKind, BinInboxRow } from "./inbox";
 export {
   BIN_FAIXA_COLORS,
@@ -91,3 +100,7 @@ export type {
   BinDeliverableKind,
   BinDeliverableSet,
 } from "./deliverables";
+export { buildBinReadingView } from "./view";
+export type { BinReadingView, BinSectorRow } from "./view";
+export { publicBinInstruments, toPublicInstrument } from "./public-instrument";
+export { setDefaultBinInstrument } from "./instrument-core";

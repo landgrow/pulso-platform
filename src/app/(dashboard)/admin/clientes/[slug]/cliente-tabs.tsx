@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useQueryParams } from "@/hooks/use-query-params";
 import {
   LayoutGrid,
@@ -12,6 +12,7 @@ import {
   UserPlus,
   FileText,
   FolderOpen,
+  Loader2,
 } from "lucide-react";
 import {
   Card,
@@ -30,6 +31,7 @@ import {
 import type { BinSummary } from "@/app/actions/bin";
 import type { MinSummary } from "@/app/actions/min";
 import { BinHqReview } from "@/components/bin/bin-hq-review";
+import { BinShareLinks } from "@/components/bin/bin-share-links";
 import { MinResults } from "@/components/admin/min-results";
 import { AtividadesShell } from "@/components/atividades/atividades-shell";
 import { MindMapCanvas } from "@/components/mindmaps/mind-map-canvas";
@@ -41,6 +43,9 @@ import { RemoveTeamMemberButton } from "./remove-team-member-button";
 import { ContratoForm } from "./contrato-form";
 import { EncerrarContratoButton } from "./encerrar-contrato-button";
 import { ClienteCadastroForm } from "../cliente-cadastro-form";
+import { getDriveFileUrl } from "@/app/actions/documentos-drive";
+import { CONTRATOS_DRIVE_FOLDER } from "@/types/clientes";
+import { toast } from "sonner";
 
 type Tab =
   | "visao-geral"
@@ -67,6 +72,7 @@ const TABS: Tab[] = [
 
 interface Props {
   orgId: string;
+  orgSlug: string;
   entry: ClientDirectoryEntry | null;
   bin: BinSummary | null;
   min: MinSummary | null;
@@ -79,6 +85,7 @@ interface Props {
 /** Abas do detalhe de cliente — Atividades e Mapa Mental usam os mesmos componentes do painel interno da Land Grow, só trocando a org. */
 export function AdminClienteTabs({
   orgId,
+  orgSlug,
   entry,
   bin,
   min,
@@ -181,12 +188,13 @@ export function AdminClienteTabs({
         )}
         {tab === "contratos" && (
           <ContratosTab
+            orgId={orgId}
             entry={entry}
             viewerRole={viewerRole}
             isEncerrado={isEncerrado}
           />
         )}
-        {tab === "bin" && <BinTab bin={bin} />}
+        {tab === "bin" && <BinTab bin={bin} slug={orgSlug} />}
         {tab === "min" && <MinTab min={min} />}
         {tab === "documentos" && <DocumentsDrive orgId={orgId} />}
         {tab === "atividades" && <AtividadesShell orgId={orgId} />}
@@ -219,7 +227,7 @@ function VisaoGeralTab({
       <CardHeader>
         <CardTitle className="text-lg">Dados gerais</CardTitle>
         <CardDescription>
-          Nome da empresa, dono e email. Usuários e contratos ficam nas abas ao
+          Nome do cliente, dono e email. Usuários e contratos ficam nas abas ao
           lado.
         </CardDescription>
       </CardHeader>
@@ -231,11 +239,12 @@ function VisaoGeralTab({
             ownerName={entry.owner_name ?? ""}
             ownerEmail={entry.owner_email ?? ""}
             hasOwnerAccess={Boolean(entry.owner_user_id)}
+            members={entry.members}
           />
         ) : (
           <div className="space-y-3 text-sm">
             <div>
-              <p className="text-xs text-text-2 mb-1">Empresa</p>
+              <p className="text-xs text-text-2 mb-1">Cliente</p>
               <p>{entry?.name ?? "—"}</p>
             </div>
             <div>
@@ -304,15 +313,19 @@ function UsuariosTab({
 }
 
 function ContratosTab({
+  orgId,
   entry,
   viewerRole,
   isEncerrado,
-}: Pick<Props, "entry" | "viewerRole" | "isEncerrado">): JSX.Element {
+}: Pick<Props, "orgId" | "entry" | "viewerRole" | "isEncerrado">): JSX.Element {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Contratos</CardTitle>
-        <CardDescription>Programa e valor deste cliente.</CardDescription>
+        <CardDescription>
+          Programa, valor, arquivo em Documentos/Contratos e registro no
+          Financeiro.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {!entry || entry.contratos.length === 0 ? (
@@ -326,17 +339,21 @@ function ContratosTab({
                 key={c.id}
                 className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-1 px-4 py-3"
               >
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium">
                     {PROGRAMA_LABELS[c.programa]}
                   </p>
                   <p className="text-xs text-text-2">
                     {formatCurrency(c.valor, c.moeda)} ·{" "}
+                    {c.recorrencia === "mensal" ? "mensal" : "único"} ·{" "}
                     {formatDate(c.data_inicio)}
                     {c.data_fim
                       ? ` → ${formatDate(c.data_fim)}`
                       : " → em andamento"}
                   </p>
+                  {c.arquivo_nome ? (
+                    <ContratoArquivoLink orgId={orgId} name={c.arquivo_nome} />
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge
@@ -363,7 +380,11 @@ function ContratosTab({
           !isEncerrado && (
             <div className="pt-4 border-t border-border">
               <p className="text-sm font-medium mb-3">Novo contrato</p>
-              <ContratoForm clienteId={entry.cliente_id} />
+              <ContratoForm
+                clienteId={entry.cliente_id}
+                orgId={orgId}
+                slug={entry.slug}
+              />
             </div>
           )}
       </CardContent>
@@ -371,7 +392,14 @@ function ContratosTab({
   );
 }
 
-function BinTab({ bin }: { bin: BinSummary | null }): JSX.Element {
+function BinTab({
+  bin,
+  slug,
+}: {
+  bin: BinSummary | null;
+  slug: string;
+}): JSX.Element {
+  const empty = !bin?.payload && (bin?.flow.events.length ?? 0) === 0;
   return (
     <Card>
       <CardHeader>
@@ -380,18 +408,25 @@ function BinTab({ bin }: { bin: BinSummary | null }): JSX.Element {
           <CardTitle className="text-lg">BIN</CardTitle>
         </div>
         <CardDescription>
-          Portões, inconsistências e os quatro entregáveis por setor já
-          respondido. Clique num setor para ler as respostas.
+          Copie o link de cada setor e envie para quem for responder. As
+          respostas aparecem aqui depois do envio.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        {!bin?.payload && (bin?.flow.events.length ?? 0) === 0 ? (
+      <CardContent className="space-y-5">
+        {empty ? (
           <p className="text-sm text-text-2">
-            Ainda sem respostas. Quando o cliente enviar o diagnóstico geral ou
-            um setor, o texto aparece nesta aba.
+            Ainda sem respostas. Envie os links por setor para o time do
+            cliente.
           </p>
-        ) : (
+        ) : null}
+        {empty && slug && bin ? (
+          <BinShareLinks slug={slug} sections={bin.shareSections} />
+        ) : null}
+        {!empty && bin?.view ? (
           <BinHqReview
+            view={bin.view}
+            instrument={bin.instrument}
+            shareSections={bin.shareSections}
             payload={bin?.payload ?? {}}
             route={bin?.route ?? null}
             flow={
@@ -403,8 +438,9 @@ function BinTab({ bin }: { bin: BinSummary | null }): JSX.Element {
               }
             }
             periodoLabel={bin?.periodoLabel ?? null}
+            {...(slug ? { shareSlug: slug } : {})}
           />
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -444,6 +480,47 @@ function MinTab({ min }: { min: MinSummary | null }): JSX.Element {
         />
       </CardContent>
     </Card>
+  );
+}
+
+function ContratoArquivoLink({
+  orgId,
+  name,
+}: {
+  orgId: string;
+  name: string;
+}): JSX.Element {
+  const [busy, setBusy] = useState(false);
+
+  async function open(): Promise<void> {
+    setBusy(true);
+    const result = await getDriveFileUrl({
+      orgId,
+      folder: CONTRATOS_DRIVE_FOLDER,
+      name,
+    });
+    setBusy(false);
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+    window.open(result.data.url, "_blank", "noopener,noreferrer");
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => void open()}
+      disabled={busy}
+      className="mt-1 inline-flex max-w-full items-center gap-1 text-xs text-primary hover:underline disabled:opacity-60"
+    >
+      {busy ? (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      ) : (
+        <FileText className="h-3 w-3" />
+      )}
+      <span className="truncate">{name}</span>
+    </button>
   );
 }
 

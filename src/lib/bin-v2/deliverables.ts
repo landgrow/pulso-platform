@@ -1,3 +1,5 @@
+import "server-only";
+
 import { selectedLabels } from "./answers";
 import type { BinGateResult } from "./gates";
 import { getBinQuestion, questionsInSection } from "./instrument";

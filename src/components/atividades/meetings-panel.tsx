@@ -6,6 +6,7 @@ import {
   CalendarClock,
   Loader2,
   Mail,
+  Pencil,
   Plus,
   Send,
   Trash2,
@@ -18,6 +19,7 @@ import { TaskModal } from "@/components/ui/task-modal";
 import {
   listMeetings,
   createMeeting,
+  updateMeeting,
   deleteMeeting,
   resendMeetingInvites,
   toggleChecklistItem,
@@ -41,6 +43,7 @@ export function MeetingsPanel({
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Meeting | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [novoItem, setNovoItem] = useState<Record<string, string>>({});
 
@@ -146,7 +149,13 @@ export function MeetingsPanel({
             </p>
           </div>
         )}
-        <Button size="sm" onClick={() => setOpen(true)}>
+        <Button
+          size="sm"
+          onClick={() => {
+            setEditing(null);
+            setOpen(true);
+          }}
+        >
           <Plus className="h-3.5 w-3.5 mr-1.5" />
           Nova reunião
         </Button>
@@ -182,16 +191,29 @@ export function MeetingsPanel({
                         ` · ${doneCount}/${m.checklist.length} tarefas`}
                     </p>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleDelete(m.id);
-                    }}
-                    className="shrink-0 text-text-2 hover:text-error"
-                    aria-label="Excluir reunião"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditing(m);
+                        setOpen(true);
+                      }}
+                      className="text-text-2 hover:text-text-1"
+                      aria-label="Editar reunião"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleDelete(m.id);
+                      }}
+                      className="text-text-2 hover:text-error"
+                      aria-label="Excluir reunião"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </button>
 
                 {expanded && (
@@ -333,10 +355,15 @@ export function MeetingsPanel({
 
       <NewMeetingSheet
         orgId={orgId}
+        meeting={editing}
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setEditing(null);
+        }}
         onCreated={() => {
           setOpen(false);
+          setEditing(null);
           void refresh();
         }}
       />
@@ -366,11 +393,13 @@ function reportInvites(r: InviteResult): void {
 
 function NewMeetingSheet({
   orgId,
+  meeting,
   open,
   onOpenChange,
   onCreated,
 }: {
   orgId: string;
+  meeting: Meeting | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
@@ -387,6 +416,26 @@ function NewMeetingSheet({
   const [enviar, setEnviar] = useState(true);
   const [people, setPeople] = useState<MeetingGuest[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    if (meeting) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- preenche o formulário ao abrir para editar
+      setTitulo(meeting.titulo);
+      setData(String(meeting.data).slice(0, 10));
+      setHora(meeting.hora_inicio ? meeting.hora_inicio.slice(0, 5) : "");
+      setDuracao(String(meeting.duracao_min ?? 60));
+      setLink(meeting.link ?? "");
+      setResumo(meeting.resumo ?? "");
+      setTopicos(meeting.topicos ?? "");
+      setGuests(meeting.convidados ?? []);
+      setEnviar(true);
+      setExtraEmail("");
+      return;
+    }
+    reset();
+     
+  }, [open, meeting]);
 
   // Quem pode ser convidado: equipe Land Grow + usuários da empresa (com e-mail).
   useEffect(() => {
@@ -440,8 +489,7 @@ function NewMeetingSheet({
       return;
     }
     setSaving(true);
-    const result = await createMeeting({
-      orgId,
+    const payload = {
       titulo: titulo.trim(),
       data,
       participantes: guests.map((g) => g.nome || g.email),
@@ -455,8 +503,11 @@ function NewMeetingSheet({
             convidados: guests,
             enviarConvite: enviar,
           }
-        : {}),
-    });
+        : { convidados: guests, enviarConvite: false }),
+    };
+    const result = meeting
+      ? await updateMeeting({ meetingId: meeting.id, ...payload })
+      : await createMeeting({ orgId, ...payload });
     setSaving(false);
     if (!result.success) {
       toast.error(result.error);
@@ -475,7 +526,9 @@ function NewMeetingSheet({
   return (
     <TaskModal open={open} onClose={() => onOpenChange(false)}>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto p-6 gap-4">
-        <h2 className="font-semibold text-foreground">Nova reunião</h2>
+        <h2 className="font-semibold text-foreground">
+          {meeting ? "Editar reunião" : "Nova reunião"}
+        </h2>
         <div className="space-y-4">
           <div className="space-y-1.5">
             <p className="text-xs text-text-2">Título</p>
@@ -646,7 +699,13 @@ function NewMeetingSheet({
             ) : canInvite && enviar ? (
               <Send className="mr-1.5 h-4 w-4" />
             ) : null}
-            {canInvite && enviar ? "Criar e enviar convite" : "Criar reunião"}
+            {meeting
+              ? canInvite && enviar
+                ? "Salvar e atualizar convite"
+                : "Salvar reunião"
+              : canInvite && enviar
+                ? "Criar e enviar convite"
+                : "Criar reunião"}
           </Button>
         </div>
       </div>

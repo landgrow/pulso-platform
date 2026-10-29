@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { ACTIVE_ORG_COOKIE, resolveHomePath } from "@/lib/auth/client-portal";
+import { hqPathRequiresStaff } from "@/lib/auth/hq-guard";
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   // `res` precisa ser reatribuível (let, não const) — o setAll abaixo troca a
@@ -52,7 +53,6 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     "/reset-password",
     "/auth/callback",
     "/auth/confirm",
-    "/preview",
     "/privacy",
     "/terms",
     "/robots.txt",
@@ -64,7 +64,6 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   ]);
   const isPublicRoute =
     publicRoutes.some((r) => pathname === r) ||
-    pathname.startsWith("/preview") ||
     pathname.startsWith("/api/cron");
 
   // Escape hatch do auto-login: /login?manual=1 sempre mostra a tela de
@@ -133,7 +132,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  // Autenticado em rota pública — vai para dashboard. Exceto home e /preview:
+  // Autenticado em rota pública — vai para dashboard. Exceto home:
   // o protótipo estático é só uma referência visual, não uma tela de auth —
   // não faz sentido expulsar quem está logado de lá pro dashboard.
   if (
@@ -143,7 +142,6 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     pathname !== "/login" &&
     pathname !== "/privacy" &&
     pathname !== "/terms" &&
-    !pathname.startsWith("/preview") &&
     !pathname.startsWith("/api/cron") &&
     !isManualLogin &&
     !stayWhenAuthenticated.has(pathname)
@@ -151,6 +149,20 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
+  }
+
+  if (user && hqPathRequiresStaff(pathname)) {
+    const home = await resolveHomePath(
+      supabase,
+      user.id,
+      request.cookies.get(ACTIVE_ORG_COOKIE)?.value ?? null,
+    );
+    if (home !== "/dashboard") {
+      const url = request.nextUrl.clone();
+      url.pathname = home;
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
   }
 
   return res;

@@ -53,13 +53,8 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // O protótipo estático em /preview carrega libs de CDN — fica fora da CSP.
-        source: "/((?!preview/).*)",
+        source: "/(.*)",
         headers: securityHeaders,
-      },
-      {
-        source: "/preview/kanban.html",
-        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
       },
     ];
   },

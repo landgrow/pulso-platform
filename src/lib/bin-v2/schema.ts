@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { specifyKey, selectedNeedsSpecify } from "./answers";
-import { binInstrument } from "./instrument";
+import { resolveInstrument } from "./instrument-core";
 import { isQuestionVisible } from "./visibility";
 import type { BinAnswers, BinInstrument, BinQuestion } from "./types";
 
@@ -36,7 +36,7 @@ function fieldSchema(question: BinQuestion): z.ZodTypeAny {
 export function parseBinAnswers(
   answers: BinAnswers,
   filter?: (question: BinQuestion) => boolean,
-  instrument: BinInstrument = binInstrument,
+  instrument: BinInstrument = resolveInstrument(),
 ): {
   success: boolean;
   errors: Record<string, string>;
@@ -69,7 +69,7 @@ export function parseBinAnswers(
 
 export function parseBinGeral(
   answers: BinAnswers,
-  instrument: BinInstrument = binInstrument,
+  instrument: BinInstrument = resolveInstrument(),
 ): {
   success: boolean;
   errors: Record<string, string>;
@@ -79,7 +79,7 @@ export function parseBinGeral(
 
 export function parseBinDirected(
   answers: BinAnswers,
-  instrument: BinInstrument = binInstrument,
+  instrument: BinInstrument = resolveInstrument(),
 ): {
   success: boolean;
   errors: Record<string, string>;
@@ -90,7 +90,7 @@ export function parseBinDirected(
 export function parseBinSection(
   sectionId: string,
   answers: BinAnswers,
-  instrument: BinInstrument = binInstrument,
+  instrument: BinInstrument = resolveInstrument(),
 ): {
   success: boolean;
   errors: Record<string, string>;

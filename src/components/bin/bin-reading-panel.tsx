@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Compass, Mountain, Radar, Route, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ChartFrame } from "@/components/charts/chart-frame";
@@ -8,21 +8,17 @@ import { BinScoreBars, BinSpiderChart } from "@/components/bin/bin-radar-chart";
 import {
   binFaixaColor,
   binSectionColor,
-  buildBinDeliverables,
-  buildBinReading,
   formatBinNota,
-  packFor,
-} from "@/lib/bin-v2";
+} from "@/lib/bin-v2/client";
 import type {
-  BinAnswers,
   BinDeliverable,
   BinDeliverableKind,
   BinDeliverableSet,
   BinFlowMeta,
   BinGateResult,
-  BinRoute,
+  BinReadingView,
   BinSectionReading,
-} from "@/lib/bin-v2";
+} from "@/lib/bin-v2/client";
 import { cn } from "@/lib/utils";
 
 const GATE_LABEL: Record<string, string> = {
@@ -251,28 +247,22 @@ function SectorHero({ row }: { row: BinSectionReading }): JSX.Element {
   );
 }
 
+/**
+ * Leitura do BIN (portões, radar, entregáveis). Recebe o resultado já
+ * calculado no servidor — o método (pesos, gatilhos) não vem para a tela.
+ */
 export function BinReadingPanel({
-  answers,
-  route,
+  view,
   flow,
   selectedSectionId,
   onSelectSection,
 }: {
-  answers: BinAnswers;
-  route: BinRoute | null;
+  view: BinReadingView;
   flow: BinFlowMeta;
   selectedSectionId?: string | null;
   onSelectSection?: (sectionId: string | null) => void;
 }): JSX.Element | null {
-  const pack = packFor(route);
-  const reading = useMemo(
-    () => buildBinReading(answers, pack, flow.setoresEnviados),
-    [answers, pack, flow.setoresEnviados],
-  );
-  const sets = useMemo(
-    () => buildBinDeliverables(answers, pack, reading),
-    [answers, pack, reading],
-  );
+  const { reading, sets } = view;
   const controlled = selectedSectionId !== undefined;
   const [internalScope, setInternalScope] = useState<string | null>(
     selectedSectionId ?? null,

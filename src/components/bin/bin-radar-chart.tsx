@@ -9,8 +9,12 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import { binFaixaColor, binSectionColor, formatBinNota } from "@/lib/bin-v2";
-import type { BinSectionReading } from "@/lib/bin-v2";
+import {
+  binFaixaColor,
+  binSectionColor,
+  formatBinNota,
+} from "@/lib/bin-v2/client";
+import type { BinSectionReading } from "@/lib/bin-v2/client";
 import { cn } from "@/lib/utils";
 
 type RadarRow = {

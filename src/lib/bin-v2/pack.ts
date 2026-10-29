@@ -1,3 +1,5 @@
+import "server-only";
+
 import { BIN_GATE_CATALOGS, BIN_GATILHOS } from "./catalog";
 import type { BinGateCatalog, BinTriggerRule } from "./catalog";
 import { BIN_INSTRUMENTS, packIdFor } from "./instrument";

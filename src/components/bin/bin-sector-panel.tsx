@@ -5,47 +5,29 @@ import {
   BIN_SECTION_DESCRIPTIONS,
   binFaixaTone,
   binSectionColor,
-  binSectionScoreLabel,
-  countBinSection,
-  packFor,
-  scoreBinSection,
-} from "@/lib/bin-v2";
-import type { BinAnswers, BinFlowMeta, BinRoute } from "@/lib/bin-v2";
+} from "@/lib/bin-v2/client";
+import type { BinFlowMeta, BinSectorRow } from "@/lib/bin-v2/client";
 import { cn } from "@/lib/utils";
 
+/** Cartões dos setores do BIN, com contagem e nota já calculadas no servidor. */
 export function BinSectorPanel({
-  answers,
+  rows: allRows,
   flow,
-  route = null,
   selectedId,
   onSelect,
   showScore = false,
 }: {
-  answers: BinAnswers;
+  rows: BinSectorRow[];
   flow: BinFlowMeta;
-  route?: BinRoute | null;
   selectedId?: string | null;
   onSelect?: (sectionId: string) => void;
   showScore?: boolean;
 }): JSX.Element {
-  const pack = packFor(route);
-  const rows = pack.instrument.sections
-    .map((section, index) => {
-      const { filled, total } = countBinSection(
-        section,
-        answers,
-        pack.instrument,
-      );
-      const score = showScore
-        ? scoreBinSection(section, answers, pack.instrument)
-        : null;
-      return { section, index, filled, total, score };
-    })
-    .filter((row) => {
-      if (row.section.id === "geral") return true;
-      if (row.filled > 0) return true;
-      return Boolean(flow.geralEnviadoEm);
-    });
+  const rows = allRows.filter((row) => {
+    if (row.section.id === "geral") return true;
+    if (row.filled > 0) return true;
+    return Boolean(flow.geralEnviadoEm);
+  });
 
   const filled = rows.reduce((n, row) => n + row.filled, 0);
   const total = rows.reduce((n, row) => n + row.total, 0);
@@ -60,39 +42,33 @@ export function BinSectorPanel({
         </p>
       </div>
       <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {rows.map((row) => {
-          const scoreLabel =
-            showScore && row.score ? binSectionScoreLabel(row.score) : null;
-          return (
-            <div
-              key={row.section.id}
-              className={cn(
-                "h-full rounded-xl",
-                selectedId === row.section.id ? "ring-2 ring-primary" : "",
-              )}
-            >
-              <DiagCard
-                index={row.index + 1}
-                indexLabel={row.section.id === "geral" ? "Etapa" : "Área"}
-                color={binSectionColor(row.section)}
-                title={row.section.title}
-                meta={BIN_SECTION_DESCRIPTIONS[row.section.id] ?? ""}
-                total={row.total}
-                respondidas={row.filled}
-                countLabel="pergs."
-                {...(showScore
-                  ? {
-                      score: scoreLabel ?? "",
-                      scoreClass: binFaixaTone(row.score?.faixa ?? null),
-                    }
-                  : {})}
-                {...(onSelect
-                  ? { onClick: () => onSelect(row.section.id) }
-                  : {})}
-              />
-            </div>
-          );
-        })}
+        {rows.map((row) => (
+          <div
+            key={row.section.id}
+            className={cn(
+              "h-full rounded-xl",
+              selectedId === row.section.id ? "ring-2 ring-primary" : "",
+            )}
+          >
+            <DiagCard
+              index={row.index + 1}
+              indexLabel={row.section.id === "geral" ? "Etapa" : "Área"}
+              color={binSectionColor(row.section)}
+              title={row.section.title}
+              meta={BIN_SECTION_DESCRIPTIONS[row.section.id] ?? ""}
+              total={row.total}
+              respondidas={row.filled}
+              countLabel="pergs."
+              {...(showScore
+                ? {
+                    score: row.scoreLabel ?? "",
+                    scoreClass: binFaixaTone(row.faixa),
+                  }
+                : {})}
+              {...(onSelect ? { onClick: () => onSelect(row.section.id) } : {})}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );

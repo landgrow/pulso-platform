@@ -1,3 +1,5 @@
+import "server-only";
+
 import { evaluateBinGates } from "./gates";
 import type { BinGatesReading } from "./gates";
 import { evaluateBinLastro } from "./lastro";

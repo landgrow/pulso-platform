@@ -1,3 +1,5 @@
+import "server-only";
+
 import gatilhosIndustria from "@/data/bin-v2/gatilhos-industria.json";
 import gatilhosServicos from "@/data/bin-v2/gatilhos-servicos.json";
 import gatilhosVarejo from "@/data/bin-v2/gatilhos-varejo.json";

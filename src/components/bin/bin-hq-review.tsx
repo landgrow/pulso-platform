@@ -5,32 +5,48 @@ import { Badge } from "@/components/ui/badge";
 import { BinReadingPanel } from "@/components/bin/bin-reading-panel";
 import { BinSectorPanel } from "@/components/bin/bin-sector-panel";
 import {
-  binAnswerScoreLabel,
   binEventHeadline,
   binRouteLabel,
-  binSectionScoreLabel,
   formatBinAnswer,
   getBinQuestion,
   isQuestionVisible,
-  packFor,
-  scoreBinSection,
-} from "@/lib/bin-v2";
-import type { BinAnswers, BinFlowMeta, BinRoute } from "@/lib/bin-v2";
+} from "@/lib/bin-v2/client";
+import type {
+  BinAnswers,
+  BinFlowMeta,
+  BinInstrument,
+  BinReadingView,
+  BinRoute,
+  BinShareSection,
+} from "@/lib/bin-v2/client";
 import { formatDate } from "@/lib/utils";
+import { BinShareLinks } from "@/components/bin/bin-share-links";
 
+/**
+ * Revisão do BIN no HQ. Notas, rótulos e leitura chegam calculados do servidor
+ * (`view`); o questionário é a versão pública, só para mostrar os enunciados.
+ */
 export function BinHqReview({
   payload,
   route,
   flow,
+  view,
+  instrument,
+  shareSections,
   periodoLabel,
+  shareSlug,
 }: {
   payload: Partial<BinAnswers>;
   route: BinRoute | null;
   flow: BinFlowMeta;
+  view: BinReadingView;
+  instrument: BinInstrument;
+  shareSections: BinShareSection[];
   periodoLabel: string | null;
+  shareSlug?: string;
 }): JSX.Element {
   const answers = payload as BinAnswers;
-  const pack = packFor(route);
+  const pack = { instrument };
   const [openId, setOpenId] = useState<string | null>(
     flow.geralEnviadoEm ? "geral" : null,
   );
@@ -38,7 +54,7 @@ export function BinHqReview({
     ? pack.instrument.sections.find((section) => section.id === openId)
     : undefined;
   const openScore = openSection
-    ? scoreBinSection(openSection, answers, pack.instrument)
+    ? (view.sectors.find((row) => row.section.id === openSection.id) ?? null)
     : null;
 
   return (
@@ -61,6 +77,10 @@ export function BinHqReview({
           <Badge variant="success">BIN completo enviado</Badge>
         ) : null}
       </div>
+
+      {shareSlug ? (
+        <BinShareLinks slug={shareSlug} sections={shareSections} />
+      ) : null}
 
       {flow.events.length > 0 ? (
         <ol className="space-y-2 text-sm">
@@ -96,17 +116,15 @@ export function BinHqReview({
       ) : null}
 
       <BinReadingPanel
-        answers={answers}
-        route={route}
+        view={view}
         flow={flow}
         selectedSectionId={openId === "geral" ? null : openId}
         onSelectSection={(sectionId) => setOpenId(sectionId ?? "geral")}
       />
 
       <BinSectorPanel
-        answers={answers}
+        rows={view.sectors}
         flow={flow}
-        route={route}
         selectedId={openId}
         showScore
         onSelect={(sectionId) =>
@@ -121,7 +139,7 @@ export function BinHqReview({
               <p className="text-sm font-medium">{openSection.title}</p>
               {openScore ? (
                 <p className="mt-0.5 text-sm text-text-2">
-                  {binSectionScoreLabel(openScore) ??
+                  {openScore.scoreLabel ??
                     "Diagnóstico geral não recebe nota. Essas perguntas são contexto."}
                 </p>
               ) : null}
@@ -149,11 +167,7 @@ export function BinHqReview({
               return null;
             }
             const answer = formatBinAnswer(question, answers);
-            const points = binAnswerScoreLabel(
-              question,
-              answers,
-              pack.instrument,
-            );
+            const points = view.answerScores?.[question.id] ?? null;
             return (
               <div key={id}>
                 <dt className="text-xs font-medium text-text-2">

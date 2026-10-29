@@ -1,3 +1,5 @@
+import "server-only";
+
 import { selectedOptions } from "./answers";
 import { getBinQuestion, questionsInSection } from "./instrument";
 import type { BinPack } from "./pack";

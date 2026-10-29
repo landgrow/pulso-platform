@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/layout/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/providers/toaster";
 import { AuthHashCatcher } from "@/components/auth/auth-hash-catcher";
+import { ConsoleWarning } from "@/components/security/console-warning";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: RootLayoutProps): JSX.Element {
         <ThemeProvider defaultTheme="system">
           <QueryProvider>
             <AuthHashCatcher />
+            <ConsoleWarning />
             {children}
             <Toaster />
           </QueryProvider>

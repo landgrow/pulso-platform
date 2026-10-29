@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Radar } from "lucide-react";
 import { toast } from "sonner";
-import { notifyBinSubmission } from "@/app/actions/bin";
+import { loadBinReadingView, notifyBinSubmission } from "@/app/actions/bin";
 import { upsertColecao } from "@/app/actions/colecoes";
 import { Button } from "@/components/ui/button";
 import { DiagCard } from "@/components/admin/diag-card";
@@ -12,7 +12,9 @@ import { AutoSaveIndicator } from "@/components/collections/formulario/auto-save
 import { FormBlocoArea } from "@/components/collections/formulario/form-bloco-area";
 import { ProgressBar } from "@/components/collections/formulario/progress-bar";
 import { BinReadingPanel } from "@/components/bin/bin-reading-panel";
+import { BinShareLinks } from "@/components/bin/bin-share-links";
 import { useAutoSave, type AutoSaveStatus } from "@/hooks/use-auto-save";
+import { useQueryParams } from "@/hooks/use-query-params";
 import {
   BIN_SECTION_DESCRIPTIONS,
   appendBinEvent,
@@ -24,53 +26,113 @@ import {
   getBinQuestion,
   getBinSection,
   isQuestionVisible,
-  packFor,
+  packIdFor,
   parseBinDirected,
   parseBinGeral,
   parseBinSection,
   pruneHiddenAnswers,
   readBinFlow,
   resolveBinRoute,
-} from "@/lib/bin-v2";
+  resolveShareSectionAmong,
+  setDefaultBinInstrument,
+  shareSectionsOf,
+} from "@/lib/bin-v2/client";
 import type {
   BinAnswers,
   BinEventKind,
   BinFlowMeta,
+  BinInstrument,
+  BinPackId,
+  BinReadingView,
   BinRoute,
-} from "@/lib/bin-v2";
+  BinShareSection,
+} from "@/lib/bin-v2/client";
 
 export function BinWorkspace({
   periodoId,
+  instruments,
+  shareSections,
+  initialView = null,
   initialPayload = {},
   initialMetadata,
   readOnly = false,
+  shareSlug,
+  initialSectionId = null,
 }: {
   periodoId: string;
+  /** Questionários PÚBLICOS (sem pesos/notas) — vêm prontos do servidor. */
+  instruments: Record<BinPackId, BinInstrument>;
+  shareSections: BinShareSection[];
+  /** Leitura calculada no servidor; atualizada após cada envio. */
+  initialView?: BinReadingView | null;
   initialPayload?: Partial<BinAnswers>;
   initialMetadata?: Record<string, unknown>;
   readOnly?: boolean;
+  shareSlug?: string;
+  initialSectionId?: string | null;
 }): JSX.Element {
-  const [sectionId, setSectionId] = useState<string | null>(null);
+  setDefaultBinInstrument(instruments.servicos);
+  const instrumentOf = (r: BinRoute | null): BinInstrument =>
+    instruments[packIdFor(r)];
+  const validSectionIds = useMemo(
+    () => new Set(shareSectionsOf(Object.values(instruments)).map((x) => x.id)),
+    [instruments],
+  );
+  const resolveBinShareSection = (
+    id: string | null | undefined,
+    geralEnviadoEm: string | null | undefined,
+  ): string | null =>
+    resolveShareSectionAmong(validSectionIds, id, geralEnviadoEm);
+  const [view, setView] = useState<BinReadingView | null>(initialView);
+  const refreshView = useCallback(async () => {
+    const result = await loadBinReadingView(periodoId);
+    if (result.success) setView(result.data);
+  }, [periodoId]);
+
+  const query = useQueryParams();
+  const [sectionId, setSectionId] = useState<string | null>(() =>
+    resolveBinShareSection(
+      initialSectionId ?? query.get("setor"),
+      readBinFlow(initialMetadata).geralEnviadoEm,
+    ),
+  );
+  const [flow, setFlow] = useState<BinFlowMeta>(() =>
+    readBinFlow(initialMetadata),
+  );
+
+  function openSection(id: string | null): void {
+    if (id === null && sectionId !== null) void refreshView();
+    const allowed =
+      id === null ? null : resolveBinShareSection(id, flow.geralEnviadoEm);
+    setSectionId(allowed);
+    query.update({ setor: allowed }, "push");
+  }
+
+  useEffect(() => {
+    function onPop(): void {
+      const setor = new URLSearchParams(window.location.search).get("setor");
+      setSectionId(resolveBinShareSection(setor, flow.geralEnviadoEm));
+    }
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [flow.geralEnviadoEm]);
   const [answers, setAnswers] = useState<BinAnswers>(
     () => initialPayload as BinAnswers,
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [flow, setFlow] = useState<BinFlowMeta>(() =>
-    readBinFlow(initialMetadata),
-  );
   const [submitting, setSubmitting] = useState(false);
 
   const persist = useCallback(
     async (payload: BinAnswers, nextFlow: BinFlowMeta) => {
       const nextRoute = resolveBinRoute(payload);
-      const pack = packFor(nextRoute);
+      const instrument = instruments[packIdFor(nextRoute)];
       const result = await upsertColecao({
         periodoId,
         tipo: "formulario",
-        payload: pruneHiddenAnswers(payload, pack.instrument),
+        payload: pruneHiddenAnswers(payload, instrument),
         metadata: {
           area: "formulario",
-          instrument: pack.instrument.instrument,
+          instrument: instrument.instrument,
           route: nextRoute,
           geralEnviadoEm: nextFlow.geralEnviadoEm,
           diagnosticoEnviadoEm: nextFlow.diagnosticoEnviadoEm,
@@ -83,7 +145,7 @@ export function BinWorkspace({
         throw new Error(result.error);
       }
     },
-    [periodoId],
+    [periodoId, instruments],
   );
 
   const notifyStaff = useCallback(
@@ -120,7 +182,7 @@ export function BinWorkspace({
   }, [answers, readOnly, save]);
 
   const route = resolveBinRoute(answers);
-  const pack = packFor(route);
+  const pack = { instrument: instrumentOf(route) };
   const directedStatus = route ? binDirectedFormStatus(route) : null;
   const geralSection = getBinSection("geral", pack.instrument);
   const directedSections = pack.instrument.sections.filter(
@@ -133,10 +195,7 @@ export function BinWorkspace({
         ...prev,
         [id]: value as BinAnswers[string],
       };
-      return pruneHiddenAnswers(
-        next,
-        packFor(resolveBinRoute(next)).instrument,
-      );
+      return pruneHiddenAnswers(next, instrumentOf(resolveBinRoute(next)));
     });
     setErrors((prev) => {
       if (!prev[id]) return prev;
@@ -171,8 +230,9 @@ export function BinWorkspace({
     try {
       await persist(answers, nextFlow);
       setFlow(nextFlow);
-      setSectionId(null);
+      openSection(null);
       notifyStaff("geral", "geral");
+      void refreshView();
       toast.success(`Categoria: ${binRouteLabel(nextRoute)}`);
     } catch {
       /* persist already toasts */
@@ -198,8 +258,9 @@ export function BinWorkspace({
     try {
       await persist(answers, nextFlow);
       setFlow(nextFlow);
-      setSectionId(null);
+      openSection(null);
       notifyStaff("setor", id);
+      void refreshView();
       toast.success(
         "Setor enviado. Radar, Compass, Horizon e Route Planner deste recorte já foram gerados.",
       );
@@ -227,6 +288,7 @@ export function BinWorkspace({
       await persist(answers, nextFlow);
       setFlow(nextFlow);
       notifyStaff("diagnostico");
+      void refreshView();
       toast.success("Diagnóstico enviado. A análise começa agora.");
     } catch {
       /* persist already toasts */
@@ -253,7 +315,7 @@ export function BinWorkspace({
           <div>
             <button
               type="button"
-              onClick={() => setSectionId(null)}
+              onClick={() => openSection(null)}
               className="mb-3 inline-flex items-center gap-1.5 text-sm text-text-2 hover:text-foreground"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -304,13 +366,15 @@ export function BinWorkspace({
     return (
       <DiagnosticoDisponivel
         route={route}
-        answers={answers}
+        view={view}
         flow={flow}
-        onOpenSection={(id) => setSectionId(id)}
+        shareSections={shareSections}
+        onOpenSection={(id) => openSection(id)}
         onBack={() =>
           setFlow((prev) => ({ ...prev, diagnosticoEnviadoEm: null }))
         }
         canReopen={!readOnly}
+        {...(shareSlug ? { shareSlug } : {})}
       />
     );
   }
@@ -335,8 +399,11 @@ export function BinWorkspace({
             total={geralCount.total}
             respondidas={geralCount.filled}
             countLabel="pergs."
-            onClick={() => setSectionId("geral")}
+            onClick={() => openSection("geral")}
           />
+        ) : null}
+        {shareSlug ? (
+          <BinShareLinks slug={shareSlug} sections={shareSections} />
         ) : null}
       </div>
     );
@@ -352,10 +419,13 @@ export function BinWorkspace({
         <Button
           type="button"
           variant="outline"
-          onClick={() => setSectionId("geral")}
+          onClick={() => openSection("geral")}
         >
           Revisar diagnóstico geral
         </Button>
+        {shareSlug ? (
+          <BinShareLinks slug={shareSlug} sections={shareSections} />
+        ) : null}
       </div>
     );
   }
@@ -370,10 +440,13 @@ export function BinWorkspace({
         <Button
           type="button"
           variant="outline"
-          onClick={() => setSectionId("geral")}
+          onClick={() => openSection("geral")}
         >
           Revisar diagnóstico geral
         </Button>
+        {shareSlug ? (
+          <BinShareLinks slug={shareSlug} sections={shareSections} />
+        ) : null}
       </div>
     );
   }
@@ -418,19 +491,22 @@ export function BinWorkspace({
             total={c.total}
             respondidas={c.filled}
             countLabel="pergs."
-            onClick={() => setSectionId(c.section.id)}
+            onClick={() => openSection(c.section.id)}
           />
         ))}
       </div>
-      {Object.keys(flow.setoresEnviados).length > 0 ? (
-        <BinReadingPanel answers={answers} route={route} flow={flow} />
+      {shareSlug ? (
+        <BinShareLinks slug={shareSlug} sections={shareSections} />
+      ) : null}
+      {Object.keys(flow.setoresEnviados).length > 0 && view ? (
+        <BinReadingPanel view={view} flow={flow} />
       ) : null}
       {!readOnly ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button
             type="button"
             variant="outline"
-            onClick={() => setSectionId("geral")}
+            onClick={() => openSection("geral")}
           >
             Revisar diagnóstico geral
           </Button>
@@ -470,18 +546,22 @@ function Header({
 
 function DiagnosticoDisponivel({
   route,
-  answers,
+  view,
   flow,
+  shareSections,
   onOpenSection,
   onBack,
   canReopen,
+  shareSlug,
 }: {
   route: BinRoute;
-  answers: BinAnswers;
+  view: BinReadingView | null;
   flow: BinFlowMeta;
+  shareSections: BinShareSection[];
   onOpenSection: (sectionId: string) => void;
   onBack: () => void;
   canReopen: boolean;
+  shareSlug?: string;
 }): JSX.Element {
   return (
     <div className="space-y-6">
@@ -494,14 +574,22 @@ function DiagnosticoDisponivel({
           entregáveis já estão calculados com o recorte respondido.
         </p>
       </div>
-      <BinReadingPanel answers={answers} route={route} flow={flow} />
-      <BinSectorPanel
-        answers={answers}
-        flow={flow}
-        route={route}
-        showScore
-        onSelect={onOpenSection}
-      />
+      {view ? (
+        <>
+          <BinReadingPanel view={view} flow={flow} />
+          <BinSectorPanel
+            rows={view.sectors}
+            flow={flow}
+            showScore
+            onSelect={onOpenSection}
+          />
+        </>
+      ) : (
+        <p className="text-sm text-text-2">Calculando a leitura…</p>
+      )}
+      {shareSlug ? (
+        <BinShareLinks slug={shareSlug} sections={shareSections} />
+      ) : null}
       {canReopen ? (
         <Button type="button" variant="outline" onClick={onBack}>
           Voltar às respostas

@@ -1,5 +1,5 @@
 import { isQuestionAnswered } from "./answers";
-import { binInstrument, questionsInSection } from "./instrument";
+import { questionsInSection, resolveInstrument } from "./instrument-core";
 import { isQuestionVisible } from "./visibility";
 import type { BinAnswers, BinInstrument, BinSection } from "./types";
 
@@ -7,7 +7,7 @@ export function calcBinProgress(
   answers: BinAnswers,
   instrument?: BinInstrument | null,
 ): number {
-  const inst = instrument ?? binInstrument;
+  const inst = resolveInstrument(instrument);
   const visible = inst.questions.filter(
     (q) => q.required && isQuestionVisible(q, answers, inst),
   );
@@ -29,7 +29,7 @@ export function countBinSection(
   answers: BinAnswers,
   instrument?: BinInstrument | null,
 ): { filled: number; total: number } {
-  const inst = instrument ?? binInstrument;
+  const inst = resolveInstrument(instrument);
   const questions = questionsInSection(section, inst).filter((q) =>
     isQuestionVisible(q, answers, inst),
   );

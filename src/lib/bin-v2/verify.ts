@@ -1,3 +1,5 @@
+import "server-only";
+
 import { isQuestionAnswered, selectedLabels } from "./answers";
 import type { BinFlagClass, BinTriggerRule } from "./catalog";
 import { getBinQuestion } from "./instrument";

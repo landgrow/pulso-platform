@@ -4,16 +4,27 @@ import { authorizeClientSlug } from "@/lib/auth/org-access";
 import { resolveBinPeriod } from "@/lib/collections/bin-period";
 import { BinWorkspace } from "@/components/bin/bin-workspace";
 import { PageHeader } from "@/components/ui/page-header";
-import type { BinAnswers } from "@/lib/bin-v2";
+import {
+  binShareSections,
+  buildBinReadingView,
+  publicBinInstruments,
+  readBinFlow,
+  resolveBinRoute,
+  resolveBinShareSection,
+  type BinAnswers,
+} from "@/lib/bin-v2";
 
 interface BinPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ setor?: string }>;
 }
 
 export default async function ClienteBinPage({
   params,
+  searchParams,
 }: BinPageProps): Promise<JSX.Element> {
   const { slug } = await params;
+  const { setor } = await searchParams;
   const auth = await authorizeClientSlug(slug);
   if (!auth.ok) notFound();
 
@@ -42,6 +53,17 @@ export default async function ClienteBinPage({
   const isReadOnly = closed || !auth.access.canWrite;
   const initialPayload = (colecao?.payload ?? {}) as Partial<BinAnswers>;
   const metadata = colecao?.metadata as Record<string, unknown> | undefined;
+  const flow = readBinFlow(metadata);
+  // Tela recebe a leitura pronta e o questionário sem pesos/notas.
+  const initialView =
+    Object.keys(flow.setoresEnviados).length > 0 || flow.diagnosticoEnviadoEm
+      ? buildBinReadingView(
+          initialPayload as BinAnswers,
+          resolveBinRoute(initialPayload as BinAnswers),
+          flow,
+          { staff: auth.access.platformRole !== null },
+        )
+      : null;
 
   return (
     <div className="space-y-6">
@@ -51,9 +73,14 @@ export default async function ClienteBinPage({
       />
       <BinWorkspace
         periodoId={period.periodId}
+        instruments={publicBinInstruments()}
+        shareSections={binShareSections()}
+        initialView={initialView}
         initialPayload={initialPayload}
         {...(metadata ? { initialMetadata: metadata } : {})}
         readOnly={isReadOnly}
+        shareSlug={slug}
+        initialSectionId={resolveBinShareSection(setor, flow.geralEnviadoEm)}
       />
     </div>
   );
